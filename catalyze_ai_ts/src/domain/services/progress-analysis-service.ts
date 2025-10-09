@@ -32,7 +32,25 @@ export class ProgressAnalysisService {
     // 目標総単元数（周回数を考慮）
     const targetUnits = plan.totalUnits * plan.effectiveRounds;
 
-    return new Progress(completedUnits, targetUnits);
+  // Diagnostic: if completedUnits exceeds targetUnits, log details for debugging
+  if (completedUnits > targetUnits) {
+    try {
+      // eslint-disable-next-line no-console
+      console.warn('[ProgressAnalysisService] completedUnits > targetUnits', {
+        planId: plan.id,
+        completedUnits,
+        targetUnits,
+        sessionsCount: sessions.length,
+        sampleSessions: sessions.slice(0, 5).map(s => ({ id: s.id, round: s.round, unitsCompleted: s.unitsCompleted, startUnit: s.startUnit, endUnit: s.endUnit })),
+      });
+    } catch (e) {
+      // ignore logging errors
+    }
+  }
+
+  // Defensive: ensure completedUnits does not exceed targetUnits to avoid Progress constructor error
+  const completedClamped = Math.max(0, Math.min(completedUnits, targetUnits));
+  return new Progress(completedClamped, targetUnits);
   }
 
   /**
@@ -53,7 +71,26 @@ export class ProgressAnalysisService {
       return sum + session.unitsCompleted;
     }, 0);
 
-    return new Progress(completedUnits, plan.totalUnits);
+  // Diagnostic: if completedUnits exceeds plan.totalUnits, log details for debugging
+  if (completedUnits > plan.totalUnits) {
+    try {
+      // eslint-disable-next-line no-console
+      console.warn('[ProgressAnalysisService] round completedUnits > plan.totalUnits', {
+        planId: plan.id,
+        round,
+        completedUnits,
+        planTotalUnits: plan.totalUnits,
+        roundSessionsCount: roundSessions.length,
+        sampleSessions: roundSessions.slice(0, 5).map(s => ({ id: s.id, unitsCompleted: s.unitsCompleted, startUnit: s.startUnit, endUnit: s.endUnit })),
+      });
+    } catch (e) {
+      // ignore logging errors
+    }
+  }
+
+  // Defensive clamp: completedUnits should not exceed plan.totalUnits
+  const completedClamped = Math.max(0, Math.min(completedUnits, plan.totalUnits));
+  return new Progress(completedClamped, plan.totalUnits);
   }
 
   /**

@@ -21,6 +21,7 @@ import { CalendarView } from '../components/CalendarView';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useDailyTasks, useStudyPlans, useUserSessions, useCreateSession, useTasksForDate, useUpcomingTasks } from '../hooks';
 import { useUpdateSession, useDeleteSession } from '../hooks/useStudySessions';
@@ -124,6 +125,7 @@ export const TodayScreen: React.FC<Props> = () => {
   const deleteSession = useDeleteSession();
 
   const progressAnalysisService = new ProgressAnalysisService();
+  const { isTablet } = useTheme();
 
   // リフレッシュ処理
   const onRefresh = React.useCallback(async () => {
@@ -317,6 +319,55 @@ export const TodayScreen: React.FC<Props> = () => {
       );
     }
 
+    // If tablet, show split view: left calendar + right today's tasks
+    if (isTablet) {
+      const [selectedDate, setSelectedDate] = useState(new Date());
+      const activeTasksForDate = todayTasks.filter((t) => startOfDay(t.date).getTime() === startOfDay(selectedDate).getTime());
+
+      return (
+        <View style={styles.splitContainer}>
+          <View style={styles.leftPaneCalendar}>
+            <CalendarView
+              selectedDate={selectedDate}
+              onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))}
+              markedDates={{}}
+            />
+          </View>
+          <View style={styles.rightPaneTasks}>
+            <View style={styles.header}>
+              <Text style={textStyles.h1}>{format(selectedDate, 'M月d日(E)', { locale: ja })}</Text>
+            </View>
+            <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} />}> 
+              <View style={styles.tasksSection}>
+                {activeTasksForDate.length === 0 ? (
+                  <EmptyState icon="calendar-outline" title={t('today.empty.title')} description={t('today.empty.description')} />
+                ) : (
+                  activeTasksForDate.map((task) => {
+                    const plan = plans.find((p) => p.id === task.planId);
+                    if (!plan) return null;
+                    // calculate progress simplification
+                    const taskSessions = sessions.filter((s) => s.planId === plan.id && s.date >= startOfDay(selectedDate));
+                    const completedUnits = taskSessions.reduce((sum, s) => sum + s.unitsCompleted, 0);
+                    const taskProgress = Math.min(completedUnits / task.units, 1);
+                    return (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        plan={plan}
+                        progress={taskProgress}
+                        achievability={progressAnalysisService.evaluateAchievability(plan, sessions)}
+                        onComplete={() => handleOpenSessionModal(task)}
+                      />
+                    );
+                  })
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <ScrollView
         style={styles.container}
@@ -406,6 +457,40 @@ export const TodayScreen: React.FC<Props> = () => {
       };
       return dates;
     }, [upcomingTasks, selectedDate]);
+
+    // Tablet: split view with calendar on left and upcoming list on right
+    if (isTablet) {
+      return (
+        <View style={styles.splitContainer}>
+          <View style={styles.leftPaneCalendar}>
+            <CalendarView selectedDate={selectedDate} onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))} markedDates={{}} />
+          </View>
+          <View style={styles.rightPaneTasks}>
+            <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: spacing.xl * 2 }}>
+              <View style={styles.tasksSection}>
+                {tasksForDateLoading ? (
+                  <ActivityIndicator size="large" color={colors.primary} />
+                ) : tasksForDate && tasksForDate.length > 0 ? (
+                  tasksForDate.map((item) => {
+                    const plan = plans.find((p) => p.id === item.planId);
+                    if (!plan) return null;
+                    // simplified task item
+                    const taskSessions = sessions.filter((s) => s.planId === plan.id && s.date >= startOfDay(selectedDate));
+                    const completedUnits = taskSessions.reduce((sum, s) => sum + s.unitsCompleted, 0);
+                    const taskProgress = Math.min(completedUnits / item.units, 1);
+                    return (
+                      <TaskCard key={item.id} task={item} plan={plan} progress={taskProgress} achievability={progressAnalysisService.evaluateAchievability(plan, sessions)} onComplete={() => handleOpenSessionModal(item)} />
+                    );
+                  })
+                ) : (
+                  <EmptyState icon="calendar-outline" title="この日のタスクはありません" description="別の日を選択するか、学習計画を追加しましょう" />
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <ScrollView
@@ -889,5 +974,24 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginHorizontal: spacing.sm,
+  },
+  // Split view for tablet: calendar on left, tasks on right
+  splitContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+  },
+  leftPaneCalendar: {
+    width: '36%',
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  rightPaneTasks: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  calendarContainer: {
+    padding: spacing.md,
   },
 });
