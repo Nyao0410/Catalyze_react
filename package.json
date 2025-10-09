@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@react-navigation/material-bottom-tabs": "^6.2.29",
+    "expo": "^54.0.12",
+    "react-native-paper": "^5.14.5",
+    "typescript": "~5.9.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/react": "~19.1.10"
+  }
+}
