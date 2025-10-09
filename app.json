@@ -2,8 +2,9 @@
   "expo": {
     "extra": {
       "eas": {
-        "projectId": "7803777b-e53c-465c-a3cb-bd7318ecbeaf"
+        "projectId": "211e34f6-b93c-4f8b-bde9-54514e4b960e"
       }
-    }
+    },
+    "owner": "nyao0410"
   }
 }

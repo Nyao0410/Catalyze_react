@@ -14,6 +14,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors, textStyles, spacing } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   title: string;
@@ -36,10 +37,12 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
   ...props
 }) => {
+  const { isTablet } = useTheme();
   const buttonStyles = [
     styles.button,
     styles[`button_${variant}`],
     styles[`button_${size}`],
+    isTablet && styles[`button_tablet_${size}`],
     fullWidth && styles.buttonFullWidth,
     disabled && styles.buttonDisabled,
     style,
@@ -49,6 +52,7 @@ export const Button: React.FC<ButtonProps> = ({
     styles.buttonText,
     styles[`buttonText_${variant}`],
     styles[`buttonText_${size}`],
+    isTablet && styles[`buttonText_tablet_${size}`],
     disabled && styles.buttonTextDisabled,
     textStyle,
   ];
@@ -115,6 +119,23 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
 
+  // Tablet variants (scaled up padding & minHeight)
+  button_tablet_small: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    minHeight: 44,
+  },
+  button_tablet_medium: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    minHeight: 56,
+  },
+  button_tablet_large: {
+  paddingVertical: spacing.lg,
+  paddingHorizontal: spacing['2xl'],
+    minHeight: 68,
+  },
+
   // Disabled
   buttonDisabled: {
     opacity: 0.5,
@@ -144,6 +165,15 @@ const styles = StyleSheet.create({
   },
   buttonText_large: {
     fontSize: 18,
+  },
+  buttonText_tablet_small: {
+    fontSize: 16,
+  },
+  buttonText_tablet_medium: {
+    fontSize: 18,
+  },
+  buttonText_tablet_large: {
+    fontSize: 20,
   },
   buttonTextDisabled: {
     // 親要素のopacityで対応

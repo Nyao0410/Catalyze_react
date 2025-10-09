@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Appearance, ColorSchemeName, useColorScheme } from 'react-native';
 import { getColors } from './colors';
+import { useResponsive } from '../hooks/useResponsive';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -8,6 +9,10 @@ type ThemeContextValue = {
   mode: ThemeMode;
   setMode: (m: ThemeMode) => void;
   colors: ReturnType<typeof getColors>;
+  // responsive
+  isTablet: boolean;
+  width: number;
+  height: number;
 };
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -35,7 +40,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const value = { mode, setMode, colors } as ThemeContextValue;
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  const responsive = useResponsive();
+  const valueWithResponsive = {
+    ...value,
+    isTablet: responsive.isTablet,
+    width: responsive.width,
+    height: responsive.height,
+  } as ThemeContextValue;
+
+  return <ThemeContext.Provider value={valueWithResponsive}>{children}</ThemeContext.Provider>;
 };
 
 export function useTheme() {

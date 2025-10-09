@@ -3,7 +3,7 @@
  * 学習計画一覧画面
  */
 
-import React, { useState, useLayoutEffect } from 'react';
+import React, { useState, useLayoutEffect, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { PlanStatus } from 'catalyze-ai';
 import { colors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { Button, PlanCard, EmptyState } from '../components';
+import { PlanDetailScreen } from './PlanDetailScreen';
 import { useStudyPlans } from '../hooks';
 import type { MainTabScreenProps } from '../navigation/types';
 import { t } from '../../locales';
@@ -27,12 +29,15 @@ type FilterType = 'all' | 'active' | 'completed';
 
 export const PlansScreen: React.FC<Props> = ({ navigation }) => {
   const [filter, setFilter] = useState<FilterType>('active');
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   
   // 仮のユーザーID（本来は認証から取得）
   const userId = 'user-001';
   
   // 学習計画を取得
   const { data: plans = [], isLoading, refetch, isRefetching } = useStudyPlans(userId);
+
+  const { isTablet } = useTheme();
 
   // フィルタリング
   const filteredPlans = plans.filter((plan) => {
@@ -64,7 +69,11 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
 
   // プラン詳細へ遷移
   const handlePlanPress = (planId: string) => {
-    navigation.navigate('PlanDetail', { planId });
+    if (isTablet) {
+      setSelectedPlanId(planId);
+    } else {
+      navigation.navigate('PlanDetail', { planId });
+    }
   };
 
   // フィルターボタン
@@ -91,6 +100,18 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
     (p) => p.status === PlanStatus.ACTIVE || p.status === PlanStatus.COMPLETED_TODAY
   ).length;
   const completedCount = plans.filter((p) => p.status === PlanStatus.COMPLETED).length;
+
+  // Ensure a selected plan on tablet
+  useEffect(() => {
+    if (isTablet) {
+      if (filteredPlans.length > 0 && !selectedPlanId) {
+        setSelectedPlanId(filteredPlans[0].id);
+      }
+    } else {
+      // Clear selection on non-tablet
+      setSelectedPlanId(null);
+    }
+  }, [isTablet, filteredPlans.map((p) => p.id).join(',' )]);
 
   // ...existing code...
 
@@ -128,6 +149,47 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
             )
           }
         />
+      ) : isTablet ? (
+        // Split view: left list + right detail
+        <View style={styles.splitContainer}>
+          <View style={styles.leftPane}>
+            <FlatList
+              data={filteredPlans}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={[styles.listItem, selectedPlanId === item.id && styles.listItemSelected]}>
+                  <PlanCard
+                    plan={item}
+                    completedUnits={0} // TODO: セッションデータから計算
+                    onPress={() => handlePlanPress(item.id)}
+                  />
+                </View>
+              )}
+              contentContainerStyle={styles.leftListContent}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefetching}
+                  onRefresh={refetch}
+                  tintColor={colors.primary}
+                />
+              }
+            />
+          </View>
+
+          <View style={styles.rightPane}>
+            {selectedPlanId ? (
+              // Render inline PlanDetailScreen by passing route and navigation props
+              <PlanDetailScreen
+                route={{ params: { planId: selectedPlanId } } as any}
+                navigation={navigation as any}
+              />
+            ) : (
+              <View style={styles.placeholderContainer}>
+                <Text style={textStyles.h3}>プランを選択してください</Text>
+              </View>
+            )}
+          </View>
+        </View>
       ) : (
         <FlatList
           data={filteredPlans}
@@ -219,5 +281,46 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  // Tablet grid
+  columnWrapper: {
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
+  },
+  gridItem: {
+    flex: 1,
+    marginBottom: spacing.md,
+    maxWidth: '48%',
+  },
+  // Split view styles
+  splitContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  leftPane: {
+    width: '40%',
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  rightPane: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  leftListContent: {
+    padding: spacing.md,
+  },
+  listItem: {
+    marginBottom: spacing.sm,
+  },
+  listItemSelected: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
+  },
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

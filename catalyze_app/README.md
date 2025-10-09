@@ -379,5 +379,49 @@ export function SettingsRow() {
         </View>
     );
 }
+
+
+## タブレット対応 (追加情報)
+
+このリポジトリにはタブレット画面（大きめの幅）での表示・操作性を改善するための基礎対応を追加しました。既存の挙動を壊さないように最小限の変更を行い、同様のパターンで他画面へ横展開できます。
+
+主な変更点（コード）:
+
+- `src/presentation/hooks/useResponsive.ts` を追加
+    - 画面サイズを監視し、`width`, `height`, `isTablet`, `isLarge` を提供します。
+    - 当面のブレークポイント: tablet >= 768px, large >= 1024px
+- `src/presentation/theme/ThemeProvider.tsx` を更新
+    - テーマコンテキストに `isTablet`, `width`, `height` を追加。`useTheme()` から一貫して参照できます。
+- `src/presentation/components/Button.tsx` を更新
+    - タブレットではパディング・最小高さ・フォントサイズをスケールするスタイルを追加（既存の props/variant/size は維持）。
+- `src/presentation/screens/PlansScreen.tsx` を更新
+    - タブレットで `FlatList` を 2 列のグリッド表示に切り替える処理を追加。列ラッパーとカード幅を調整。
+
+動作確認手順:
+
+1. TypeScript 型チェック
+
+```bash
+cd catalyze_app
+npx tsc --noEmit
+```
+
+2. Expo で起動して UI を確認
+
+```bash
+cd catalyze_app
+npx expo start --clear
+```
+
+- シミュレータ/実機の画面幅を 768px 以上にすると `Plans` 画面が 2 列表示になります。スマホ幅に戻すと 1 列に戻ります。
+- Button やカードのパディング、フォントサイズがタブレットでスケールすることを確認してください。
+
+今後の推奨作業:
+
+- `PlanCard` / `TaskCard` の内部レイアウト（タブレット用 variant）を整備して、カードの情報量を増やす
+- スプリットビュー（マスター/詳細の横並び）を Plans と PlanDetail に導入し、タブレットでの操作効率を改善する
+- `useResponsive` のブレークポイントを設定ファイル化してプロジェクトで一元管理する
+- 画面幅依存のレンダリングについてユニット/スナップショットテストを追加する
+
 ```
 
