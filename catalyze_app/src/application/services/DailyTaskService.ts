@@ -8,7 +8,7 @@ import { PlanningOrchestrator } from 'catalyze-ai/dist/algorithms/planning-orche
 import { NewPlanningOrchestrator } from 'catalyze-ai/dist/algorithms/new-planning-orchestrator';
 // Use the shared service instances from src/services so seeded mock data is visible
 import { studyPlanService, studySessionService, reviewItemService } from '../../services';
-import { startOfDay, addDays } from 'date-fns';
+import { startOfDay, addDays, format } from 'date-fns';
 
 /**
  * 日次タスクサービス
@@ -68,6 +68,67 @@ export class DailyTaskService {
       if (task) {
         tasks.push(task);
       }
+    }
+
+    // 追加: 指定日の復習アイテムを日別タスクリストに含める（ユニットをまとめて範囲化）
+    try {
+      const allReviewItems = await reviewItemService.getReviewItemsByUserId(userId);
+      const reviewsForDate = allReviewItems.filter((item) => startOfDay(item.nextReviewDate).getTime() === targetDate.getTime());
+
+      // グルーピング: planId ごとに unitNumber を集める
+      const groups: { [key: string]: number[] } = {};
+      reviewsForDate.forEach((r) => {
+        const key = `${r.planId}_${format(startOfDay(r.nextReviewDate), 'yyyy-MM-dd')}`;
+        groups[key] = groups[key] || [];
+        const n = Number(r.unitNumber);
+        if (!Number.isNaN(n)) groups[key].push(n);
+      });
+
+      const mergeUnitsToRanges = (units: number[]) => {
+        const sorted = Array.from(new Set(units)).sort((a, b) => a - b);
+        const ranges: Array<{ start: number; end: number; units: number }> = [];
+        let curStart: number | null = null;
+        let curEnd: number | null = null;
+        for (const u of sorted) {
+          if (curStart === null) {
+            curStart = u;
+            curEnd = u;
+            continue;
+          }
+          if (u === (curEnd as number) + 1) {
+            curEnd = u;
+          } else {
+            ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+            curStart = u;
+            curEnd = u;
+          }
+        }
+        if (curStart !== null) ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+        return ranges;
+      };
+
+      for (const key of Object.keys(groups)) {
+        const [planId, ...rest] = key.split('_');
+        const dateKey = rest.join('_');
+        const units = groups[key];
+        const ranges = mergeUnitsToRanges(units);
+        ranges.forEach((r, idx) => {
+          const reviewTask = new DailyTaskEntity({
+            id: `review-${planId}-${dateKey}-${r.start}-${r.end}-${idx}`,
+            planId,
+            date: new Date(dateKey),
+            startUnit: r.start,
+            endUnit: r.end,
+            units: r.units,
+            estimatedDuration: r.units * 5 * 60 * 1000,
+            round: 1,
+            advice: '復習しましょう！',
+          });
+          tasks.push(reviewTask);
+        });
+      }
+    } catch (e) {
+      try { console.warn('[DailyTaskService] failed to fetch/merge review items for date', e); } catch (er) {}
     }
 
     return tasks;
@@ -232,19 +293,56 @@ export class DailyTaskService {
       return nextDate >= today && nextDate <= windowEnd;
     });
 
-    for (const review of upcomingReviews) {
-      const reviewTask = new DailyTaskEntity({
-        id: `review-${review.id}`,
-        planId: review.planId,
-        date: review.nextReviewDate,
-        startUnit: review.unitNumber,
-        endUnit: review.unitNumber,
-        units: 1,
-        estimatedDuration: 5 * 60 * 1000, // 5分
-        round: 1,
-        advice: '復習しましょう！',
+    // Group upcomingReviews by planId + date and merge contiguous unitNumbers into ranges
+    const groups: { [key: string]: number[] } = {};
+    upcomingReviews.forEach((r) => {
+      const key = `${r.planId}_${format(startOfDay(r.nextReviewDate), 'yyyy-MM-dd')}`;
+      groups[key] = groups[key] || [];
+      if (typeof r.unitNumber === 'number') groups[key].push(r.unitNumber);
+    });
+
+    const mergeUnitsToRanges = (units: number[]) => {
+      const sorted = Array.from(new Set(units)).sort((a, b) => a - b);
+      const ranges: Array<{ start: number; end: number; units: number }> = [];
+      let curStart: number | null = null;
+      let curEnd: number | null = null;
+      for (const u of sorted) {
+        if (curStart === null) {
+          curStart = u;
+          curEnd = u;
+          continue;
+        }
+        if (u === (curEnd as number) + 1) {
+          curEnd = u;
+        } else {
+          ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+          curStart = u;
+          curEnd = u;
+        }
+      }
+      if (curStart !== null) ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+      return ranges;
+    };
+
+    for (const key of Object.keys(groups)) {
+      const [planId] = key.split('_');
+      const dateKey = key.split('_').slice(1).join('_');
+      const units = groups[key];
+      const ranges = mergeUnitsToRanges(units);
+      ranges.forEach((r, idx) => {
+        const reviewTask = new DailyTaskEntity({
+          id: `review-${planId}-${dateKey}-${r.start}-${r.end}-${idx}`,
+          planId,
+          date: new Date(dateKey),
+          startUnit: r.start,
+          endUnit: r.end,
+          units: r.units,
+          estimatedDuration: r.units * 5 * 60 * 1000,
+          round: 1,
+          advice: '復習しましょう！',
+        });
+        tasks.push(reviewTask);
       });
-      tasks.push(reviewTask);
     }
 
     // 日付順でソートして返す

@@ -163,18 +163,8 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
   // 一時停止/再開ハンドラー
   const handleTogglePause = () => {
     if (plan.status === PlanStatus.ACTIVE) {
-      Alert.alert(
-        '一時停止',
-        'この計画を一時停止しますか？',
-        [
-          { text: 'キャンセル', style: 'cancel' },
-          {
-            text: '一時停止',
-            style: 'destructive',
-            onPress: () => pausePlan.mutate(planId),
-          },
-        ]
-      );
+      // 確認ダイアログは不要なので即実行
+      pausePlan.mutate(planId);
     } else if (plan.status === PlanStatus.PAUSED) {
       resumePlan.mutate(planId);
     }
@@ -182,22 +172,15 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
 
   // 完了ハンドラー
   const handleComplete = () => {
-    Alert.alert(
-      '計画を完了',
-      'この計画を完了としてマークしますか？',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '完了',
-          onPress: () => completePlan.mutate(planId, {
-            onSuccess: () => {
-              Alert.alert('完了', '計画が完了しました！');
-              navigation.goBack();
-            },
-          }),
-        },
-      ]
-    );
+    // 確認ダイアログ・成功ダイアログは不要のため即実行
+    completePlan.mutate(planId, {
+      onSuccess: () => {
+        navigation.goBack();
+      },
+      onError: () => {
+        Alert.alert('エラー', '計画の完了に失敗しました');
+      },
+    });
   };
 
   // 進捗計算

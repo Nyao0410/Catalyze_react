@@ -16,7 +16,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import { TabView, TabBar } from 'react-native-tab-view';
 import { CalendarView } from '../components/CalendarView';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -54,12 +54,21 @@ interface SessionForm {
 export const TodayScreen: React.FC<Props> = () => {
   const userId = 'user-001'; // TODO: 実際のユーザーIDを取得
   const navigation = useNavigation();
-  const [index, setIndex] = useState(1);
-  const [routes] = useState([
-    { key: 'history', title: '履歴' },
-    { key: 'today', title: '今日' },
-    { key: 'upcoming', title: '予定' },
-  ]);
+  const { isTablet } = useTheme();
+  // default index: on phone show 'today' (index 1), on tablet show first tab (history)
+  const [index, setIndex] = useState<number>(isTablet ? 0 : 1);
+  const routes = React.useMemo(() => {
+    return isTablet
+      ? [
+          { key: 'history', title: '履歴' },
+          { key: 'upcoming', title: '予定' },
+        ]
+      : [
+          { key: 'history', title: '履歴' },
+          { key: 'today', title: '今日' },
+          { key: 'upcoming', title: '予定' },
+        ];
+  }, [isTablet]);
 
   // メニュー用のstate
   const [menuVisible, setMenuVisible] = useState(false);
@@ -87,9 +96,10 @@ export const TodayScreen: React.FC<Props> = () => {
 
   const handleDelete = () => {
     if (selectedSession) {
+      // 削除は破壊的操作なので確認ダイアログを表示してから実行する
       Alert.alert(
-        'セッションを削除',
-        'この学習セッションを削除しますか？',
+        '確認',
+        'このセッションを削除しますか？',
         [
           { text: 'キャンセル', style: 'cancel' },
           {
@@ -102,12 +112,14 @@ export const TodayScreen: React.FC<Props> = () => {
                   setSelectedSession(null);
                 },
                 onError: () => {
+                  // エラーはアラートで通知
                   Alert.alert('エラー', 'セッションの削除に失敗しました');
                 },
               });
             },
           },
-        ]
+        ],
+        { cancelable: true }
       );
     }
   };
@@ -120,12 +132,12 @@ export const TodayScreen: React.FC<Props> = () => {
   const { data: todayTasks = [], isLoading: todayTasksLoading, refetch: refetchToday } = useDailyTasks(userId);
   const { data: plans = [] } = useStudyPlans(userId);
   const { data: sessions = [] } = useUserSessions(userId);
+  const { data: dueReviewItems = [] } = useDueReviewItems(userId);
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
 
   const progressAnalysisService = new ProgressAnalysisService();
-  const { isTablet } = useTheme();
 
   // リフレッシュ処理
   const onRefresh = React.useCallback(async () => {
@@ -271,41 +283,121 @@ export const TodayScreen: React.FC<Props> = () => {
 
   // 今日のタスクコンポーネント
   const TodayTab = () => {
-    // 完了していないタスクのみ表示
-    const activeTasks = todayTasks
-      .map((task) => {
-        const plan = plans.find((p) => p.id === task.planId);
-        if (!plan) return null;
+    // 完了していないタスクと今日の復習タスクをマージして表示
+    const activeTasks = [
+      // 日次タスク（今日用）
+      ...todayTasks
+        .map((task) => {
+          const plan = plans.find((p) => p.id === task.planId);
+          if (!plan) return null;
 
-        // 進捗と達成可能性を計算
-        const planSessions = sessions.filter((s) => s.planId === plan.id);
-        const taskSessions = planSessions.filter((s) => task.round === undefined || s.round === task.round);
-        
-        // 範囲ベースの進捗計算: タスクの範囲とセッションの範囲の重複を計算
-        let completedUnitsInTaskRange = 0;
-        taskSessions.forEach((session) => {
-          // セッションに範囲情報がある場合は範囲ベースで計算
-          if (session.startUnit !== undefined && session.endUnit !== undefined) {
-            const overlapStart = Math.max(task.startUnit, session.startUnit);
-            const overlapEnd = Math.min(task.endUnit, session.endUnit);
-            if (overlapStart <= overlapEnd) {
-              completedUnitsInTaskRange += (overlapEnd - overlapStart + 1);
+          // 進捗と達成可能性を計算
+          const planSessions = sessions.filter((s) => s.planId === plan.id);
+          const taskSessions = planSessions.filter((s) => task.round === undefined || s.round === task.round);
+          
+          // 範囲ベースの進捗計算: タスクの範囲とセッションの範囲の重複を計算
+          let completedUnitsInTaskRange = 0;
+          taskSessions.forEach((session) => {
+            // セッションに範囲情報がある場合は範囲ベースで計算
+            if (session.startUnit !== undefined && session.endUnit !== undefined) {
+              const overlapStart = Math.max(task.startUnit, session.startUnit);
+              const overlapEnd = Math.min(task.endUnit, session.endUnit);
+              if (overlapStart <= overlapEnd) {
+                completedUnitsInTaskRange += (overlapEnd - overlapStart + 1);
+              }
+            } else {
+              // 範囲情報がない場合は従来通り unitsCompleted を使用（後方互換性）
+              completedUnitsInTaskRange += session.unitsCompleted;
             }
-          } else {
-            // 範囲情報がない場合は従来通り unitsCompleted を使用（後方互換性）
-            completedUnitsInTaskRange += session.unitsCompleted;
+          });
+          
+          const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);
+          const progress = progressAnalysisService.calculateProgress(plan, planSessions);
+          const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
+
+          return { type: 'daily' as const, task, plan, taskProgress, achievability };
+        })
+        .filter((item) => item !== null && item.taskProgress < 1),
+      // 復習アイテム->タスク変換（今日期限のもの）
+      ...(function buildReviewTasks() {
+        try {
+          // group by planId + date
+          const groups: { [key: string]: { planId: string; date: Date; units: number[] } } = {};
+          dueReviewItems.forEach((r) => {
+            const key = `${r.planId}_${startOfDay(new Date(r.nextReviewDate)).getTime()}`;
+            groups[key] = groups[key] || { planId: r.planId, date: startOfDay(new Date(r.nextReviewDate)), units: [] };
+            const n = Number(r.unitNumber);
+            if (!Number.isNaN(n)) groups[key].units.push(n);
+          });
+
+          const mergeUnitsToRanges = (units: number[]) => {
+            const sorted = Array.from(new Set(units)).sort((a, b) => a - b);
+            const ranges: Array<{ start: number; end: number; units: number }> = [];
+            let curStart: number | null = null;
+            let curEnd: number | null = null;
+            for (const u of sorted) {
+              if (curStart === null) {
+                curStart = u;
+                curEnd = u;
+                continue;
+              }
+              if (u === (curEnd as number) + 1) {
+                curEnd = u;
+              } else {
+                ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+                curStart = u;
+                curEnd = u;
+              }
+            }
+            if (curStart !== null) ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+            return ranges;
+          };
+
+          const out: any[] = [];
+          for (const key of Object.keys(groups)) {
+            const { planId, date, units } = groups[key];
+            const plan = plans.find((p) => p.id === planId);
+            if (!plan) continue;
+            const ranges = mergeUnitsToRanges(units);
+            const planSessions = sessions.filter((s) => s.planId === planId);
+            ranges.forEach((r, idx) => {
+              const reviewTask = {
+                id: `review-${planId}-${date.getTime()}-${r.start}-${r.end}-${idx}`,
+                planId,
+                date,
+                startUnit: r.start,
+                endUnit: r.end,
+                units: r.units,
+                estimatedMinutes: r.units * 5,
+                round: 1,
+                advice: t('today.review.advice') || '復習しましょう！',
+              } as any;
+
+              // progress: check sessions covering the whole range
+              let completed = 0;
+              planSessions.forEach((s) => {
+                if (s.startUnit !== undefined && s.endUnit !== undefined) {
+                  const overlapStart = Math.max(r.start, s.startUnit);
+                  const overlapEnd = Math.min(r.end, s.endUnit);
+                  if (overlapStart <= overlapEnd) completed += (overlapEnd - overlapStart + 1);
+                } else if (isToday(s.date)) {
+                  completed += s.unitsCompleted;
+                }
+              });
+
+              const taskProgress = Math.min(completed / r.units, 1);
+              const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
+
+              if (taskProgress < 1) out.push({ type: 'review' as const, task: reviewTask, plan, taskProgress, achievability });
+            });
           }
-        });
-        
-        const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);
-        const progress = progressAnalysisService.calculateProgress(plan, planSessions);
-        const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
 
-        console.log(`Task ${task.id}: round=${task.round}, range=${task.startUnit}-${task.endUnit}, completedInRange=${completedUnitsInTaskRange}, totalUnits=${task.units}, progress=${taskProgress}, sessions=${taskSessions.length}`);
-
-        return { task, plan, taskProgress, achievability };
-      })
-      .filter((item) => item !== null && item.taskProgress < 1);
+          return out;
+        } catch (e) {
+          return []; // on error fallback to no review tasks
+        }
+      })(),
+    ];
 
     // 統計サマリーを計算
     const totalUnits = activeTasks.reduce((sum, item) => sum + item!.task.units, 0);
@@ -320,9 +412,32 @@ export const TodayScreen: React.FC<Props> = () => {
     }
 
     // If tablet, show split view: left calendar + right today's tasks
-    if (isTablet) {
+  if (isTablet) {
       const [selectedDate, setSelectedDate] = useState(new Date());
       const activeTasksForDate = todayTasks.filter((t) => startOfDay(t.date).getTime() === startOfDay(selectedDate).getTime());
+      // merged tasks (daily + review) for the selected date
+      const mergedActiveTasksForDate = activeTasks.filter((it) => {
+        const taskObj = (it as any).task || it;
+        return startOfDay(taskObj.date).getTime() === startOfDay(selectedDate).getTime();
+      });
+
+      // load upcoming tasks to compute marked dates for the calendar on tablet
+      const { data: upcomingTasks = [] } = useUpcomingTasks(userId, 30);
+      const markedDates = React.useMemo(() => {
+        const dates: { [key: string]: any } = {};
+        upcomingTasks.forEach((task) => {
+          const dateKey = format(task.date, 'yyyy-MM-dd');
+          dates[dateKey] = { marked: true, dotColor: colors.primary };
+        });
+        const selectedKey = format(selectedDate, 'yyyy-MM-dd');
+        dates[selectedKey] = {
+          selected: true,
+          selectedColor: colors.primary,
+          marked: dates[selectedKey]?.marked || false,
+          dotColor: dates[selectedKey]?.dotColor || colors.primary,
+        };
+        return dates;
+      }, [upcomingTasks, selectedDate]);
 
       return (
         <View style={styles.splitContainer}>
@@ -330,7 +445,7 @@ export const TodayScreen: React.FC<Props> = () => {
             <CalendarView
               selectedDate={selectedDate}
               onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))}
-              markedDates={{}}
+              markedDates={markedDates}
             />
           </View>
           <View style={styles.rightPaneTasks}>
@@ -339,24 +454,21 @@ export const TodayScreen: React.FC<Props> = () => {
             </View>
             <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} />}> 
               <View style={styles.tasksSection}>
-                {activeTasksForDate.length === 0 ? (
+                {mergedActiveTasksForDate.length === 0 ? (
                   <EmptyState icon="calendar-outline" title={t('today.empty.title')} description={t('today.empty.description')} />
                 ) : (
-                  activeTasksForDate.map((task) => {
-                    const plan = plans.find((p) => p.id === task.planId);
+                  mergedActiveTasksForDate.map((item) => {
+                    const taskObj = (item as any).task || item;
+                    const plan = (item as any).plan || plans.find((p) => p.id === taskObj.planId);
                     if (!plan) return null;
-                    // calculate progress simplification
-                    const taskSessions = sessions.filter((s) => s.planId === plan.id && s.date >= startOfDay(selectedDate));
-                    const completedUnits = taskSessions.reduce((sum, s) => sum + s.unitsCompleted, 0);
-                    const taskProgress = Math.min(completedUnits / task.units, 1);
                     return (
                       <TaskCard
-                        key={task.id}
-                        task={task}
+                        key={taskObj.id}
+                        task={taskObj}
                         plan={plan}
-                        progress={taskProgress}
-                        achievability={progressAnalysisService.evaluateAchievability(plan, sessions)}
-                        onComplete={() => handleOpenSessionModal(task)}
+                        progress={(item as any).taskProgress ?? 0}
+                        achievability={(item as any).achievability ?? progressAnalysisService.evaluateAchievability(plan, sessions)}
+                        onComplete={() => handleOpenSessionModal(taskObj)}
                       />
                     );
                   })
@@ -417,16 +529,21 @@ export const TodayScreen: React.FC<Props> = () => {
               description={t('today.empty.description')}
             />
           ) : (
-            activeTasks.map((item) => (
-              <TaskCard
-                key={item!.task.id}
-                task={item!.task}
-                plan={item!.plan}
-                progress={item!.taskProgress}
-                achievability={item!.achievability}
-                onComplete={() => handleOpenSessionModal(item!.task)}
-              />
-            ))
+            activeTasks.map((item) => {
+              const taskObj = item!.task || item;
+              const plan = item!.plan || plans.find((p) => p.id === taskObj.planId);
+              if (!plan) return null;
+              return (
+                <TaskCard
+                  key={taskObj.id}
+                  task={taskObj}
+                  plan={plan}
+                  progress={item!.taskProgress ?? 0}
+                  achievability={item!.achievability ?? progressAnalysisService.evaluateAchievability(plan, sessions)}
+                  onComplete={() => handleOpenSessionModal(taskObj)}
+                />
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -463,7 +580,7 @@ export const TodayScreen: React.FC<Props> = () => {
       return (
         <View style={styles.splitContainer}>
           <View style={styles.leftPaneCalendar}>
-            <CalendarView selectedDate={selectedDate} onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))} markedDates={{}} />
+            <CalendarView selectedDate={selectedDate} onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))} markedDates={markedDates} />
           </View>
           <View style={styles.rightPaneTasks}>
             <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: spacing.xl * 2 }}>
@@ -574,11 +691,18 @@ export const TodayScreen: React.FC<Props> = () => {
     );
   };
 
-  const renderScene = SceneMap({
-    history: HistoryTab,
-    today: TodayTab,
-    upcoming: UpcomingTab,
-  });
+  const renderScene = ({ route }: any) => {
+    switch (route.key) {
+      case 'history':
+        return <HistoryTab />;
+      case 'today':
+        return <TodayTab />;
+      case 'upcoming':
+        return <UpcomingTab />;
+      default:
+        return null;
+    }
+  };
 
   const renderTabBar = (props: any) => (
     <TabBar
@@ -591,14 +715,17 @@ export const TodayScreen: React.FC<Props> = () => {
     />
   );
 
+  // Ensure index is within bounds if routes change (e.g., switching to tablet)
+  const clampedIndex = Math.max(0, Math.min(index, routes.length - 1));
+
   return (
     <View style={{ flex: 1 }}>
       <TabView
-        navigationState={{ index, routes }}
+        navigationState={{ index: clampedIndex, routes }}
         renderScene={renderScene}
         renderTabBar={renderTabBar}
         onIndexChange={setIndex}
-        initialLayout={{ width: 100 }}
+        initialLayout={{ width: Math.max(320, require('react-native').Dimensions.get('window').width) }}
       />
       
       {/* メニューModal */}

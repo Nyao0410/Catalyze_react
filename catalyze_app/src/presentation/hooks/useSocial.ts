@@ -124,3 +124,18 @@ export function useInitializeSocialMockData() {
     },
   });
 }
+
+/**
+ * フレンド削除
+ */
+export function useRemoveFriend() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, friendId }: { userId: string; friendId: string }) =>
+      SocialService.removeFriend(userId, friendId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['friends', variables!.userId] });
+    },
+  });
+}

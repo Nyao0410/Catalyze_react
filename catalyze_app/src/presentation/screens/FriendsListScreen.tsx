@@ -19,7 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, textStyles } from '../theme';
 import type { MainTabScreenProps } from '../navigation/types';
-import { useFriends, useAddFriend, useInitializeSocialMockData } from '../hooks';
+import { useFriends, useAddFriend, useInitializeSocialMockData, useRemoveFriend } from '../hooks';
+import { useTopToast } from '../hooks/useTopToast';
 
 const CURRENT_USER_ID = 'user-001';
 
@@ -39,6 +40,8 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
   const { data: friends = [], isLoading, refetch } = useFriends(CURRENT_USER_ID);
   const addFriendMutation = useAddFriend();
   const initMockData = useInitializeSocialMockData();
+  const removeFriend = useRemoveFriend();
+  const toast = useTopToast();
 
   const handleAddFriend = async () => {
     if (!friendName.trim()) {
@@ -61,10 +64,11 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
         friend: newFriend,
       });
 
-      setShowAddModal(false);
-      setFriendName('');
-      setFriendId('');
-      Alert.alert('成功', `${friendName}さんをフレンドに追加しました！`);
+  setShowAddModal(false);
+  setFriendName('');
+  setFriendId('');
+  // トーストで成功を表示
+  toast.show(`${friendName}さんをフレンドに追加しました`);
     } catch (error) {
       Alert.alert('エラー', 'フレンドの追加に失敗しました');
       console.error('Add friend error:', error);
@@ -74,8 +78,9 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
   const handleInitMockData = async () => {
     try {
       await initMockData.mutateAsync(CURRENT_USER_ID);
-      refetch();
-      Alert.alert('成功', 'モックデータを初期化しました');
+  refetch();
+  // トーストで成功を表示
+  toast.show('モックデータを初期化しました');
     } catch (error) {
       Alert.alert('エラー', 'モックデータの初期化に失敗しました');
       console.error('Init mock data error:', error);
@@ -155,20 +160,28 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
                   <TouchableOpacity 
                     style={styles.actionButton}
                     onPress={() => {
+                      // フレンド削除は確認ダイアログを表示して実行する
                       Alert.alert(
-                        'フレンド削除',
-                        `${friend.name}さんをフレンドから削除しますか?`,
+                        '確認',
+                        `${friend.name}さんをフレンドから削除しますか？`,
                         [
                           { text: 'キャンセル', style: 'cancel' },
-                          { 
-                            text: '削除', 
+                          {
+                            text: '削除',
                             style: 'destructive',
-                            onPress: () => {
-                              // TODO: 削除機能の実装
-                              Alert.alert('未実装', 'フレンド削除機能は未実装です');
+                            onPress: async () => {
+                              try {
+                                await removeFriend.mutateAsync({ userId: CURRENT_USER_ID, friendId: friend.id });
+                                toast.show(`${friend.name}さんを削除しました`);
+                                // refetch フレンド一覧
+                                // useFriends の refetch を available にするためはフック側で invalidate している
+                              } catch (error) {
+                                Alert.alert('エラー', 'フレンドの削除に失敗しました');
+                              }
                             }
-                          },
-                        ]
+                          }
+                        ],
+                        { cancelable: true }
                       );
                     }}
                   >

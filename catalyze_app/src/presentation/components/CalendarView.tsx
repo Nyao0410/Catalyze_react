@@ -3,6 +3,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { colors } from '../theme';
+import { buildMarkedDates } from './calendar-utils';
 
 // 日本語化設定（ファイル単位で一度だけ設定される想定）
 LocaleConfig.locales['ja'] = {
@@ -23,16 +24,8 @@ type Props = {
 export const CalendarView: React.FC<Props> = ({ selectedDate, onDayPress, markedDates }) => {
   const selectedKey = format(selectedDate, 'yyyy-MM-dd');
 
-  // merge ensure selected is present
-  const dates = {
-    ...markedDates,
-    [selectedKey]: {
-      selected: true,
-      selectedColor: colors.primary,
-      marked: markedDates[selectedKey]?.marked || false,
-      dotColor: markedDates[selectedKey]?.dotColor || colors.primary,
-    },
-  };
+  // build marked dates with debug logs
+  const dates = buildMarkedDates(Object.keys(markedDates).length ? Object.keys(markedDates).map(k => ({ date: new Date(k), ...markedDates[k] })) : [], new Date(selectedKey));
 
   return (
     <Calendar

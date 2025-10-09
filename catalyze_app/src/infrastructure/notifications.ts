@@ -37,11 +37,8 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     }
 
     if (finalStatus !== 'granted') {
-      Alert.alert(
-        '通知が無効です',
-        '通知を受け取るには、設定で通知を有効にしてください。',
-        [{ text: 'OK' }]
-      );
+      // ユーザー向けのポップアップは不要なためログ出力に変更
+      console.warn('Notifications not granted. Please enable notifications in settings if you want to receive them.');
       return false;
     }
 

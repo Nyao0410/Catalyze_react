@@ -1,5 +1,5 @@
 import { dailyTaskService } from '../DailyTaskService';
-import { studyPlanService, studySessionService } from '../../../services';
+import { studyPlanService, studySessionService, reviewItemService } from '../../../services';
 import { StudyPlanEntity } from 'catalyze-ai';
 
 jest.mock('../../../services', () => ({
@@ -8,6 +8,10 @@ jest.mock('../../../services', () => ({
   },
   studySessionService: {
     getSessionsByPlanId: jest.fn(),
+  },
+  reviewItemService: {
+    getReviewItemsByPlanId: jest.fn(),
+    getReviewItemsByUserId: jest.fn(),
   },
 }));
 
@@ -31,6 +35,8 @@ describe('DailyTaskService.getUpcomingTasks', () => {
 
     (studyPlanService.getActivePlans as jest.Mock).mockResolvedValue([mockPlan]);
     (studySessionService.getSessionsByPlanId as jest.Mock).mockResolvedValue([]);
+  (reviewItemService.getReviewItemsByPlanId as jest.Mock).mockResolvedValue([]);
+  (reviewItemService.getReviewItemsByUserId as jest.Mock).mockResolvedValue([]);
 
     const tasks = await dailyTaskService.getUpcomingTasks('user-1', 3);
     expect(Array.isArray(tasks)).toBe(true);

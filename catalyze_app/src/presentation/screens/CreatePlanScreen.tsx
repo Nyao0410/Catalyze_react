@@ -17,6 +17,7 @@ import {
 import { colors, spacing, textStyles } from '../theme';
 import { t } from '../../locales';
 import { useCreatePlan, useStudyPlan, useUpdatePlan } from '../hooks/useStudyPlans';
+import { useTopToast } from '../hooks/useTopToast';
 import { PlanDifficulty, PlanStatus, StudyPlanEntity } from 'catalyze-ai';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -26,6 +27,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CreatePlan' | 'EditPlan
 
 export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
   const { mutate: createPlan, isPending } = useCreatePlan();
+  const toast = useTopToast();
   const planId = route?.params?.planId as string | undefined;
   const { data: existingPlan } = useStudyPlan(planId || '');
   const { mutate: updatePlanMutate } = useUpdatePlan();
@@ -129,12 +131,13 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
   const props = { ...newPlan, id: existingPlan.id, studyDays: Array.from(existingPlan.studyDays ?? []) } as any;
   const updated = new StudyPlanEntity(props);
   updatePlanMutate(updated);
-      Alert.alert(t('createPlan.success'), t('createPlan.updateSuccessMessage') || t('createPlan.successMessage'));
+      //Alert.alert(t('createPlan.success'), t('createPlan.updateSuccessMessage') || t('createPlan.successMessage'));
       navigation.goBack();
     } else {
       createPlan(newPlan, {
         onSuccess: () => {
-          Alert.alert(t('createPlan.success'), t('createPlan.successMessage'));
+          // トーストを表示して戻る
+          try { toast.show(t('createPlan.successMessage') || '計画を作成しました'); } catch (e) { /* no-op */ }
           navigation.goBack();
         },
         onError: () => {

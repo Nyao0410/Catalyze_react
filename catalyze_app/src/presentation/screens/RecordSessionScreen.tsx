@@ -9,6 +9,7 @@ import { useCreateSession, useDailyTasksByPlan, useUpdateSession, useStudySessio
 import { StudySessionEntity, ProgressAnalysisService } from 'catalyze-ai';
 import { studyPlanService, studySessionService } from '../../services';
 import { t } from '../../locales';
+import { useTopToast } from '../hooks/useTopToast';
 
 type RouteProps = RootStackScreenProps<'RecordSession'>;
 
@@ -21,6 +22,7 @@ export const RecordSessionScreen: React.FC = () => {
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
   const addPoints = useAddPoints();
+  const toast = useTopToast();
 
   // 編集モードかどうか
   const isEditMode = !!sessionId;
@@ -112,8 +114,7 @@ export const RecordSessionScreen: React.FC = () => {
           round: round ?? existingSession.round,
         });
 
-        await updateSession.mutateAsync(updatedSession);
-        Alert.alert(t('common.ok'), 'セッションが更新されました');
+  await updateSession.mutateAsync(updatedSession);
       } else {
         // 新規作成の場合
         const session = new StudySessionEntity({
@@ -130,23 +131,20 @@ export const RecordSessionScreen: React.FC = () => {
 
         await createSession.mutateAsync(session);
         
-        // ポイントを計算して付与
-        // 基本ポイント: 時間 × パフォーマンス係数 × 10
-        const performanceFactor = session.performanceFactor;
-        const basePoints = Math.floor(duration * performanceFactor * 10);
-        const points = Math.max(1, basePoints); // 最低1ポイント
-        
+        // ポイント付与は行うが、成功ダイアログは表示しない
         try {
+          const performanceFactor = session.performanceFactor;
+          const basePoints = Math.floor(duration * performanceFactor * 10);
+          const points = Math.max(1, basePoints);
           await addPoints.mutateAsync({ userId, points });
-          Alert.alert(
-            t('common.ok'), 
-            `${t('today.sessionRecord.success')}\n+${points}ポイント獲得！`
-          );
         } catch (error) {
           console.error('Failed to add points:', error);
-          Alert.alert(t('common.ok'), t('today.sessionRecord.success'));
         }
       }
+      // 成功時はトーストを表示して戻る
+      try {
+        toast.show(isEditMode ? 'セッションが更新されました' : t('today.sessionRecord.success'));
+      } catch (e) {}
       navigation.goBack();
     } catch (error) {
       Alert.alert(t('common.error'), isEditMode ? 'セッションの更新に失敗しました' : t('today.sessionRecord.error'));

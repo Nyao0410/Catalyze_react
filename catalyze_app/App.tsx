@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RootNavigator } from './src/presentation/navigation';
 import { seedMockData } from './src/infrastructure/mockData';
 import { ThemeProvider } from './src/presentation/theme/ThemeProvider';
+import { TopToastProvider } from './src/presentation/hooks/useTopToast';
 import './src/locales'; // i18nの初期化
 import { t } from './src/locales';
 import {
@@ -99,7 +100,9 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
-          <AppContent />
+          <TopToastProvider>
+            <AppContent />
+          </TopToastProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </SafeAreaProvider>

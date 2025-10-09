@@ -28,6 +28,7 @@ import {
   cancelAllNotifications,
   sendTestNotification,
 } from '../../infrastructure/notifications';
+import { useTopToast } from '../hooks/useTopToast';
 
 const CURRENT_USER_ID = 'user-001';
 const CURRENT_USER_EMAIL = 'user@studynext.app';
@@ -68,6 +69,8 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
     }
   }, [profile]);
 
+  const toast = useTopToast();
+
   const avatarOptions = ['👨‍💼', '👩‍💼', '👨‍🎓', '👩‍🎓', '🧑‍💻', '👨', '👩', '🧔', '👱‍♀️', '👨‍🔬', '👩‍🔬', '🧑'];
 
   const handleSaveProfile = () => {
@@ -79,7 +82,8 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
       {
         onSuccess: () => {
           setIsEditing(false);
-          Alert.alert('保存完了', 'プロフィールを更新しました');
+          // トーストで成功を表示
+          toast.show('プロフィールを更新しました');
         },
       }
     );

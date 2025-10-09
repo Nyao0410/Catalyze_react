@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, textStyles } from '../theme';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useFriends, useCreateCooperationGoal } from '../hooks';
+import { useTopToast } from '../hooks/useTopToast';
 
 const CURRENT_USER_ID = 'user-001';
 
@@ -39,6 +40,7 @@ export const CreateCooperationGoalScreen: React.FC<MainTabScreenProps<'Social'>>
 
   const { data: friends = [], isLoading: isLoadingFriends } = useFriends(CURRENT_USER_ID);
   const createGoalMutation = useCreateCooperationGoal();
+  const toast = useTopToast();
 
   const toggleFriendSelection = (friendId: string) => {
     setSelectedFriends(prev => 
@@ -72,12 +74,10 @@ export const CreateCooperationGoalScreen: React.FC<MainTabScreenProps<'Social'>>
         deadline,
       };
 
-      await createGoalMutation.mutateAsync(goal);
-      Alert.alert(
-        '成功',
-        '協力目標を作成しました！',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
+  await createGoalMutation.mutateAsync(goal);
+  // 成功時は画面上部にトーストを表示して戻る
+  toast.show('協力目標を作成しました');
+  navigation.goBack();
     } catch (error) {
       Alert.alert('エラー', '協力目標の作成に失敗しました');
       console.error('Create goal error:', error);

@@ -84,8 +84,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           <Text style={styles.title} numberOfLines={1}>
             {plan.title}
           </Text>
-          <View style={[styles.badge, { backgroundColor: achievabilityColor }]}>
-            <Text style={styles.badgeText}>{achievabilityLabel}</Text>
+          <View style={styles.rightBadges}>
+            {String(task.id).startsWith('review-') && (
+              <View style={styles.reviewLabel}>
+                <Text style={styles.reviewLabelText}>復習</Text>
+              </View>
+            )}
+            <View style={[styles.badge, { backgroundColor: achievabilityColor }]}>
+              <Text style={styles.badgeText}>{achievabilityLabel}</Text>
+            </View>
           </View>
         </View>
         {task.round && task.round > 1 && (
@@ -167,6 +174,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.xs,
+  },
+  rightBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  reviewLabel: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+  },
+  reviewLabelText: {
+    ...textStyles.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 11,
   },
   title: {
     ...textStyles.h3,
