@@ -7,6 +7,16 @@
       "android": {
         "buildType": "apk"
       }
+      ,
+      "hooks": {
+        "prePublish": [],
+        "preBuild": [
+          {
+            "run": "bash ./scripts/prebuild-copy-firebase-config.sh",
+            "description": "Generate firebaseConfig.ts from env or example"
+          }
+        ]
+      }
     }
   }
 }
