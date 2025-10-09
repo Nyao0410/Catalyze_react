@@ -7,6 +7,7 @@ const firebaseConfig = {
   storageBucket: 'YOUR_PROJECT.appspot.com',
   messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
   appId: 'YOUR_APP_ID',
+  measurementId: 'G-XXXXXXXXXX',
 };
 
 export default firebaseConfig;
