@@ -1,5 +1,5 @@
 node_modules/
-dist/
+# dist/  <-- temporarily tracked to allow bundling in catalyze_app (committed build artifacts)
 coverage/
 *.log
 .DS_Store
