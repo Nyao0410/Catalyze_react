@@ -28,7 +28,32 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 }) => {
   // ...existing code...
   // 進捗率の計算
-  const progressPercentage = plan.totalUnits > 0 ? completedUnits / plan.totalUnits : 0;
+  // 表示用の調整: completedUnits が totalUnits を超える場合は周回数を繰り上げて
+  // カードには「現在の周回内での完了単元数」を表示する。
+  // 例: totalUnits=200, completedUnits=374 -> completedFullRounds=1, remainder=174 -> 表示: 174/200, round=2
+  const totalUnits = plan.totalUnits;
+  const safeCompleted = Math.max(0, completedUnits || 0);
+  let displayCompletedUnits = safeCompleted;
+  let displayRound = plan.rounds ?? 1;
+
+  if (totalUnits > 0) {
+    const fullRounds = Math.floor(safeCompleted / totalUnits);
+    const remainder = safeCompleted % totalUnits;
+    if (remainder === 0 && fullRounds > 0) {
+      // ちょうど区切りがいい場合はその周回が完了している扱い
+      displayCompletedUnits = totalUnits;
+      displayRound = fullRounds;
+    } else {
+      displayCompletedUnits = remainder;
+      displayRound = fullRounds + 1;
+    }
+  }
+
+  // 表示上の targetRounds は、完了数に応じて少なくとも displayRound 以上にする
+  const displayTargetRounds = Math.max(plan.targetRounds ?? 1, displayRound);
+  // 表示上は周回番号を1引く（初回表示を0にする要望に対応）
+  const shownRound = Math.max(0, displayRound - 1);
+  const progressPercentage = totalUnits > 0 ? displayCompletedUnits / totalUnits : 0;
 
   // ステータスに応じた表示
   const getStatusInfo = () => {
@@ -113,13 +138,13 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           <View style={styles.statItem}>
             <Ionicons name="book-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.statText}>
-              {completedUnits}/{plan.totalUnits}{plan.unit}
+              {displayCompletedUnits}/{plan.totalUnits}{plan.unit}
             </Text>
           </View>
           <View style={styles.statItem}>
             <Ionicons name="reload-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.statText}>
-              {plan.rounds}/{plan.targetRounds}{t('plans.card.rounds')}
+              {shownRound}/{displayTargetRounds}{t('plans.card.rounds')}
             </Text>
           </View>
           <View style={styles.statItem}>

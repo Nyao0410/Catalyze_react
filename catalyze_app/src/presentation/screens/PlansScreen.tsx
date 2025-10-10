@@ -19,7 +19,7 @@ import { colors, spacing, textStyles } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
 import { Button, PlanCard, EmptyState } from '../components';
 import { PlanDetailScreen } from './PlanDetailScreen';
-import { useStudyPlans } from '../hooks';
+import { useStudyPlans, useUserSessions } from '../hooks';
 import type { MainTabScreenProps } from '../navigation/types';
 import { t } from '../../locales';
 
@@ -36,6 +36,8 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
   
   // 学習計画を取得
   const { data: plans = [], isLoading, refetch, isRefetching } = useStudyPlans(userId);
+  // ユーザーの全セッションを取得してプラン毎に集計
+  const { data: userSessions = [] } = useUserSessions(userId as any);
 
   const { isTablet } = useTheme();
 
@@ -101,6 +103,18 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
   ).length;
   const completedCount = plans.filter((p) => p.status === PlanStatus.COMPLETED).length;
 
+  // sessions をプランごとに集計して完了単元数を求める
+  // useStudySessions の既存フックは planId を必須にしているため、
+  // 上では空の呼び出しをしているが、プロダクションコードでは useUserSessions を使う方が望ましい。
+  // ここでは簡易的に userSessions が配列として返る前提で集計する。
+  const completedUnitsByPlan: Record<string, number> = {};
+  if (Array.isArray(userSessions)) {
+    userSessions.forEach((s: any) => {
+      if (!s || !s.planId) return;
+      completedUnitsByPlan[s.planId] = (completedUnitsByPlan[s.planId] || 0) + (s.unitsCompleted || 0);
+    });
+  }
+
   // Ensure a selected plan on tablet
   useEffect(() => {
     if (isTablet) {
@@ -158,11 +172,11 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <View style={[styles.listItem, selectedPlanId === item.id && styles.listItemSelected]}>
-                  <PlanCard
-                    plan={item}
-                    completedUnits={0} // TODO: セッションデータから計算
-                    onPress={() => handlePlanPress(item.id)}
-                  />
+                    <PlanCard
+                      plan={item}
+                      completedUnits={completedUnitsByPlan[item.id] || 0}
+                      onPress={() => handlePlanPress(item.id)}
+                    />
                 </View>
               )}
               contentContainerStyle={styles.leftListContent}
@@ -197,7 +211,7 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
           renderItem={({ item }) => (
             <PlanCard
               plan={item}
-              completedUnits={0} // TODO: セッションデータから計算
+              completedUnits={completedUnitsByPlan[item.id] || 0}
               onPress={() => handlePlanPress(item.id)}
             />
           )}

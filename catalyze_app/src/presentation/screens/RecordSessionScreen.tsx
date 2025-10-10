@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import Slider from '@react-native-community/slider';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors, spacing, textStyles } from '../theme';
 import { addDays } from 'date-fns';
 import type { RootStackScreenProps } from '../navigation/types';
-import { useCreateSession, useDailyTasksByPlan, useUpdateSession, useStudySession, useAddPoints } from '../hooks';
+import { useCreateSession, useDailyTasksByPlan, useUpdateSession, useStudySession } from '../hooks';
 import { StudySessionEntity, ProgressAnalysisService } from 'catalyze-ai';
 import { studyPlanService, studySessionService } from '../../services';
 import { t } from '../../locales';
@@ -22,7 +22,6 @@ export const RecordSessionScreen: React.FC = () => {
   const userId = 'user-001';
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
-  const addPoints = useAddPoints();
   const toast = useTopToast();
 
   // 編集モードかどうか
@@ -33,6 +32,7 @@ export const RecordSessionScreen: React.FC = () => {
   const existingSession = existingSessionQuery.data;
 
   const [unitsCompleted, setUnitsCompleted] = useState('');
+  const [unitsInput, setUnitsInput] = useState(''); // ユーザーが入力する「やった単元数」
   const [durationMinutes, setDurationMinutes] = useState('');
   const [concentration, setConcentration] = useState(0.8);
   const [difficulty, setDifficulty] = useState(3);
@@ -72,36 +72,50 @@ export const RecordSessionScreen: React.FC = () => {
     } else if (task) {
       // 新規作成の場合、タスクのデフォルト値をセット
       setUnitsCompleted(String(task.units));
+      setUnitsInput(String(task.units ?? 1));
       // タイマーからの経過時間があればそれを使う
       setDurationMinutes(elapsedMinutes ? String(elapsedMinutes) : String(task.estimatedMinutes));
       setRound(task.round);
+    } else if (paramStartUnit !== undefined && paramEndUnit !== undefined) {
+      // タイマーから直接来た場合、startUnitとendUnitから完了単元数を計算
+      const calculatedUnits = paramEndUnit - paramStartUnit + 1;
+      setUnitsCompleted(String(calculatedUnits));
+      setUnitsInput(String(calculatedUnits));
+      setDurationMinutes(elapsedMinutes ? String(elapsedMinutes) : '25');
     } else if (elapsedMinutes) {
       // タスクはないがタイマーからの経過時間がある場合
       setDurationMinutes(String(elapsedMinutes));
     }
-  }, [task, existingSession, isEditMode, elapsedMinutes]);
+  }, [task, existingSession, isEditMode, elapsedMinutes, paramStartUnit, paramEndUnit]);
 
-  // compute updated end unit if task has startUnit and user entered units
-  const computeUpdatedEnd = (): number | null => {
-    if (!task || typeof task.startUnit !== 'number') return null;
-    const units = parseInt(unitsCompleted);
-    if (isNaN(units) || units <= 0) return null;
-    return task.startUnit + units - 1;
-  };
+  // プレビュー計算: これまでの合計から開始単元を決め、入力値から終了単元を計算
+  const cumulativeCompleted = Array.isArray(sessions) ? sessions.reduce((s: number, it: any) => s + (it.unitsCompleted || 0), 0) : 0;
+  const previewStartUnit = cumulativeCompleted + 1;
+  const previewUnitsNumber = unitsInput && !isNaN(parseInt(unitsInput, 10)) ? Math.max(1, parseInt(unitsInput, 10)) : (task?.units ?? (paramStartUnit !== undefined && paramEndUnit !== undefined ? (paramEndUnit - paramStartUnit + 1) : 1));
+  const previewEndUnit = previewStartUnit + previewUnitsNumber - 1;
 
-  const updatedEndUnit = computeUpdatedEnd();
+  // ...existing code...
 
   const handleSave = async () => {
-    const units = parseInt(unitsCompleted);
+    // determine units: for edit keep existing value, for new derive from task/timer/default
     const duration = parseInt(durationMinutes);
-    if (isNaN(units) || units <= 0) {
-      Alert.alert(t('common.error'), t('today.sessionRecord.validation.unitsRequired'));
-      return;
+    let unitsNumber: number;
+    if (isEditMode && existingSession) {
+      unitsNumber = existingSession.unitsCompleted;
+    } else {
+      // 新規時はユーザー入力（unitsInput）を優先、なければ task/timer/default
+      if (unitsInput && !isNaN(parseInt(unitsInput, 10))) {
+        unitsNumber = Math.max(1, parseInt(unitsInput, 10));
+      } else if (task) {
+        unitsNumber = task.units ?? 1;
+      } else if (paramStartUnit !== undefined && paramEndUnit !== undefined) {
+        unitsNumber = paramEndUnit - paramStartUnit + 1;
+      } else {
+        unitsNumber = 1;
+      }
     }
-    if (task && units > task.units) {
-      Alert.alert(t('common.error'), '完了した量はタスクの総量を超えることはできません');
-      return;
-    }
+
+    // guard against invalid duration
     if (isNaN(duration) || duration <= 0) {
       Alert.alert(t('common.error'), t('today.sessionRecord.validation.durationRequired'));
       return;
@@ -112,72 +126,38 @@ export const RecordSessionScreen: React.FC = () => {
         // 編集モードの場合、既存のセッションを更新
         const updatedSession = new StudySessionEntity({
           ...existingSession,
-          unitsCompleted: units,
+          unitsCompleted: unitsNumber,
           durationMinutes: duration,
           concentration,
           difficulty,
           round: round ?? existingSession.round,
         });
 
-  await updateSession.mutateAsync(updatedSession);
+        await updateSession.mutateAsync(updatedSession);
       } else {
-        // 新規作成の場合
+        // 新規作成はサービスの統合メソッドに委譲
         const session = new StudySessionEntity({
           id: `session-${Date.now()}`,
           userId,
           planId,
           date: new Date(),
-          unitsCompleted: units,
+          unitsCompleted: unitsNumber,
           durationMinutes: duration,
           concentration,
           difficulty,
           round: round ?? task?.round ?? 1,
         });
+        // startUnit を「これまでに完了した合計 + 1」に自動設定し、endUnit をユーザー入力から計算
+        const cumulativeCompleted = Array.isArray(sessions) ? sessions.reduce((s: number, it: any) => s + (it.unitsCompleted || 0), 0) : 0;
+        const autoStartUnit = cumulativeCompleted + 1;
+        const computedEndUnit = autoStartUnit + unitsNumber - 1;
 
-        await createSession.mutateAsync(session);
-
-        // セッション保存後に、完了したユニットに対して復習アイテムを自動生成（既存がなければ）
-        try {
-          const existing = await (await import('../../services')).reviewItemService.getReviewItemsByPlanId(planId);
-          // task があれば task.startUnit を基準に完了範囲を算出
-          const startUnit = typeof task?.startUnit === 'number' ? task.startUnit : 1;
-          const parsedUnits = parseInt(unitsCompleted) || 0;
-          const endUnit = updatedEndUnit ?? (startUnit + parsedUnits - 1);
-
-          // 既存アイテムの unitNumber をセット化
-          const existingUnits = new Set(existing.map((e) => e.unitNumber));
-
-          const groupTs = Date.now();
-          const now = new Date();
-          const nextDay = addDays(now, 1);
-          for (let u = startUnit; u <= endUnit; u++) {
-            if (!existingUnits.has(u)) {
-              const ReviewItemEntity = (await import('catalyze-ai')).ReviewItemEntity;
-              const newItem = new ReviewItemEntity({
-                id: `review-${planId}-${groupTs}-${u}`,
-                userId,
-                planId,
-                unitNumber: u,
-                lastReviewDate: now,
-                nextReviewDate: nextDay,
-              } as any);
-              await (await import('../../services')).reviewItemService.createReviewItem(newItem);
-            }
-          }
-
-        } catch (e) {
-          console.error('Failed to auto-create review items:', e);
-        }
-
-        // ポイント付与は行うが、成功ダイアログは表示しない
-        try {
-          const performanceFactor = session.performanceFactor;
-          const basePoints = Math.floor(duration * performanceFactor * 10);
-          const points = Math.max(1, basePoints);
-          await addPoints.mutateAsync({ userId, points });
-        } catch (error) {
-          console.error('Failed to add points:', error);
-        }
+        await (await import('../../services')).studySessionService.recordSessionWithReviewItems(
+          session,
+          planId,
+          autoStartUnit,
+          computedEndUnit
+        );
       }
       // 成功時はトーストを表示して戻る
       try {
@@ -190,48 +170,38 @@ export const RecordSessionScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
+      <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
           {isEditMode ? '編集' : t('today.sessionRecord.title')}
         </Text>
       </View>
       <View style={styles.content}>
+        {/* ユーザーが入力する「やった単元数」 */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{t('today.sessionRecord.unitsCompleted')}</Text>
+          <Text style={styles.label}>完了した単元数</Text>
           <View style={styles.sliderContainer}>
             <Slider
               style={styles.slider}
-              minimumValue={Math.max(progress ? progress.completed + 1 : 1, task ? task.startUnit : 1)}
-              maximumValue={task ? task.units : (plan ? plan.totalUnits : 100)}
+              minimumValue={1}
+              maximumValue={Math.max(1, plan?.totalUnits ?? 100)}
               step={1}
-              value={Math.min(parseInt(unitsCompleted) || Math.max(progress ? progress.completed + 1 : 1, task ? task.startUnit : 1), task ? task.units : (plan ? plan.totalUnits : 100))}
-              onValueChange={(value) => setUnitsCompleted(String(Math.round(value)))}
+              value={parseInt(unitsInput) || 1}
+              onValueChange={(value) => setUnitsInput(String(Math.round(value)))}
               minimumTrackTintColor={colors.primary}
               maximumTrackTintColor={colors.border}
               thumbTintColor={colors.primary}
             />
             <TextInput
               style={[styles.input, { flex: 1 }]}
-              value={unitsCompleted}
-              onChangeText={(text) => {
-                const num = parseInt(text);
-                if (isNaN(num)) {
-                  setUnitsCompleted(text);
-                } else {
-                  const maxUnits = task ? task.units : (plan ? plan.totalUnits : 100);
-                  setUnitsCompleted(String(Math.min(num, maxUnits)));
-                }
-              }}
+              value={unitsInput}
+              onChangeText={(v) => setUnitsInput(v.replace(/[^0-9]/g, ''))}
               keyboardType="number-pad"
-              placeholder="10"
+              placeholder="例: 10"
             />
           </View>
-          {task && typeof task.startUnit === 'number' && updatedEndUnit !== null && (
-            <Text style={styles.mutedText}>
-              {`${t('today.sessionRecord.previous')} ${task.startUnit} -> ${t('today.sessionRecord.updated')} ${updatedEndUnit}`}
-            </Text>
-          )}
+          <Text style={styles.mutedText}>終了範囲: {previewStartUnit} 〜 {previewEndUnit}</Text>
         </View>
 
         <View style={styles.formGroup}>
@@ -321,7 +291,8 @@ export const RecordSessionScreen: React.FC = () => {
           <Text style={styles.saveButtonText}>{createSession.isPending ? t('today.sessionRecord.saving') : t('today.sessionRecord.save')}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -344,6 +315,8 @@ const styles = StyleSheet.create({
   mutedText: { ...textStyles.bodySmall, color: colors.textSecondary, marginTop: spacing.sm },
   sliderContainer: { flexDirection: 'row', alignItems: 'center' },
   slider: { width: 250, marginRight: spacing.md },
+  stepperButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSecondary, minWidth: 40, alignItems: 'center', justifyContent: 'center' },
+  stepperButtonText: { ...textStyles.body, fontWeight: '700', color: colors.text },
 });
 
 export default RecordSessionScreen;
