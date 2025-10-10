@@ -15,6 +15,7 @@ export type RootStackParamList = {
   EditPlan: { planId: string };
   RecordSession: { planId: string; taskId?: string; sessionId?: string };
   ReviewDetail: { reviewId: string };
+  ReviewEvaluation: { itemId?: string; reviewItemIds?: string[]; planId?: string; startUnit?: number; endUnit?: number };
   FriendsList: undefined;
   CreateCooperationGoal: undefined;
   Help: undefined;

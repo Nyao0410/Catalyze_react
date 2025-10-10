@@ -225,6 +225,15 @@ npm run web
 - **StudySessionService**: 学習セッションの管理
 - **ReviewItemService**: 復習項目の管理（SM-2アルゴリズム）
 
+### 復習アイテムの自動生成（セッション保存時）
+
+- 挙動: 学習セッションを保存すると、そのセッションで完了したユニット範囲に対して復習アイテムが自動的に作成されます。既に同一 plan と unitNumber の復習アイテムが存在する場合は重複作成を行いません。
+- 実装場所: `src/presentation/screens/RecordSessionScreen.tsx` のセッション作成処理内で作成処理を呼び出します。作成処理は `reviewItemService.createReviewItem` を呼びます。
+- 初期 nextReviewDate: 自動生成されたアイテムはデフォルトで「翌日」を `nextReviewDate` に設定します（必要に応じて設定を変更可能）。
+- 範囲の扱い: 作成時はユニット単位で ReviewItem を作成します。表示側 (`TasksScreen`) は同一日/同一 plan の隣接ユニットをまとめて1つのカードとして表示するため、ユーザーには範囲として見えます。
+- 注意点: 大量のユニットを一度に作成するケースがある場合は、バルク作成 API の導入や範囲まとめで1件生成する設計も検討してください。
+
+
 ### 3. データ管理
 
 #### React Query

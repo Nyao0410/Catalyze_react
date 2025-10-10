@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import Slider from '@react-native-community/slider';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors, spacing, textStyles } from '../theme';
+import { addDays } from 'date-fns';
 import type { RootStackScreenProps } from '../navigation/types';
 import { useCreateSession, useDailyTasksByPlan, useUpdateSession, useStudySession, useAddPoints } from '../hooks';
 import { StudySessionEntity, ProgressAnalysisService } from 'catalyze-ai';
@@ -130,7 +131,40 @@ export const RecordSessionScreen: React.FC = () => {
         });
 
         await createSession.mutateAsync(session);
-        
+
+        // セッション保存後に、完了したユニットに対して復習アイテムを自動生成（既存がなければ）
+        try {
+          const existing = await (await import('../../services')).reviewItemService.getReviewItemsByPlanId(planId);
+          // task があれば task.startUnit を基準に完了範囲を算出
+          const startUnit = typeof task?.startUnit === 'number' ? task.startUnit : 1;
+          const parsedUnits = parseInt(unitsCompleted) || 0;
+          const endUnit = updatedEndUnit ?? (startUnit + parsedUnits - 1);
+
+          // 既存アイテムの unitNumber をセット化
+          const existingUnits = new Set(existing.map((e) => e.unitNumber));
+
+          const groupTs = Date.now();
+          const now = new Date();
+          const nextDay = addDays(now, 1);
+          for (let u = startUnit; u <= endUnit; u++) {
+            if (!existingUnits.has(u)) {
+              const ReviewItemEntity = (await import('catalyze-ai')).ReviewItemEntity;
+              const newItem = new ReviewItemEntity({
+                id: `review-${planId}-${groupTs}-${u}`,
+                userId,
+                planId,
+                unitNumber: u,
+                lastReviewDate: now,
+                nextReviewDate: nextDay,
+              } as any);
+              await (await import('../../services')).reviewItemService.createReviewItem(newItem);
+            }
+          }
+
+        } catch (e) {
+          console.error('Failed to auto-create review items:', e);
+        }
+
         // ポイント付与は行うが、成功ダイアログは表示しない
         try {
           const performanceFactor = session.performanceFactor;

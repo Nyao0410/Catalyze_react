@@ -149,6 +149,40 @@ export const TodayScreen: React.FC<Props> = () => {
     navigation.navigate('RecordSession', { planId: task.planId, taskId: task.id });
   };
 
+  // タスク完了ハンドリング: レビュータスクなら ReviewEvaluation へ遷移、それ以外は記録モーダルへ
+  const handleTaskComplete = (itemOrTask: any, maybeTask?: any) => {
+    const wrapper = itemOrTask;
+    const taskObj = maybeTask || (wrapper && (wrapper.task || wrapper));
+    // Detect review tasks by multiple signals:
+    // - wrapper.type === 'review' (constructed wrapper)
+    // - explicit reviewItemIds on the taskObj
+    // - synthetic review task id prefix 'review-'
+    const isReviewType = wrapper && wrapper.type === 'review';
+    const hasReviewIds = taskObj && (taskObj.reviewItemIds && taskObj.reviewItemIds.length > 0);
+    const isReviewIdName = taskObj && typeof taskObj.id === 'string' && String(taskObj.id).startsWith('review-');
+    if (isReviewType || hasReviewIds || isReviewIdName) {
+      const ids: string[] | undefined = taskObj && taskObj.reviewItemIds && taskObj.reviewItemIds.length > 0 ? taskObj.reviewItemIds : undefined;
+      if (ids && ids.length > 0) {
+        navigation.navigate('ReviewEvaluation', { reviewItemIds: ids, planId: taskObj.planId, startUnit: taskObj.startUnit, endUnit: taskObj.endUnit });
+        return;
+      }
+      // Fallback: if task id encodes a single review or no underlying ids available, attempt single-item navigation
+      const reviewId = (taskObj && taskObj.reviewItemIds && taskObj.reviewItemIds.length > 0) ? taskObj.reviewItemIds[0] : null;
+      if (reviewId) {
+        navigation.navigate('ReviewEvaluation', { itemId: reviewId });
+        return;
+      }
+      // If we detected a synthetic review task (id startsWith 'review-') but no underlying ids, still navigate to the evaluation screen
+      // so the user can see context; ReviewEvaluation will no-op if there are no ids — this is better than opening the session recorder.
+      if (isReviewIdName) {
+        navigation.navigate('ReviewEvaluation', { planId: taskObj?.planId, startUnit: taskObj?.startUnit, endUnit: taskObj?.endUnit });
+        return;
+      }
+    }
+    // fallback: open session modal
+    if (taskObj) handleOpenSessionModal(taskObj);
+  };
+
   // 履歴タスクコンポーネント
   const HistoryTab = () => {
     const { data: sessions = [], isLoading } = useUserSessions(userId);
@@ -322,12 +356,12 @@ export const TodayScreen: React.FC<Props> = () => {
       ...(function buildReviewTasks() {
         try {
           // group by planId + date
-          const groups: { [key: string]: { planId: string; date: Date; units: number[] } } = {};
+          const groups: { [key: string]: { planId: string; date: Date; units: Array<{unit: number; id: string}> } } = {};
           dueReviewItems.forEach((r) => {
             const key = `${r.planId}_${startOfDay(new Date(r.nextReviewDate)).getTime()}`;
             groups[key] = groups[key] || { planId: r.planId, date: startOfDay(new Date(r.nextReviewDate)), units: [] };
             const n = Number(r.unitNumber);
-            if (!Number.isNaN(n)) groups[key].units.push(n);
+            if (!Number.isNaN(n)) groups[key].units.push({ unit: n, id: r.id });
           });
 
           const mergeUnitsToRanges = (units: number[]) => {
@@ -358,7 +392,9 @@ export const TodayScreen: React.FC<Props> = () => {
             const { planId, date, units } = groups[key];
             const plan = plans.find((p) => p.id === planId);
             if (!plan) continue;
-            const ranges = mergeUnitsToRanges(units);
+            // units is Array<{unit,id}>, extract numbers for merging
+            const unitNumbers = units.map((u) => u.unit);
+            const ranges = mergeUnitsToRanges(unitNumbers);
             const planSessions = sessions.filter((s) => s.planId === planId);
             ranges.forEach((r, idx) => {
               const reviewTask = {
@@ -371,6 +407,10 @@ export const TodayScreen: React.FC<Props> = () => {
                 estimatedMinutes: r.units * 5,
                 round: 1,
                 advice: t('today.review.advice') || '復習しましょう！',
+                // collect underlying review item ids for this range
+                reviewItemIds: units
+                  .filter((u) => u.unit >= r.start && u.unit <= r.end)
+                  .map((u) => u.id),
               } as any;
 
               // progress: check sessions covering the whole range
@@ -468,7 +508,7 @@ export const TodayScreen: React.FC<Props> = () => {
                         plan={plan}
                         progress={(item as any).taskProgress ?? 0}
                         achievability={(item as any).achievability ?? progressAnalysisService.evaluateAchievability(plan, sessions)}
-                        onComplete={() => handleOpenSessionModal(taskObj)}
+                        onComplete={() => handleTaskComplete(item, taskObj)}
                       />
                     );
                   })
@@ -535,13 +575,13 @@ export const TodayScreen: React.FC<Props> = () => {
               if (!plan) return null;
               return (
                 <TaskCard
-                  key={taskObj.id}
-                  task={taskObj}
-                  plan={plan}
-                  progress={item!.taskProgress ?? 0}
-                  achievability={item!.achievability ?? progressAnalysisService.evaluateAchievability(plan, sessions)}
-                  onComplete={() => handleOpenSessionModal(taskObj)}
-                />
+                    key={taskObj.id}
+                    task={taskObj}
+                    plan={plan}
+                    progress={item!.taskProgress ?? 0}
+                    achievability={item!.achievability ?? progressAnalysisService.evaluateAchievability(plan, sessions)}
+                    onComplete={() => handleTaskComplete(item)}
+                  />
               );
             })
           )}
@@ -596,7 +636,7 @@ export const TodayScreen: React.FC<Props> = () => {
                     const completedUnits = taskSessions.reduce((sum, s) => sum + s.unitsCompleted, 0);
                     const taskProgress = Math.min(completedUnits / item.units, 1);
                     return (
-                      <TaskCard key={item.id} task={item} plan={plan} progress={taskProgress} achievability={progressAnalysisService.evaluateAchievability(plan, sessions)} onComplete={() => handleOpenSessionModal(item)} />
+                      <TaskCard key={item.id} task={item} plan={plan} progress={taskProgress} achievability={progressAnalysisService.evaluateAchievability(plan, sessions)} onComplete={() => handleTaskComplete(item)} />
                     );
                   })
                 ) : (
@@ -676,7 +716,7 @@ export const TodayScreen: React.FC<Props> = () => {
                   plan={item!.plan}
                   progress={item!.taskProgress}
                   achievability={item!.achievability}
-                  onComplete={() => handleOpenSessionModal(item!.task)}
+                  onComplete={() => handleTaskComplete(item)}
                 />
               ))
           ) : (

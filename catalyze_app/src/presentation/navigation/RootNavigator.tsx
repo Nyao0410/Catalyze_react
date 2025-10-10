@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainTabNavigator } from './MainTabNavigator';
 import { PlanDetailScreen, CreatePlanScreen } from '../screens';
 import { RecordSessionScreen } from '../screens/RecordSessionScreen';
+import { ReviewEvaluationScreen } from '../screens/ReviewEvaluationScreen';
 import { FriendsListScreen } from '../screens/FriendsListScreen';
 import { CreateCooperationGoalScreen } from '../screens/CreateCooperationGoalScreen';
 import { HelpScreen } from '../screens/HelpScreen';
@@ -55,6 +56,13 @@ export const RootNavigator: React.FC = () => {
         component={RecordSessionScreen}
         options={{
           title: '学習記録',
+        }}
+      />
+      <Stack.Screen
+        name="ReviewEvaluation"
+        component={ReviewEvaluationScreen}
+        options={{
+          title: '復習の評価',
         }}
       />
       <Stack.Screen
