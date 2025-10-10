@@ -149,6 +149,16 @@ export const TodayScreen: React.FC<Props> = () => {
     navigation.navigate('RecordSession', { planId: task.planId, taskId: task.id });
   };
 
+  // タイマー画面に遷移
+  const handleStartTimer = (task: DailyTaskEntity) => {
+    navigation.navigate('TimerScreen', {
+      planId: task.planId,
+      taskId: task.id,
+      startUnit: task.startUnit,
+      endUnit: task.endUnit,
+    });
+  };
+
   // タスク完了ハンドリング: レビュータスクなら ReviewEvaluation へ遷移、それ以外は記録モーダルへ
   const handleTaskComplete = (itemOrTask: any, maybeTask?: any) => {
     const wrapper = itemOrTask;
@@ -509,6 +519,7 @@ export const TodayScreen: React.FC<Props> = () => {
                         progress={(item as any).taskProgress ?? 0}
                         achievability={(item as any).achievability ?? progressAnalysisService.evaluateAchievability(plan, sessions)}
                         onComplete={() => handleTaskComplete(item, taskObj)}
+                        onStartTimer={() => handleStartTimer(taskObj)}
                       />
                     );
                   })
@@ -581,6 +592,7 @@ export const TodayScreen: React.FC<Props> = () => {
                     progress={item!.taskProgress ?? 0}
                     achievability={item!.achievability ?? progressAnalysisService.evaluateAchievability(plan, sessions)}
                     onComplete={() => handleTaskComplete(item)}
+                    onStartTimer={() => handleStartTimer(taskObj)}
                   />
               );
             })
@@ -636,7 +648,7 @@ export const TodayScreen: React.FC<Props> = () => {
                     const completedUnits = taskSessions.reduce((sum, s) => sum + s.unitsCompleted, 0);
                     const taskProgress = Math.min(completedUnits / item.units, 1);
                     return (
-                      <TaskCard key={item.id} task={item} plan={plan} progress={taskProgress} achievability={progressAnalysisService.evaluateAchievability(plan, sessions)} onComplete={() => handleTaskComplete(item)} />
+                      <TaskCard key={item.id} task={item} plan={plan} progress={taskProgress} achievability={progressAnalysisService.evaluateAchievability(plan, sessions)} onComplete={() => handleTaskComplete(item)} onStartTimer={() => handleStartTimer(item)} />
                     );
                   })
                 ) : (
@@ -717,6 +729,7 @@ export const TodayScreen: React.FC<Props> = () => {
                   progress={item!.taskProgress}
                   achievability={item!.achievability}
                   onComplete={() => handleTaskComplete(item)}
+                  onStartTimer={() => handleStartTimer(item!.task)}
                 />
               ))
           ) : (

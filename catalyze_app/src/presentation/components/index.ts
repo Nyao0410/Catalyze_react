@@ -9,6 +9,8 @@ export { ProgressBar } from './ProgressBar';
 export { PlanCard } from './PlanCard';
 export { EmptyState } from './EmptyState';
 export { TaskCard } from './TaskCard';
+export { Timer } from './Timer';
+export type { TimerMode } from './Timer';
 
 // 統計グラフコンポーネント
 export { StudyTimeChart } from './StudyTimeChart';

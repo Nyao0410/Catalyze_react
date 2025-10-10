@@ -386,6 +386,15 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
       <View style={styles.actionSection}>
         {plan.status !== PlanStatus.COMPLETED && (
           <>
+            {/* タイマーボタン */}
+            <TouchableOpacity
+              style={[styles.actionButton, styles.timerButton]}
+              onPress={() => navigation.navigate('TimerScreen', { planId: plan.id })}
+            >
+              <Ionicons name="timer-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>タイマーを開始</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[
                 styles.actionButton,
@@ -657,8 +666,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'transparent',
   },
-  pauseButton: {
+  timerButton: {
     backgroundColor: colors.warning,
+  },
+  pauseButton: {
+    backgroundColor: colors.textSecondary,
   },
   resumeButton: {
     backgroundColor: colors.success,

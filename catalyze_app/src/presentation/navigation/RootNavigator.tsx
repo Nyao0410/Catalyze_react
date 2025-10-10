@@ -7,6 +7,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainTabNavigator } from './MainTabNavigator';
 import { PlanDetailScreen, CreatePlanScreen } from '../screens';
+import { TimerScreen } from '../screens/TimerScreen';
 import { RecordSessionScreen } from '../screens/RecordSessionScreen';
 import { ReviewEvaluationScreen } from '../screens/ReviewEvaluationScreen';
 import { FriendsListScreen } from '../screens/FriendsListScreen';
@@ -49,6 +50,15 @@ export const RootNavigator: React.FC = () => {
         options={{
           title: '計画を編集',
           presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="TimerScreen"
+        component={TimerScreen}
+        options={{
+          title: '学習タイマー',
+          gestureEnabled: false,
+          headerBackVisible: false,
         }}
       />
       <Stack.Screen

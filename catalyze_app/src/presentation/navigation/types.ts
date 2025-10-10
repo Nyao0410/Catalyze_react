@@ -13,7 +13,8 @@ export type RootStackParamList = {
   PlanDetail: { planId: string };
   CreatePlan: undefined;
   EditPlan: { planId: string };
-  RecordSession: { planId: string; taskId?: string; sessionId?: string };
+  TimerScreen: { planId: string; taskId?: string; startUnit?: number; endUnit?: number };
+  RecordSession: { planId: string; taskId?: string; sessionId?: string; elapsedMinutes?: number; startUnit?: number; endUnit?: number };
   ReviewDetail: { reviewId: string };
   ReviewEvaluation: { itemId?: string; reviewItemIds?: string[]; planId?: string; startUnit?: number; endUnit?: number };
   FriendsList: undefined;

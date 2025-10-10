@@ -17,7 +17,7 @@ type RouteProps = RootStackScreenProps<'RecordSession'>;
 export const RecordSessionScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProps['route']>();
-  const { planId, taskId, sessionId } = route.params;
+  const { planId, taskId, sessionId, elapsedMinutes, startUnit: paramStartUnit, endUnit: paramEndUnit } = route.params;
 
   const userId = 'user-001';
   const createSession = useCreateSession();
@@ -72,10 +72,14 @@ export const RecordSessionScreen: React.FC = () => {
     } else if (task) {
       // 新規作成の場合、タスクのデフォルト値をセット
       setUnitsCompleted(String(task.units));
-      setDurationMinutes(String(task.estimatedMinutes));
+      // タイマーからの経過時間があればそれを使う
+      setDurationMinutes(elapsedMinutes ? String(elapsedMinutes) : String(task.estimatedMinutes));
       setRound(task.round);
+    } else if (elapsedMinutes) {
+      // タスクはないがタイマーからの経過時間がある場合
+      setDurationMinutes(String(elapsedMinutes));
     }
-  }, [task, existingSession, isEditMode]);
+  }, [task, existingSession, isEditMode, elapsedMinutes]);
 
   // compute updated end unit if task has startUnit and user entered units
   const computeUpdatedEnd = (): number | null => {

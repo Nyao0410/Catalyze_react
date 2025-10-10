@@ -18,6 +18,7 @@ interface TaskCardProps {
   achievability: AchievabilityStatus;
   onPress?: () => void;
   onComplete?: () => void;
+  onStartTimer?: () => void;
 }
 
 // 達成可能性に応じた色を返す
@@ -68,6 +69,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   achievability,
   onPress,
   onComplete,
+  onStartTimer,
 }) => {
   const achievabilityColor = getAchievabilityColor(achievability);
   const achievabilityLabel = getAchievabilityLabel(achievability);
@@ -135,18 +137,34 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </View>
       )}
 
-      {/* 完了ボタン */}
-      {onComplete && (
-        <TouchableOpacity
-          style={styles.completeButton}
-          onPress={(e) => {
-            e.stopPropagation();
-            onComplete();
-          }}
-        >
-          <Ionicons name="checkmark-circle" size={20} color={colors.white} />
-          <Text style={styles.completeButtonText}>{t('today.task.complete')}</Text>
-        </TouchableOpacity>
+      {/* アクションボタン */}
+      {(onComplete || onStartTimer) && (
+        <View style={styles.actionButtons}>
+          {onStartTimer && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.timerButton]}
+              onPress={(e) => {
+                e.stopPropagation();
+                onStartTimer();
+              }}
+            >
+              <Ionicons name="timer-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>タイマー</Text>
+            </TouchableOpacity>
+          )}
+          {onComplete && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.completeButton]}
+              onPress={(e) => {
+                e.stopPropagation();
+                onComplete();
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>{t('today.task.complete')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -262,17 +280,27 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
-  completeButton: {
+  actionButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.primary,
     padding: spacing.sm,
     borderRadius: 8,
-    marginTop: spacing.md,
   },
-  completeButtonText: {
+  timerButton: {
+    backgroundColor: colors.warning,
+  },
+  completeButton: {
+    backgroundColor: colors.primary,
+  },
+  actionButtonText: {
     ...textStyles.button,
     color: colors.white,
   },
