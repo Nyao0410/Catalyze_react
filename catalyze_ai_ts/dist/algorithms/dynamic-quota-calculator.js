@@ -26,8 +26,26 @@ class DynamicQuotaCalculator {
         const avgPerfFactor = this._calculateAveragePerformanceFactor(sessions);
         // 調整率
         const adjustmentRate = avgPerfFactor / DynamicQuotaCalculator.NEUTRAL_PERFORMANCE_FACTOR || 1.0;
-        // 基本所要時間（プランに指定された estimatedTimePerUnit を使用）
-        const baseTimePerUnitMs = plan.estimatedTimePerUnit;
+        // 基本所要時間の決定優先順位:
+        // 1) 過去セッションの平均単位時間（sessions が存在する場合）
+        // 2) プランに指定された estimatedTimePerUnit
+        // 3) フォールバック 5 分
+        let baseTimePerUnitMs;
+        if (sessions && sessions.length > 0) {
+            // sessions の各セッションから averageTimePerUnit（分）を取り、重み付き平均をとる
+            const totalUnits = sessions.reduce((s, v) => s + (v.unitsCompleted || 0), 0);
+            const totalMinutes = sessions.reduce((s, v) => s + (v.durationMinutes || 0), 0);
+            if (totalUnits > 0) {
+                const avgMinutesPerUnit = totalMinutes / totalUnits; // 分
+                baseTimePerUnitMs = Math.max(1000, Math.round(avgMinutesPerUnit * 60 * 1000));
+            }
+            else {
+                baseTimePerUnitMs = plan.estimatedTimePerUnit ?? 5 * 60 * 1000;
+            }
+        }
+        else {
+            baseTimePerUnitMs = plan.estimatedTimePerUnit ?? 5 * 60 * 1000;
+        }
         // 調整後所要時間
         const adjustedTimePerUnitMs = Math.max(1000, Math.round(baseTimePerUnitMs / adjustmentRate));
         // 締切から逆算して日次ノルマを計算する

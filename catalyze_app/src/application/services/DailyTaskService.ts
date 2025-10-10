@@ -49,7 +49,9 @@ export class DailyTaskService {
       }
     }
 
-    return tasks;
+    // dedupe by id to avoid duplicates
+    const deduped = Array.from(new Map(tasks.map((t) => [t.id, t])).values());
+    return deduped;
   }
 
   /**
@@ -112,7 +114,20 @@ export class DailyTaskService {
         const dateKey = rest.join('_');
         const units = groups[key];
         const ranges = mergeUnitsToRanges(units);
-        ranges.forEach((r, idx) => {
+        for (let idx = 0; idx < ranges.length; idx++) {
+          const r = ranges[idx];
+          // try to get plan's per-unit estimate; fallback to 5 minutes per unit
+          let planObj = null;
+          try {
+            planObj = await studyPlanService.getPlanById(planId);
+          } catch (e) {
+            planObj = null;
+          }
+          const perUnitMs = planObj?.estimatedTimePerUnit ?? 5 * 60 * 1000;
+          try {
+            // eslint-disable-next-line no-console
+            console.log('[DailyTaskService] getTasksForDate: review perUnitMs', { planId, dateKey, perUnitMs, planEstimated: planObj?.estimatedTimePerUnit });
+          } catch (e) {}
           const reviewTask = new DailyTaskEntity({
             id: `review-${planId}-${dateKey}-${r.start}-${r.end}-${idx}`,
             planId,
@@ -120,18 +135,20 @@ export class DailyTaskService {
             startUnit: r.start,
             endUnit: r.end,
             units: r.units,
-            estimatedDuration: r.units * 5 * 60 * 1000,
+            estimatedDuration: r.units * perUnitMs,
             round: 1,
             advice: '復習しましょう！',
           });
           tasks.push(reviewTask);
-        });
+        }
       }
     } catch (e) {
       try { console.warn('[DailyTaskService] failed to fetch/merge review items for date', e); } catch (er) {}
     }
 
-    return tasks;
+    // dedupe by id before returning
+    const deduped = Array.from(new Map(tasks.map((t) => [t.id, t])).values());
+    return deduped;
   }
 
   /**
@@ -193,10 +210,21 @@ export class DailyTaskService {
   const result: any = orchestrator.generatePlan(plan, sessions, []);
 
     // 正規化: orchestrator の出力が日付を文字列で返す可能性に備えて Date に変換
-    const normalizedDailyTasks = (result.dailyTasks || []).map((t: any) => ({
-      ...t,
-      date: t.date instanceof Date ? t.date : new Date(t.date),
-    }));
+    // かつ DailyTaskEntity のインスタンスを再構築して getter（estimatedMinutes 等）を保持する
+    const normalizedDailyTasks = (result.dailyTasks || []).map((t: any) => {
+      const date = t.date instanceof Date ? t.date : new Date(t.date);
+      return new DailyTaskEntity({
+        id: t.id,
+        planId: t.planId,
+        date,
+        startUnit: t.startUnit,
+        endUnit: t.endUnit,
+        units: t.units,
+        estimatedDuration: t.estimatedDuration,
+        round: t.round,
+        advice: t.advice,
+      });
+    });
 
     // 指定日のタスクを取得
     const targetDate = startOfDay(date);
@@ -255,8 +283,21 @@ export class DailyTaskService {
 
       // orchestrator が dailyTasks を生成（最大30日分のロジックを内部に持つ）
   const result = orchestrator.generatePlan(plan, sessions, reviewItems);
-  // Normalize dailyTasks dates to Date objects in case upstream serialized them
-  const normalizedDailyTasks = (result.dailyTasks || []).map((t: any) => ({ ...t, date: t.date instanceof Date ? t.date : new Date(t.date) }));
+  // Normalize dailyTasks: ensure Date objects and construct DailyTaskEntity instances so getters (estimatedMinutes) are available
+  const normalizedDailyTasks = (result.dailyTasks || []).map((t: any) => {
+    const date = t.date instanceof Date ? t.date : new Date(t.date);
+    return new DailyTaskEntity({
+      id: t.id,
+      planId: t.planId,
+      date,
+      startUnit: t.startUnit,
+      endUnit: t.endUnit,
+      units: t.units,
+      estimatedDuration: t.estimatedDuration,
+      round: t.round,
+      advice: t.advice,
+    });
+  });
   // eslint-disable-next-line no-console
   console.log('[DailyTaskService] orchestrator result', { planId: plan.id, dailyTasksCount: normalizedDailyTasks.length, roundTasksCount: result.roundTasks.length });
 
@@ -329,7 +370,20 @@ export class DailyTaskService {
       const dateKey = key.split('_').slice(1).join('_');
       const units = groups[key];
       const ranges = mergeUnitsToRanges(units);
-      ranges.forEach((r, idx) => {
+      for (let idx = 0; idx < ranges.length; idx++) {
+        const r = ranges[idx];
+        // try to fetch plan to use its estimatedTimePerUnit; fallback to 5 minutes
+        let planObj = null;
+        try {
+          planObj = await studyPlanService.getPlanById(planId);
+        } catch (e) {
+          planObj = null;
+        }
+        const perUnitMs = planObj?.estimatedTimePerUnit ?? 5 * 60 * 1000;
+        try {
+          // eslint-disable-next-line no-console
+          console.log('[DailyTaskService] getUpcomingTasks: review perUnitMs', { planId, dateKey, perUnitMs, planEstimated: planObj?.estimatedTimePerUnit });
+        } catch (e) {}
         const reviewTask = new DailyTaskEntity({
           id: `review-${planId}-${dateKey}-${r.start}-${r.end}-${idx}`,
           planId,
@@ -337,16 +391,17 @@ export class DailyTaskService {
           startUnit: r.start,
           endUnit: r.end,
           units: r.units,
-          estimatedDuration: r.units * 5 * 60 * 1000,
+          estimatedDuration: r.units * perUnitMs,
           round: 1,
           advice: '復習しましょう！',
         });
         tasks.push(reviewTask);
-      });
+      }
     }
 
-    // 日付順でソートして返す
-    return tasks.sort((a, b) => a.date.getTime() - b.date.getTime());
+    // dedupe by id and sort by date before returning
+    const deduped = Array.from(new Map(tasks.map((t) => [t.id, t])).values());
+    return deduped.sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 }
 

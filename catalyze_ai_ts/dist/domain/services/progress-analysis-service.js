@@ -20,13 +20,42 @@ class ProgressAnalysisService {
      * 学習計画の進捗を計算
      */
     calculateProgress(plan, sessions) {
-        // 全セッションで完了した単元数を計算
-        const completedUnits = sessions.reduce((sum, session) => {
+        // セッションの範囲がある場合は (round, unit) 毎にユニークにカウントし、
+        // 範囲情報がないセッションはラウンドごとに残り単元数まで加算する。
+        // これにより重複した範囲や重複カウントを防止する。
+        const unitsByRound = new Map();
+        const noRangeUnitsByRound = new Map();
+        sessions.forEach((session) => {
+            const round = typeof session.round === 'number' ? session.round : 1;
+            if (!unitsByRound.has(round))
+                unitsByRound.set(round, new Set());
+            const set = unitsByRound.get(round);
             if (typeof session.startUnit === 'number' && typeof session.endUnit === 'number') {
-                return sum + Math.max(0, session.endUnit - session.startUnit + 1);
+                const start = Math.max(1, session.startUnit);
+                const end = Math.max(start, session.endUnit);
+                for (let u = start; u <= end; u++) {
+                    set.add(u);
+                }
             }
-            return sum + session.unitsCompleted;
-        }, 0);
+            else if (session.unitsCompleted && session.unitsCompleted > 0) {
+                // accumulate units without explicit ranges; we'll cap later per round
+                const prev = noRangeUnitsByRound.get(round) ?? 0;
+                noRangeUnitsByRound.set(round, prev + session.unitsCompleted);
+            }
+        });
+        // 合計を計算（ラウンドごとにプラン単元数を超えないようにする）
+        let completedUnits = 0;
+        const maxUnitsPerRound = plan.totalUnits;
+        const effectiveRounds = plan.effectiveRounds ?? 1;
+        for (let r = 1; r <= Math.max(effectiveRounds, ...Array.from(unitsByRound.keys()).concat(Array.from(noRangeUnitsByRound.keys()))); r++) {
+            const set = unitsByRound.get(r) ?? new Set();
+            const countedFromRanges = set.size;
+            const noRange = noRangeUnitsByRound.get(r) ?? 0;
+            // 残り単元数（このラウンドでまだカウントされていない分）
+            const remainingForRound = Math.max(0, maxUnitsPerRound - countedFromRanges);
+            const countedNoRange = Math.min(noRange, remainingForRound);
+            completedUnits += countedFromRanges + countedNoRange;
+        }
         // 目標総単元数（周回数を考慮）
         const targetUnits = plan.totalUnits * plan.effectiveRounds;
         // Diagnostic: if completedUnits exceeds targetUnits, log details for debugging
@@ -55,12 +84,24 @@ class ProgressAnalysisService {
     calculateRoundProgress(plan, sessions, round) {
         // 指定された周回のセッションのみを抽出
         const roundSessions = sessions.filter((s) => s.round === round);
-        const completedUnits = roundSessions.reduce((sum, session) => {
+        // 同一ラウンド内で重複範囲を避けるためユニークな単元集合で計算
+        const unitSet = new Set();
+        let noRangeUnits = 0;
+        roundSessions.forEach((session) => {
             if (typeof session.startUnit === 'number' && typeof session.endUnit === 'number') {
-                return sum + Math.max(0, session.endUnit - session.startUnit + 1);
+                const start = Math.max(1, session.startUnit);
+                const end = Math.max(start, session.endUnit);
+                for (let u = start; u <= end; u++)
+                    unitSet.add(u);
             }
-            return sum + session.unitsCompleted;
-        }, 0);
+            else if (session.unitsCompleted && session.unitsCompleted > 0) {
+                noRangeUnits += session.unitsCompleted;
+            }
+        });
+        const countedFromRanges = unitSet.size;
+        const remaining = Math.max(0, plan.totalUnits - countedFromRanges);
+        const countedNoRange = Math.min(noRangeUnits, remaining);
+        const completedUnits = countedFromRanges + countedNoRange;
         // Diagnostic: if completedUnits exceeds plan.totalUnits, log details for debugging
         if (completedUnits > plan.totalUnits) {
             try {

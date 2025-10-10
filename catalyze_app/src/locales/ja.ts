@@ -125,6 +125,21 @@ export default {
       deadlineInvalid: '有効な期限を入力してください（YYYY-MM-DD形式、未来の日付）',
       studyDaysRequired: '少なくとも1つの学習曜日を選択してください',
     },
+    advanced: {
+      open: '詳細設定を開く',
+      close: '詳細設定を閉じる',
+      targetRounds: '目標周回数',
+      rounds: '初期周回',
+      unitLabel: '単位ラベル',
+      estimatedMinutesPerUnit: '単位あたり想定時間（分）',
+    },
+    advancedValidation: {
+      targetRoundsInvalid: '目標周回数は1以上の整数を入力してください',
+      roundsInvalid: '初期周回は1以上の整数を入力してください',
+      roundsExceedTarget: '初期周回は目標周回数以下にしてください',
+      estimatedMinutesInvalid: '単元あたり想定時間は1以上の分を入力してください',
+      unitLabelRequired: '単位ラベルを入力してください',
+    },
   },
 
   review: {

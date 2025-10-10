@@ -40,6 +40,11 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [difficulty, setDifficulty] = useState<PlanDifficulty>(PlanDifficulty.NORMAL);
   const [studyDays, setStudyDays] = useState<number[]>([]);
+  // advanced settings
+  const [targetRounds, setTargetRounds] = useState('1');
+  const [rounds, setRounds] = useState('1');
+  const [estimatedMinutesPerUnit, setEstimatedMinutesPerUnit] = useState('30');
+  const [unitLabel, setUnitLabel] = useState('問');
   const [isEditMode, setIsEditMode] = useState(false);
 
   // when editing, load existing plan
@@ -50,6 +55,10 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
       setStartUnit(String(existingPlan.unitRange?.start ?? 1));
       setEndUnit(String(existingPlan.unitRange?.end ?? existingPlan.totalUnits ?? 1));
       setDifficulty(existingPlan.difficulty ?? PlanDifficulty.NORMAL);
+      setTargetRounds(String(existingPlan.targetRounds ?? 1));
+      setRounds(String(existingPlan.rounds ?? 1));
+      setEstimatedMinutesPerUnit(String(Math.round((existingPlan.estimatedTimePerUnit ?? 30 * 60 * 1000) / 60000)));
+      setUnitLabel(existingPlan.unit ?? '問');
   setStudyDays(Array.from((existingPlan.studyDays ?? [])).map((d: number) => (d === 7 ? 0 : d)));
       setSelectedDate(existingPlan.deadline ? new Date(existingPlan.deadline) : null);
     }
@@ -65,6 +74,8 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
       setStudyDays([...studyDays, day].sort());
     }
   };
+
+  const [advancedVisible, setAdvancedVisible] = useState(false);
 
   const validateForm = (): boolean => {
     if (!title.trim()) {
@@ -93,6 +104,30 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
       Alert.alert(t('errors.validation'), t('createPlan.validation.studyDaysRequired'));
       return false;
     }
+    // advanced settings validation
+    const tRounds = parseInt(targetRounds, 10);
+    const r = parseInt(rounds, 10);
+    const est = parseInt(estimatedMinutesPerUnit, 10);
+    if (isNaN(tRounds) || tRounds < 1) {
+      Alert.alert(t('errors.validation'), t('createPlan.advancedValidation.targetRoundsInvalid'));
+      return false;
+    }
+    if (isNaN(r) || r < 1) {
+      Alert.alert(t('errors.validation'), t('createPlan.advancedValidation.roundsInvalid'));
+      return false;
+    }
+    if (r > tRounds) {
+      Alert.alert(t('errors.validation'), t('createPlan.advancedValidation.roundsExceedTarget'));
+      return false;
+    }
+    if (isNaN(est) || est < 1) {
+      Alert.alert(t('errors.validation'), t('createPlan.advancedValidation.estimatedMinutesInvalid'));
+      return false;
+    }
+    if (!unitLabel || !unitLabel.trim()) {
+      Alert.alert(t('errors.validation'), t('createPlan.advancedValidation.unitLabelRequired'));
+      return false;
+    }
     
     return true;
   };
@@ -115,13 +150,13 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
       title: title.trim(),
       totalUnits,
     // `unit` is a label for the unit (e.g., '問'). Don't set it to the range string.
-    unit: existingPlan?.unit ?? '問',
+    unit: unitLabel || existingPlan?.unit || '問',
     unitRange: { start, end },
       createdAt: new Date(),
       deadline: deadlineDate,
-      rounds: 1,
-      targetRounds: 1,
-      estimatedTimePerUnit: 30 * 60 * 1000, // 30分をミリ秒に
+      rounds: parseInt(rounds, 10) || 1,
+      targetRounds: parseInt(targetRounds, 10) || 1,
+      estimatedTimePerUnit: (parseInt(estimatedMinutesPerUnit, 10) || 30) * 60 * 1000,
       difficulty,
   studyDays: normalizedStudyDays,
       status: PlanStatus.ACTIVE,
@@ -315,6 +350,61 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* 説明テキスト */}
         <View style={styles.infoContainer}>
           <Text style={styles.infoText}>{t('createPlan.info')}</Text>
+        </View>
+
+        {/* 詳細設定 */}
+        <View style={styles.field}>
+          <TouchableOpacity onPress={() => setAdvancedVisible(!advancedVisible)}>
+            <Text style={[styles.label, { color: colors.primary }]}>{advancedVisible ? t('createPlan.advanced.close') : t('createPlan.advanced.open')}</Text>
+          </TouchableOpacity>
+          {advancedVisible && (
+            <View style={styles.advancedContainer}>
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldHalf}>
+                  <Text style={styles.label}>{t('createPlan.advanced.targetRounds')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={targetRounds}
+                    onChangeText={setTargetRounds}
+                    keyboardType="number-pad"
+                    editable={!isPending}
+                  />
+                </View>
+                <View style={styles.fieldHalf}>
+                  <Text style={styles.label}>{t('createPlan.advanced.rounds')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={rounds}
+                    onChangeText={setRounds}
+                    keyboardType="number-pad"
+                    editable={!isPending}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldHalf}>
+                  <Text style={styles.label}>{t('createPlan.advanced.unitLabel')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={unitLabel}
+                    onChangeText={setUnitLabel}
+                    editable={!isPending}
+                  />
+                </View>
+                <View style={styles.fieldHalf}>
+                  <Text style={styles.label}>{t('createPlan.advanced.estimatedMinutesPerUnit')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={estimatedMinutesPerUnit}
+                    onChangeText={setEstimatedMinutesPerUnit}
+                    keyboardType="number-pad"
+                    editable={!isPending}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -530,5 +620,11 @@ const styles = StyleSheet.create({
   calendarCloseText: {
     ...textStyles.body,
     color: colors.primary,
+  },
+  advancedContainer: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 8,
   },
 });
