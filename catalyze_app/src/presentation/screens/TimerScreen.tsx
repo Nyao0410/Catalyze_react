@@ -3,7 +3,7 @@
  * タイマー画面（ストップウォッチ/ポモドーロ）
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import type { RootStackScreenProps } from '../navigation/types';
 import { Timer, TimerMode } from '../components';
 import { colors, spacing, textStyles } from '../theme';
 import { useStudyPlan } from '../hooks';
+import { useSettings } from '../hooks/useAccount';
 
 type Props = RootStackScreenProps<'TimerScreen'>;
 
@@ -20,17 +21,28 @@ export const TimerScreen: React.FC = () => {
   const { planId, taskId, startUnit, endUnit } = route.params;
 
   const [timerMode, setTimerMode] = useState<TimerMode>('stopwatch');
-  const [pomodoroMinutes, setPomodoroMinutes] = useState(25);
   const [isTimerStarted, setIsTimerStarted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [totalWorkSeconds, setTotalWorkSeconds] = useState<number>(0);
 
   const { data: plan } = useStudyPlan(planId);
+  const { data: settings } = useSettings();
 
   const rangeLabel = plan
     ? startUnit !== undefined && endUnit !== undefined
       ? `${startUnit} 〜 ${endUnit} ${plan.unit}`
       : '全範囲'
     : '全範囲';
+
+  // 設定からポモドーロ時間を取得（デフォルト25分、5分）
+  const pomodoroWorkMinutes = settings?.pomodoroWorkMinutes || 25;
+  const pomodoroBreakMinutes = settings?.pomodoroBreakMinutes || 5;
+
+  // 経過時間の変更ハンドラー（メモ化してレンダリング中の setState を防ぐ）
+  const handleElapsedChange = useCallback((s: number, phase: 'work' | 'break', totalWorkSecondsFromTimer: number) => {
+    setElapsedSeconds(s);
+    setTotalWorkSeconds(totalWorkSecondsFromTimer);
+  }, []);
 
   // set header title to plan title when loaded
   useEffect(() => {
@@ -40,33 +52,9 @@ export const TimerScreen: React.FC = () => {
     } catch (e) {}
   }, [plan?.title]);
 
-  // タイマー完了時
+  // タイマー完了時（ポモドーロのサイクル完了時、現在は自動継続なので未使用）
   const handleTimerComplete = (elapsedSeconds: number) => {
-    const minutes = Math.floor(elapsedSeconds / 60);
-    
-    Alert.alert(
-      '完了',
-      `お疲れ様でした！\n${minutes}分間学習しました。\n\n学習記録を評価しますか？`,
-      [
-        {
-          text: 'キャンセル',
-          style: 'cancel',
-        },
-        {
-          text: '記録する',
-          onPress: () => {
-            // 評価画面に遷移（経過時間を渡す）
-            navigation.navigate('RecordSession', {
-              planId,
-              taskId,
-              elapsedMinutes: minutes,
-              startUnit,
-              endUnit,
-            });
-          },
-        },
-      ]
-    );
+    // 現在は自動で次のサイクルを開始するため、完了ダイアログは表示しない
   };
 
   // 手動で記録画面へ
@@ -87,7 +75,7 @@ export const TimerScreen: React.FC = () => {
             navigation.navigate('RecordSession', {
               planId,
               taskId,
-              elapsedMinutes: Math.floor(elapsedSeconds / 60),
+              elapsedMinutes: Math.floor(totalWorkSeconds / 60),
               startUnit,
               endUnit,
             });
@@ -96,9 +84,6 @@ export const TimerScreen: React.FC = () => {
       ]
     );
   };
-
-  // ポモドーロ時間の設定
-  const pomodoroPresets = [15, 25, 45, 60];
 
   return (
     <View style={styles.container}>
@@ -114,41 +99,14 @@ export const TimerScreen: React.FC = () => {
           <View style={{ width: 28 }} />
         </View>
 
-        {/* ポモドーロ時間設定 */}
-        {timerMode === 'pomodoro' && (
-          <View style={styles.pomodoroSettings}>
-            <Text style={styles.settingsTitle}>作業時間を選択</Text>
-            <View style={styles.presetButtons}>
-              {pomodoroPresets.map((minutes) => (
-                <TouchableOpacity
-                  key={minutes}
-                  style={[
-                    styles.presetButton,
-                    pomodoroMinutes === minutes && styles.presetButtonActive,
-                  ]}
-                  onPress={() => setPomodoroMinutes(minutes)}
-                >
-                  <Text
-                    style={[
-                      styles.presetButtonText,
-                      pomodoroMinutes === minutes && styles.presetButtonTextActive,
-                    ]}
-                  >
-                    {minutes}分
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
         {/* タイマー */}
         <Timer
           mode={timerMode}
-          pomodoroMinutes={pomodoroMinutes}
+          pomodoroMinutes={pomodoroWorkMinutes}
+          pomodoroBreakMinutes={pomodoroBreakMinutes}
           onComplete={handleTimerComplete}
           onModeChange={(mode) => setTimerMode(mode)}
-          onElapsedChange={(s) => setElapsedSeconds(s)}
+          onElapsedChange={handleElapsedChange}
         />
 
 
@@ -214,47 +172,6 @@ const styles = StyleSheet.create({
     ...textStyles.caption,
     color: colors.textSecondary,
     marginTop: spacing.xs,
-  },
-  pomodoroSettings: {
-    backgroundColor: colors.white,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  settingsTitle: {
-    ...textStyles.body,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-    color: colors.text,
-  },
-  presetButtons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  presetButton: {
-    flex: 1,
-    minWidth: '22%',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.backgroundSecondary,
-    alignItems: 'center',
-  },
-  presetButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  presetButtonText: {
-    ...textStyles.body,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  presetButtonTextActive: {
-    color: colors.white,
   },
   infoCard: {
     backgroundColor: colors.white,

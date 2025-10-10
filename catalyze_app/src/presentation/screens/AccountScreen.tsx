@@ -50,6 +50,8 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   // 編集用のローカルstate
   const [tempDisplayName, setTempDisplayName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('👨‍💼');
+  const [pomodoroWorkMinutesInput, setPomodoroWorkMinutesInput] = useState('');
+  const [pomodoroBreakMinutesInput, setPomodoroBreakMinutesInput] = useState('');
   
   // プロフィール・設定の初期化
   useEffect(() => {
@@ -68,6 +70,14 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
       setSelectedAvatar(profile.avatar);
     }
   }, [profile]);
+
+  // 設定更新時に入力フィールドを初期化
+  useEffect(() => {
+    if (settings) {
+      setPomodoroWorkMinutesInput(settings.pomodoroWorkMinutes?.toString() || '');
+      setPomodoroBreakMinutesInput(settings.pomodoroBreakMinutes?.toString() || '');
+    }
+  }, [settings]);
 
   const toast = useTopToast();
 
@@ -298,17 +308,45 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <Ionicons name="analytics-outline" size={24} color={colors.text} />
+            <Ionicons name="timer-outline" size={24} color={colors.text} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>週次レポート</Text>
-              <Text style={styles.settingDescription}>毎週の進捗レポート</Text>
+              <Text style={styles.settingTitle}>ポモドーロ作業時間</Text>
+              <Text style={styles.settingDescription}>集中する時間（分）</Text>
             </View>
           </View>
-          <Switch
-            value={settings.weeklyReport}
-            onValueChange={() => toggleSetting('weeklyReport')}
-            trackColor={{ false: colors.border, true: colors.primaryLight }}
-            thumbColor={settings.weeklyReport ? colors.primary : colors.textSecondary}
+          <TextInput
+            style={styles.numberInput}
+            value={pomodoroWorkMinutesInput}
+            placeholder="25"
+            onChangeText={setPomodoroWorkMinutesInput}
+            onBlur={() => {
+              const value = parseInt(pomodoroWorkMinutesInput) || 25;
+              updateSettings({ pomodoroWorkMinutes: Math.max(1, Math.min(60, value)) });
+            }}
+            keyboardType="numeric"
+            maxLength={2}
+          />
+        </View>
+
+        <View style={styles.settingItem}>
+          <View style={styles.settingLeft}>
+            <Ionicons name="cafe-outline" size={24} color={colors.text} />
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingTitle}>ポモドーロ休憩時間</Text>
+              <Text style={styles.settingDescription}>休憩する時間（分）</Text>
+            </View>
+          </View>
+          <TextInput
+            style={styles.numberInput}
+            value={pomodoroBreakMinutesInput}
+            placeholder="5"
+            onChangeText={setPomodoroBreakMinutesInput}
+            onBlur={() => {
+              const value = parseInt(pomodoroBreakMinutesInput) || 5;
+              updateSettings({ pomodoroBreakMinutes: Math.max(0, Math.min(30, value)) });
+            }}
+            keyboardType="numeric"
+            maxLength={2}
           />
         </View>
       </View>
@@ -666,5 +704,17 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: colors.textSecondary,
     marginTop: spacing.md,
+  },
+  numberInput: {
+    width: 60,
+    textAlign: 'center',
+    ...textStyles.body,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    color: colors.text,
   },
 });

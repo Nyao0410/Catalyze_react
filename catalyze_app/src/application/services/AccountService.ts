@@ -164,6 +164,8 @@ export class AccountService {
       soundEffects: true,
       dailyReminder: true,
       weeklyReport: true,
+      pomodoroWorkMinutes: 25,
+      pomodoroBreakMinutes: 5,
       updatedAt: new Date(),
     };
 

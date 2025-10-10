@@ -13,14 +13,16 @@ export type TimerMode = 'stopwatch' | 'pomodoro';
 interface TimerProps {
   mode: TimerMode;
   pomodoroMinutes?: number; // ポモドーロの作業時間（分）
+  pomodoroBreakMinutes?: number; // ポモドーロの休憩時間（分）
   onComplete?: (elapsedSeconds: number) => void;
-  onElapsedChange?: (elapsedSeconds: number) => void;
+  onElapsedChange?: (elapsedSeconds: number, phase: 'work' | 'break', totalWorkSeconds: number) => void;
   onModeChange?: (mode: TimerMode) => void;
 }
 
 export const Timer: React.FC<TimerProps> = ({
   mode: initialMode,
   pomodoroMinutes = 25,
+  pomodoroBreakMinutes = 5,
   onComplete,
   onElapsedChange,
   onModeChange,
@@ -28,10 +30,15 @@ export const Timer: React.FC<TimerProps> = ({
   const [mode, setMode] = useState<TimerMode>(initialMode);
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [phase, setPhase] = useState<'work' | 'break'>('work');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const workTimeAccumulator = useRef(0); // 完了した作業時間の累積
 
-  const totalPomodoroSeconds = pomodoroMinutes * 60;
+  const totalPomodoroSeconds = phase === 'work' ? pomodoroMinutes * 60 : pomodoroBreakMinutes * 60;
   const remainingSeconds = mode === 'pomodoro' ? Math.max(0, totalPomodoroSeconds - elapsedSeconds) : 0;
+
+  // 合計作業時間を計算
+  const totalWorkSeconds = workTimeAccumulator.current + (phase === 'work' ? elapsedSeconds : 0);
 
   // タイマーの更新
   useEffect(() => {
@@ -39,15 +46,23 @@ export const Timer: React.FC<TimerProps> = ({
       intervalRef.current = setInterval(() => {
         setElapsedSeconds((prev) => {
           const next = prev + 1;
-          try {
-            // notify parent of elapsed change
-            onElapsedChange?.(next);
-          } catch (e) {}
           // ポモドーロモードで時間切れ
           if (mode === 'pomodoro' && next >= totalPomodoroSeconds) {
-            handleStop();
-            onComplete?.(next);
-            return next;
+            if (phase === 'work') {
+              // 作業完了 → 休憩開始
+              workTimeAccumulator.current += next; // 完了した作業時間を累積
+              if (pomodoroBreakMinutes === 0) {
+                // 休憩時間が0分の場合、すぐに次の作業を開始
+                setPhase('work');
+              } else {
+                setPhase('break');
+              }
+              return 0; // elapsedSeconds をリセット
+            } else {
+              // 休憩完了 → 次の作業開始
+              setPhase('work');
+              return 0; // elapsedSeconds をリセット
+            }
           }
           return next;
         });
@@ -64,7 +79,14 @@ export const Timer: React.FC<TimerProps> = ({
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, mode, totalPomodoroSeconds]);
+  }, [isRunning, mode, totalPomodoroSeconds, phase]);
+
+  // elapsedSeconds が変わったら親に通知
+  useEffect(() => {
+    try {
+      onElapsedChange?.(elapsedSeconds, phase, totalWorkSeconds);
+    } catch (e) {}
+  }, [elapsedSeconds, phase, onElapsedChange, totalWorkSeconds]);
 
   const handleStart = () => {
     setIsRunning(true);
@@ -81,8 +103,10 @@ export const Timer: React.FC<TimerProps> = ({
   const handleReset = () => {
     setIsRunning(false);
     setElapsedSeconds(0);
+    setPhase('work');
+    workTimeAccumulator.current = 0;
     try {
-      onElapsedChange?.(0);
+      onElapsedChange?.(0, 'work', 0);
     } catch (e) {}
   };
 
@@ -91,7 +115,12 @@ export const Timer: React.FC<TimerProps> = ({
       setMode(newMode);
       setIsRunning(false);
       setElapsedSeconds(0);
+      setPhase('work');
+      workTimeAccumulator.current = 0;
       onModeChange?.(newMode);
+      try {
+        onElapsedChange?.(0, 'work', 0);
+      } catch (e) {}
     }
   };
 
@@ -154,19 +183,12 @@ export const Timer: React.FC<TimerProps> = ({
 
       {/* タイマー表示 */}
       <View style={styles.timerDisplay}>
-        {mode === 'pomodoro' && (
-          <View style={styles.progressRing}>
-            <View style={[styles.progressCircle, { transform: [{ rotate: `${progress * 360}deg` }] }]}>
-              <View style={styles.progressFill} />
-            </View>
-          </View>
-        )}
         <Text style={styles.timerText}>
           {mode === 'stopwatch' ? formatTime(elapsedSeconds) : formatTime(remainingSeconds)}
         </Text>
         {mode === 'pomodoro' && (
           <Text style={styles.timerSubtext}>
-            経過: {formatTime(elapsedSeconds)} / {pomodoroMinutes}分
+            {phase === 'work' ? '作業中' : '休憩中'}
           </Text>
         )}
       </View>
@@ -187,19 +209,15 @@ export const Timer: React.FC<TimerProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* 経過時間の統計 */}
-      <View style={styles.stats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>経過時間</Text>
-          <Text style={styles.statValue}>{Math.floor(elapsedSeconds / 60)}分</Text>
-        </View>
-        {mode === 'pomodoro' && (
+      {/* ポモドーロ時のみ統計表示（ストップウォッチ時の「経過時間 XX分」は不要のため非表示） */}
+      {mode === 'pomodoro' ? (
+        <View style={styles.stats}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>残り時間</Text>
-            <Text style={styles.statValue}>{Math.floor(remainingSeconds / 60)}分</Text>
+            <Text style={styles.statLabel}>ポモドーロ合計作業時間</Text>
+            <Text style={styles.statValue}>{Math.floor(totalWorkSeconds / 60)}分</Text>
           </View>
-        )}
-      </View>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -243,25 +261,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.xl * 2,
     position: 'relative',
-  },
-  progressRing: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    borderWidth: 8,
-    borderColor: colors.border,
-  },
-  progressCircle: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 140,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    width: '50%',
-    height: '100%',
-    backgroundColor: colors.primary,
   },
   timerText: {
     fontSize: 64,

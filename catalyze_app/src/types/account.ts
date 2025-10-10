@@ -21,5 +21,7 @@ export interface UserSettings {
   soundEffects: boolean;
   dailyReminder: boolean;
   weeklyReport: boolean;
+  pomodoroWorkMinutes: number;
+  pomodoroBreakMinutes: number;
   updatedAt: Date;
 }
