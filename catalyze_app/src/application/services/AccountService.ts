@@ -36,6 +36,13 @@ export class AccountService {
   static async saveProfile(profile: UserProfile): Promise<void> {
     try {
       await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+      console.debug('[AccountService] saveProfile success', { userId: profile.userId });
+      try {
+        const saved = await AsyncStorage.getItem(PROFILE_KEY);
+        console.debug('[AccountService] verify saveProfile readback', { raw: saved ? saved.length : 0 });
+      } catch (e) {
+        console.error('[AccountService] verify saveProfile readback failed', e);
+      }
     } catch (error) {
       console.error('Failed to save profile:', error);
       throw error;
@@ -88,6 +95,13 @@ export class AccountService {
   static async saveSettings(settings: UserSettings): Promise<void> {
     try {
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      console.debug('[AccountService] saveSettings success', { userId: settings.userId });
+      try {
+        const saved = await AsyncStorage.getItem(SETTINGS_KEY);
+        console.debug('[AccountService] verify saveSettings readback', { raw: saved ? saved.length : 0 });
+      } catch (e) {
+        console.error('[AccountService] verify saveSettings readback failed', e);
+      }
     } catch (error) {
       console.error('Failed to save settings:', error);
       throw error;
@@ -179,6 +193,7 @@ export class AccountService {
   static async clearAll(): Promise<void> {
     try {
       await AsyncStorage.multiRemove([PROFILE_KEY, SETTINGS_KEY]);
+      console.debug('[AccountService] clearAll success');
     } catch (error) {
       console.error('Failed to clear data:', error);
       throw error;

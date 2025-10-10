@@ -21,6 +21,7 @@ import {
 } from './src/services';
 import { AccountService, SocialService } from './src/application/services';
 import { ensureAnonymousSignIn } from './src/infrastructure/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // React Query クライアントの設定
 const queryClient = new QueryClient({
@@ -48,13 +49,28 @@ function AppContent() {
           console.warn('Anonymous sign-in failed or firebase not configured, falling back to local UID user-001', err);
         }
 
-        // モックデータを投入（UID を使用）
-        await seedMockData(
-          uid,
-          planRepository,
-          sessionRepository,
-          reviewRepository
-        );
+        // モックデータを投入（UID を使用） — 既にデータがある場合はスキップ
+        try {
+          const existingPlans = await planRepository.findByUserId(uid);
+          if (!existingPlans || existingPlans.length === 0) {
+            await seedMockData(
+              uid,
+              planRepository,
+              sessionRepository,
+              reviewRepository
+            );
+          } else {
+            console.log('[Init] Existing plans found, skipping seedMockData');
+          }
+        } catch (e) {
+          console.warn('[Init] Failed to check existing plans, proceeding to seed', e);
+          await seedMockData(
+            uid,
+            planRepository,
+            sessionRepository,
+            reviewRepository
+          );
+        }
 
         // アカウントとソーシャル機能の初期化（UID を使用）
         const profile = await AccountService.getProfile();
@@ -68,6 +84,17 @@ function AppContent() {
           await SocialService.initializeMockData(uid);
         }
         
+        // Debug: dump account-related AsyncStorage keys to help diagnose persistence issues
+        try {
+          const profileRaw = await AsyncStorage.getItem('@studynext:profile');
+          const settingsRaw = await AsyncStorage.getItem('@studynext:settings');
+          console.log('[Debug] AsyncStorage profile length:', profileRaw ? profileRaw.length : 0);
+          console.log('[Debug] AsyncStorage settings length:', settingsRaw ? settingsRaw.length : 0);
+          // Debug dumps removed: studyPlans raw dump was used during debugging and removed to reduce noise.
+        } catch (e) {
+          console.error('[Debug] Failed to read AsyncStorage during init', e);
+        }
+
         setIsInitialized(true);
       } catch (error) {
         console.error('Failed to initialize app:', error);

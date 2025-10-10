@@ -14,21 +14,41 @@ export class AsyncStorageStudyPlanRepository implements StudyPlanRepository {
     const data = await AsyncStorage.getItem(STORAGE_KEY);
     if (!data) return [];
     const parsed = JSON.parse(data) as any[];
-    return parsed.map((p) => ({
-      ...p,
-      createdAt: new Date(p.createdAt),
-      updatedAt: new Date(p.updatedAt),
-      deadline: p.deadline ? new Date(p.deadline) : undefined,
-    })) as StudyPlanEntity[];
+    return parsed.map((p) =>
+      new StudyPlanEntity({
+        id: p.id,
+        userId: p.userId,
+        title: p.title,
+        totalUnits: p.totalUnits,
+        unit: p.unit,
+        unitRange: p.unitRange,
+        createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
+        deadline: p.deadline ? new Date(p.deadline) : new Date(),
+        rounds: p.rounds,
+        targetRounds: p.targetRounds,
+        estimatedTimePerUnit: p.estimatedTimePerUnit ?? 0,
+        difficulty: p.difficulty,
+        studyDays: p.studyDays,
+        status: p.status,
+        dailyQuota: p.dailyQuota,
+        dynamicDeadline: p.dynamicDeadline ? new Date(p.dynamicDeadline) : undefined,
+      })
+    );
   }
 
   private async _saveAll(plans: StudyPlanEntity[]): Promise<void> {
+    // Debug logs removed: previously printed prototype info for debugging plain object vs instance issues.
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
   }
 
   async create(plan: StudyPlanEntity): Promise<StudyPlanEntity> {
     const plans = await this._loadAll();
-    plans.push(plan);
+    const idx = plans.findIndex((p) => p.id === plan.id);
+    if (idx === -1) {
+      plans.push(plan);
+    } else {
+      plans[idx] = plan; // upsert: replace existing
+    }
     await this._saveAll(plans);
     return plan;
   }

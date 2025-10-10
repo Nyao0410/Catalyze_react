@@ -23,7 +23,12 @@ export class AsyncStorageStudySessionRepository implements StudySessionRepositor
 
   async create(session: StudySessionEntity): Promise<StudySessionEntity> {
     const sessions = await this._loadAll();
-    sessions.push(session);
+    const idx = sessions.findIndex((s) => s.id === session.id);
+    if (idx === -1) {
+      sessions.push(session);
+    } else {
+      sessions[idx] = session; // upsert
+    }
     await this._saveAll(sessions);
     return session;
   }

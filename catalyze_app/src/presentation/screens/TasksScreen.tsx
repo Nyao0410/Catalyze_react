@@ -15,6 +15,7 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { TabView, TabBar } from 'react-native-tab-view';
 import { CalendarView } from '../components/CalendarView';
@@ -55,6 +56,7 @@ export const TodayScreen: React.FC<Props> = () => {
   const userId = 'user-001'; // TODO: 実際のユーザーIDを取得
   const navigation = useNavigation();
   const { isTablet } = useTheme();
+  const { width } = useWindowDimensions();
   // default index: on phone show 'today' (index 1), on tablet show first tab (history)
   const [index, setIndex] = useState<number>(isTablet ? 0 : 1);
   const routes = React.useMemo(() => {
@@ -774,11 +776,12 @@ export const TodayScreen: React.FC<Props> = () => {
   return (
     <View style={{ flex: 1 }}>
       <TabView
+        key={Math.round(width)}
         navigationState={{ index: clampedIndex, routes }}
         renderScene={renderScene}
         renderTabBar={renderTabBar}
         onIndexChange={setIndex}
-        initialLayout={{ width: Math.max(320, require('react-native').Dimensions.get('window').width) }}
+        initialLayout={{ width: Math.max(320, width) }}
       />
       
       {/* メニューModal */}
@@ -810,6 +813,9 @@ export const TodayScreen: React.FC<Props> = () => {
     </View>
   );
 };
+
+// For backward compatibility tests/imports expecting a default export
+export default TodayScreen;
 
 const styles = StyleSheet.create({
   container: {

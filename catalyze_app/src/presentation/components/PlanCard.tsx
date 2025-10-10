@@ -6,8 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { StudyPlanEntity } from 'catalyze-ai';
-import { PlanStatus, PlanDifficulty } from 'catalyze-ai';
+import { StudyPlanEntity, PlanStatus, PlanDifficulty } from 'catalyze-ai';
 import { Card } from './Card';
 import { ProgressBar } from './ProgressBar';
 import { colors, spacing, textStyles } from '../theme';
@@ -26,15 +25,45 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   onPress, 
   completedUnits = 0,
 }) => {
+  // Ensure we have a StudyPlanEntity instance. Some data sources (navigation params, JSON) may
+  // provide plain objects that lost prototype methods like isOverdue(). Convert when needed.
+  let effectivePlan: StudyPlanEntity = plan as StudyPlanEntity;
+  if (typeof (plan as any).isOverdue !== 'function') {
+    try {
+      // Debug logging removed: conversion from plain object to StudyPlanEntity
+      effectivePlan = new StudyPlanEntity({
+        id: (plan as any).id,
+        userId: (plan as any).userId,
+        title: (plan as any).title,
+        totalUnits: (plan as any).totalUnits,
+        unit: (plan as any).unit,
+        unitRange: (plan as any).unitRange,
+        createdAt: (plan as any).createdAt ? new Date((plan as any).createdAt) : new Date(),
+        deadline: (plan as any).deadline ? new Date((plan as any).deadline) : new Date(),
+        rounds: (plan as any).rounds,
+        targetRounds: (plan as any).targetRounds,
+        estimatedTimePerUnit: (plan as any).estimatedTimePerUnit ?? 0,
+        difficulty: (plan as any).difficulty,
+        studyDays: (plan as any).studyDays,
+        status: (plan as any).status,
+        dailyQuota: (plan as any).dailyQuota,
+        dynamicDeadline: (plan as any).dynamicDeadline ? new Date((plan as any).dynamicDeadline) : undefined,
+      });
+    } catch (e) {
+      // Conversion failed; keep using original plan. (Debug logs removed.)
+      // fallback: keep using original plan (may still crash elsewhere)
+      effectivePlan = plan as unknown as StudyPlanEntity;
+    }
+  }
   // ...existing code...
   // 進捗率の計算
   // 表示用の調整: completedUnits が totalUnits を超える場合は周回数を繰り上げて
   // カードには「現在の周回内での完了単元数」を表示する。
   // 例: totalUnits=200, completedUnits=374 -> completedFullRounds=1, remainder=174 -> 表示: 174/200, round=2
-  const totalUnits = plan.totalUnits;
+  const totalUnits = effectivePlan.totalUnits;
   const safeCompleted = Math.max(0, completedUnits || 0);
   let displayCompletedUnits = safeCompleted;
-  let displayRound = plan.rounds ?? 1;
+  let displayRound = effectivePlan.rounds ?? 1;
 
   if (totalUnits > 0) {
     const fullRounds = Math.floor(safeCompleted / totalUnits);
@@ -50,14 +79,14 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   }
 
   // 表示上の targetRounds は、完了数に応じて少なくとも displayRound 以上にする
-  const displayTargetRounds = Math.max(plan.targetRounds ?? 1, displayRound);
+  const displayTargetRounds = Math.max(effectivePlan.targetRounds ?? 1, displayRound);
   // 表示上は周回番号を1引く（初回表示を0にする要望に対応）
   const shownRound = Math.max(0, displayRound - 1);
   const progressPercentage = totalUnits > 0 ? displayCompletedUnits / totalUnits : 0;
 
   // ステータスに応じた表示
   const getStatusInfo = () => {
-    switch (plan.status) {
+    switch (effectivePlan.status) {
       case PlanStatus.ACTIVE:
         return { label: t('status.active'), color: colors.success };
       case PlanStatus.PAUSED:
@@ -73,7 +102,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 
   // 難易度に応じた色
   const getDifficultyColor = () => {
-    switch (plan.difficulty) {
+    switch (effectivePlan.difficulty) {
       case PlanDifficulty.EASY:
         return colors.difficultyEasy;
       case PlanDifficulty.NORMAL:
@@ -87,7 +116,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 
   // 難易度ラベル
   const getDifficultyLabel = () => {
-    switch (plan.difficulty) {
+    switch (effectivePlan.difficulty) {
       case PlanDifficulty.EASY:
         return t('plans.difficulty.easy');
       case PlanDifficulty.NORMAL:
@@ -150,9 +179,9 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           <View style={styles.statItem}>
             <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.statText}>
-              {plan.isOverdue() 
-                ? t('achievability.overdue') 
-                : `${t('plans.card.remaining')}${plan.remainingDays}${t('plans.card.days')}`}
+                {effectivePlan.isOverdue()
+                  ? t('achievability.overdue')
+                  : `${t('plans.card.remaining')}${effectivePlan.remainingDays}${t('plans.card.days')}`}
             </Text>
           </View>
         </View>
@@ -160,7 +189,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
         {/* 期限 */}
         <View style={styles.footer}>
           <Text style={styles.deadlineText}>
-            {t('plans.card.deadline')}: {format(plan.deadline, 'yyyy年M月d日(E)', { locale: ja })}
+            {t('plans.card.deadline')}: {format(effectivePlan.deadline, 'yyyy年M月d日(E)', { locale: ja })}
           </Text>
         </View>
       </Card>

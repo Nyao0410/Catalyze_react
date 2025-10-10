@@ -40,6 +40,7 @@ export class FirestoreAccountService {
       createdAt: profile.createdAt,
       updatedAt: profile.updatedAt,
     }, { merge: true });
+    console.debug('[FirestoreAccountService] saveProfile success', { userId: profile.userId });
   }
 
   static async updateProfile(userId: string, updates: Partial<Pick<UserProfile, 'displayName' | 'avatar'>>): Promise<UserProfile | null> {
@@ -47,6 +48,7 @@ export class FirestoreAccountService {
   const firestore = db as Firestore;
   const ref = doc(firestore, 'users', userId);
     await updateDoc(ref, { ...updates, updatedAt: new Date() });
+    console.debug('[FirestoreAccountService] updateProfile success', { userId });
     return this.getProfile(userId);
   }
 
@@ -65,6 +67,9 @@ export class FirestoreAccountService {
         soundEffects: data.soundEffects,
         dailyReminder: data.dailyReminder,
         weeklyReport: data.weeklyReport,
+        // Provide defaults for pomodoro settings in case they're missing in Firestore
+        pomodoroWorkMinutes: data.pomodoroWorkMinutes ?? 25,
+        pomodoroBreakMinutes: data.pomodoroBreakMinutes ?? 5,
         updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
       };
     } catch (error) {
@@ -78,5 +83,6 @@ export class FirestoreAccountService {
   const firestore = db as Firestore;
   const ref = doc(firestore, 'userSettings', settings.userId);
   await setDoc(ref, { ...settings }, { merge: true });
+  console.debug('[FirestoreAccountService] saveSettings success', { userId: settings.userId });
   }
 }

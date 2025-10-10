@@ -23,7 +23,12 @@ export class AsyncStorageReviewItemRepository implements ReviewItemRepository {
 
   async create(item: ReviewItemEntity): Promise<ReviewItemEntity> {
     const items = await this._loadAll();
-    items.push(item);
+    const idx = items.findIndex((i) => i.id === item.id);
+    if (idx === -1) {
+      items.push(item);
+    } else {
+      items[idx] = item; // upsert
+    }
     await this._saveAll(items);
     return item;
   }

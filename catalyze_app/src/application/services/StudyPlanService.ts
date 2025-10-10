@@ -16,16 +16,48 @@ export class StudyPlanService {
     this.repository = repository || new InMemoryStudyPlanRepository();
   }
 
+  // Helper to ensure returned object is a StudyPlanEntity instance
+  private ensureEntity(obj: any): StudyPlanEntity | null {
+    if (!obj) return null;
+    if (typeof obj.isOverdue === 'function') return obj as StudyPlanEntity;
+    try {
+      return new StudyPlanEntity({
+        id: obj.id,
+        userId: obj.userId,
+        title: obj.title,
+        totalUnits: obj.totalUnits,
+        unit: obj.unit,
+        unitRange: obj.unitRange,
+        createdAt: obj.createdAt ? new Date(obj.createdAt) : new Date(),
+        deadline: obj.deadline ? new Date(obj.deadline) : new Date(),
+        rounds: obj.rounds,
+        targetRounds: obj.targetRounds,
+        estimatedTimePerUnit: obj.estimatedTimePerUnit ?? 0,
+        difficulty: obj.difficulty,
+        studyDays: obj.studyDays,
+        status: obj.status,
+        dailyQuota: obj.dailyQuota,
+        dynamicDeadline: obj.dynamicDeadline ? new Date(obj.dynamicDeadline) : undefined,
+      });
+    } catch (e) {
+      // If conversion fails, rethrow to make the issue visible upstream
+      throw e;
+    }
+  }
+
   async getAllPlans(userId: string): Promise<StudyPlanEntity[]> {
-    return await this.repository.findByUserId(userId);
+    const res = await this.repository.findByUserId(userId);
+    return res.map((p: any) => this.ensureEntity(p) as StudyPlanEntity);
   }
 
   async getActivePlans(userId: string): Promise<StudyPlanEntity[]> {
-    return await this.repository.findActiveByUserId(userId);
+    const res = await this.repository.findActiveByUserId(userId);
+    return res.map((p: any) => this.ensureEntity(p) as StudyPlanEntity);
   }
 
   async getPlanById(planId: string): Promise<StudyPlanEntity | null> {
-    return await this.repository.findById(planId);
+    const res = await this.repository.findById(planId);
+    return this.ensureEntity(res);
   }
 
   async createPlan(plan: StudyPlanEntity): Promise<StudyPlanEntity> {
