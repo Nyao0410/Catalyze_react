@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import Slider from '@react-native-community/slider';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,7 +18,7 @@ type RouteProps = RootStackScreenProps<'RecordSession'>;
 export const RecordSessionScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProps['route']>();
-  const { planId, taskId, sessionId, elapsedMinutes, startUnit: paramStartUnit, endUnit: paramEndUnit } = route.params;
+  const { planId, taskId, sessionId, elapsedMinutes, startUnit: paramStartUnit, endUnit: paramEndUnit, fromTimer } = route.params as any;
 
   const userId = 'user-001';
   const createSession = useCreateSession();
@@ -33,8 +34,8 @@ export const RecordSessionScreen: React.FC = () => {
 
   const [unitsCompleted, setUnitsCompleted] = useState('');
   const [unitsInput, setUnitsInput] = useState(''); // ユーザーが入力する「やった単元数」
-  const [durationMinutes, setDurationMinutes] = useState('');
-  const [concentration, setConcentration] = useState(0.8);
+  const [durationMinutes, setDurationMinutes] = useState('5');
+  const [concentration, setConcentration] = useState(0.6);
   const [difficulty, setDifficulty] = useState(3);
   const [round, setRound] = useState<number | undefined>(undefined);
 
@@ -163,6 +164,14 @@ export const RecordSessionScreen: React.FC = () => {
       try {
         toast.show(isEditMode ? 'セッションが更新されました' : t('today.sessionRecord.success'));
       } catch (e) {}
+      // If opened from Timer, close both RecordSession and Timer by popping two screens.
+      try {
+        if (fromTimer) {
+          // pop two (RecordSession + TimerScreen)
+          (navigation as any).pop?.(2);
+          return;
+        }
+      } catch (e) {}
       navigation.goBack();
     } catch (error) {
       Alert.alert(t('common.error'), isEditMode ? 'セッションの更新に失敗しました' : t('today.sessionRecord.error'));
@@ -209,10 +218,10 @@ export const RecordSessionScreen: React.FC = () => {
           <View style={styles.sliderContainer}>
             <Slider
               style={styles.slider}
-              minimumValue={10}
+              minimumValue={0}
               maximumValue={300}
               step={10}
-              value={parseInt(durationMinutes) || 60}
+              value={parseInt(durationMinutes) || 5}
               onValueChange={(value) => setDurationMinutes(String(Math.round(value)))}
               minimumTrackTintColor={colors.primary}
               maximumTrackTintColor={colors.border}
@@ -228,26 +237,19 @@ export const RecordSessionScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>
-            {t('today.sessionRecord.concentration')}: {concentration === 0.2 ? '😩' : concentration === 0.4 ? '☹️' : concentration === 0.6 ? '🙂' : concentration === 0.8 ? '😊' : '😁'}
-          </Text>
-          <View style={styles.ratingButtons}>
+        <View style={[styles.formGroup, styles.centerAlignedGroup]}>
+          <Text style={styles.label}>{t('today.sessionRecord.concentration')}</Text>
+          <View style={styles.centeredRow}>
             {[0.2, 0.4, 0.6, 0.8, 1.0].map((value) => (
               <TouchableOpacity
                 key={String(value)}
                 style={[
-                  styles.ratingButton,
-                  concentration === value && styles.ratingButtonActive,
+                  styles.iconButton,
+                  concentration === value && styles.iconButtonActive,
                 ]}
                 onPress={() => setConcentration(value)}
               >
-                <Text
-                  style={[
-                    styles.ratingButtonText,
-                    concentration === value && styles.ratingButtonTextActive,
-                  ]}
-                >
+                <Text style={concentration === value ? styles.ratingButtonTextActive : styles.ratingButtonText}>
                   {value === 0.2 ? '😩' : value === 0.4 ? '☹️' : value === 0.6 ? '🙂' : value === 0.8 ? '😊' : '😁'}
                 </Text>
               </TouchableOpacity>
@@ -255,26 +257,16 @@ export const RecordSessionScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>{t('today.sessionRecord.difficulty')}: {difficulty}/5</Text>
-          <View style={styles.ratingButtons}>
+        <View style={[styles.formGroup, styles.centerAlignedGroup]}>
+          <Text style={styles.label}>{t('today.sessionRecord.difficulty')}</Text>
+          <View style={styles.centeredRow}>
             {[1, 2, 3, 4, 5].map((value) => (
               <TouchableOpacity
                 key={value}
-                style={[
-                  styles.ratingButton,
-                  difficulty === value && styles.ratingButtonActive,
-                ]}
                 onPress={() => setDifficulty(value)}
+                style={styles.starButton}
               >
-                <Text
-                  style={[
-                    styles.ratingButtonText,
-                    difficulty === value && styles.ratingButtonTextActive,
-                  ]}
-                >
-                  {value}
-                </Text>
+                <Ionicons name={value <= difficulty ? 'star' : 'star-outline'} size={28} color={value <= difficulty ? colors.primary : colors.border} />
               </TouchableOpacity>
             ))}
           </View>
@@ -317,6 +309,12 @@ const styles = StyleSheet.create({
   slider: { width: 250, marginRight: spacing.md },
   stepperButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSecondary, minWidth: 40, alignItems: 'center', justifyContent: 'center' },
   stepperButtonText: { ...textStyles.body, fontWeight: '700', color: colors.text },
+  // new styles for centered icon controls
+  centerAlignedGroup: { alignItems: 'center' },
+  centeredRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
+  iconButton: { padding: spacing.sm, borderRadius: 8, marginHorizontal: spacing.xs, backgroundColor: colors.backgroundSecondary },
+  iconButtonActive: { backgroundColor: colors.primary },
+  starButton: { paddingHorizontal: spacing.sm, marginHorizontal: spacing.xs },
 });
 
 export default RecordSessionScreen;

@@ -78,6 +78,7 @@ export const TimerScreen: React.FC = () => {
               elapsedMinutes: Math.floor(totalWorkSeconds / 60),
               startUnit,
               endUnit,
+              fromTimer: true,
             });
           },
         },

@@ -14,7 +14,7 @@ export type RootStackParamList = {
   CreatePlan: undefined;
   EditPlan: { planId: string };
   TimerScreen: { planId: string; taskId?: string; startUnit?: number; endUnit?: number };
-  RecordSession: { planId: string; taskId?: string; sessionId?: string; elapsedMinutes?: number; startUnit?: number; endUnit?: number };
+  RecordSession: { planId: string; taskId?: string; sessionId?: string; elapsedMinutes?: number; startUnit?: number; endUnit?: number; fromTimer?: boolean };
   ReviewDetail: { reviewId: string };
   ReviewEvaluation: { itemId?: string; reviewItemIds?: string[]; planId?: string; startUnit?: number; endUnit?: number };
   FriendsList: undefined;
