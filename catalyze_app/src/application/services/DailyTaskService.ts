@@ -123,6 +123,19 @@ export class DailyTaskService {
           } catch (e) {
             planObj = null;
           }
+          // If plan exists, skip creating a review task for this date when it's not a study day
+          if (planObj) {
+            try {
+              const reviewDate = startOfDay(new Date(dateKey));
+              const weekday = reviewDate.getDay() === 0 ? 7 : reviewDate.getDay();
+              if (!planObj.isStudyDay(weekday)) {
+                // skip creating review task for non-study days
+                continue;
+              }
+            } catch (e) {
+              // if any error occurs determining study day, fall back to including the task
+            }
+          }
           const perUnitMs = planObj?.estimatedTimePerUnit ?? 5 * 60 * 1000;
           try {
             // eslint-disable-next-line no-console
@@ -378,6 +391,19 @@ export class DailyTaskService {
           planObj = await studyPlanService.getPlanById(planId);
         } catch (e) {
           planObj = null;
+        }
+        // If plan exists, skip creating a review task for this date when it's not a study day
+        if (planObj) {
+          try {
+            const reviewDate = startOfDay(new Date(dateKey));
+            const weekday = reviewDate.getDay() === 0 ? 7 : reviewDate.getDay();
+            if (!planObj.isStudyDay(weekday)) {
+              // skip creating review task for non-study days
+              continue;
+            }
+          } catch (e) {
+            // fall back to including the task on error
+          }
         }
         const perUnitMs = planObj?.estimatedTimePerUnit ?? 5 * 60 * 1000;
         try {

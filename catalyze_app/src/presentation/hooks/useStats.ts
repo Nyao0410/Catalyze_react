@@ -231,7 +231,7 @@ export const useWeeklyStudyTime = (userId: string) => {
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
       const sessions = await studySessionService.getSessionsByUserId(userId);
-      console.log('[useWeeklyStudyTime] fetched sessions:', sessions.length);
+      //console.log('[useWeeklyStudyTime] fetched sessions:', sessions.length);
       return sessions;
     },
   });
@@ -241,7 +241,7 @@ export const useWeeklyStudyTime = (userId: string) => {
     queryFn: (): StudyTimeData[] => {
       if (!allSessions) return [];
       const result = statisticsService.getWeeklyStudyTime(allSessions);
-      console.log('[useWeeklyStudyTime] computed data:', result);
+      //console.log('[useWeeklyStudyTime] computed data:', result);
       return result;
     },
     enabled: !!allSessions,

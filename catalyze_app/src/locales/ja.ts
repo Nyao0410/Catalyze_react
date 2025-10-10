@@ -51,7 +51,7 @@ export default {
       remaining: '残り',
       days: '日',
       units: '単元',
-      rounds: '回',
+      rounds: '周',
     },
     detail: {
       title: '計画詳細',

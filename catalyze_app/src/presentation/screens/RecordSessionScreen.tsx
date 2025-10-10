@@ -8,6 +8,7 @@ import { colors, spacing, textStyles } from '../theme';
 import { addDays } from 'date-fns';
 import type { RootStackScreenProps } from '../navigation/types';
 import { useCreateSession, useDailyTasksByPlan, useUpdateSession, useStudySession } from '../hooks';
+import { useRecordReview } from '../hooks/useReviewItems';
 import { StudySessionEntity, ProgressAnalysisService } from 'catalyze-ai';
 import { studyPlanService, studySessionService } from '../../services';
 import { t } from '../../locales';
@@ -23,6 +24,7 @@ export const RecordSessionScreen: React.FC = () => {
   const userId = 'user-001';
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
+  const recordReview = useRecordReview();
   const toast = useTopToast();
 
   // 編集モードかどうか
@@ -135,6 +137,39 @@ export const RecordSessionScreen: React.FC = () => {
         });
 
         await updateSession.mutateAsync(updatedSession);
+
+        // --- 自動 SM-2 適用: 編集時にも難易度を反映する ---
+        try {
+          // determine start/end units for the session
+          let startUnit: number | undefined = (existingSession as any).startUnit ?? paramStartUnit;
+          let endUnit: number | undefined = (existingSession as any).endUnit ?? paramEndUnit;
+
+          // fallback: attempt to reconstruct using other sessions if missing
+          if (startUnit === undefined || endUnit === undefined) {
+            const otherSessions = Array.isArray(sessions) ? sessions.filter((s) => s.id !== existingSession.id) : [];
+            const cumulativeBefore = otherSessions.reduce((s: number, it: any) => s + (it.unitsCompleted || 0), 0);
+            if (startUnit === undefined) startUnit = cumulativeBefore + 1;
+            if (endUnit === undefined) endUnit = startUnit + updatedSession.unitsCompleted - 1;
+          }
+
+          if (typeof startUnit === 'number' && typeof endUnit === 'number') {
+            const difficultyValue = typeof difficulty === 'number' ? difficulty : Number(difficulty);
+            let quality = Number.isNaN(difficultyValue) ? 4 : 6 - Math.round(difficultyValue);
+            quality = Math.max(0, Math.min(5, quality));
+
+            const { reviewItemService } = await import('../../services');
+            const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
+            const targets = items.filter((it) => {
+              const n = Number(it.unitNumber);
+              return !Number.isNaN(n) && n >= startUnit! && n <= endUnit!;
+            });
+            if (targets.length > 0) {
+              await Promise.all(targets.map((it) => recordReview.mutateAsync({ itemId: it.id, quality })));
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to auto-apply SM-2 on edit:', e);
+        }
       } else {
         // 新規作成はサービスの統合メソッドに委譲
         const session = new StudySessionEntity({
@@ -153,11 +188,17 @@ export const RecordSessionScreen: React.FC = () => {
         const autoStartUnit = cumulativeCompleted + 1;
         const computedEndUnit = autoStartUnit + unitsNumber - 1;
 
+        // compute initialQuality from difficulty (6 - difficulty, clamped 0..5)
+        const difficultyValue = typeof difficulty === 'number' ? difficulty : Number(difficulty);
+        let initialQuality = Number.isNaN(difficultyValue) ? 4 : 6 - Math.round(difficultyValue);
+        initialQuality = Math.max(0, Math.min(5, initialQuality));
+
         await (await import('../../services')).studySessionService.recordSessionWithReviewItems(
           session,
           planId,
           autoStartUnit,
-          computedEndUnit
+          computedEndUnit,
+          initialQuality
         );
       }
       // 成功時はトーストを表示して戻る

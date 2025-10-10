@@ -65,6 +65,10 @@ export class StudyPlanService {
   }
 
   async updatePlan(plan: StudyPlanEntity): Promise<void> {
+    try {
+      // eslint-disable-next-line no-console
+      console.debug(`[SERVICE/PLAN] update id=${plan.id}`);
+    } catch (e) {}
     await this.repository.update(plan);
   }
 

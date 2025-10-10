@@ -37,7 +37,13 @@ export class AsyncStorageStudyPlanRepository implements StudyPlanRepository {
   }
 
   private async _saveAll(plans: StudyPlanEntity[]): Promise<void> {
-    // Debug logs removed: previously printed prototype info for debugging plain object vs instance issues.
+    // Minimal persistence log to help debug save behavior. Keep concise for easy filtering.
+    try {
+      // eslint-disable-next-line no-console
+      console.debug(`[PERSIST/PLAN] saving ${plans.length} plans, firstId=${plans.length > 0 ? plans[0].id : 'none'}`);
+    } catch (e) {
+      // ignore logging errors
+    }
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
   }
 

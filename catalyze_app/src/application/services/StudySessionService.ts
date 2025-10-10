@@ -44,7 +44,9 @@ export class StudySessionService {
     session: StudySessionEntity,
     planId: string,
     startUnit?: number,
-    endUnit?: number
+    endUnit?: number,
+    // Optional initial quality (0..5) to apply to newly created review items so SM-2 can initialize intervals
+    initialQuality?: number
   ): Promise<StudySessionEntity> {
     // 永続化（リポジトリに委譲）
     const created = await this.repository.create(session);
@@ -58,6 +60,7 @@ export class StudySessionService {
         const nextDay = new Date(now);
         nextDay.setDate(now.getDate() + 1);
         const groupTs = Date.now();
+        const createdIds: string[] = [];
         for (let u = startUnit; u <= endUnit; u++) {
           if (!existingUnits.has(u)) {
             const { ReviewItemEntity } = await import('catalyze-ai');
@@ -70,6 +73,18 @@ export class StudySessionService {
               nextReviewDate: nextDay,
             } as any);
             await reviewItemService.createReviewItem(newItem);
+            createdIds.push(newItem.id);
+          }
+        }
+
+        // If an initial quality was provided, immediately apply SM-2 record to newly created items
+        if (typeof initialQuality === 'number' && createdIds.length > 0) {
+          try {
+            for (const id of createdIds) {
+              await reviewItemService.recordReview(id, initialQuality);
+            }
+          } catch (e) {
+            console.error('Failed to apply initial SM-2 quality to created review items:', e);
           }
         }
       }

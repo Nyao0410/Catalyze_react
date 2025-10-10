@@ -175,19 +175,38 @@ export const TodayScreen: React.FC<Props> = () => {
     if (isReviewType || hasReviewIds || isReviewIdName) {
       const ids: string[] | undefined = taskObj && taskObj.reviewItemIds && taskObj.reviewItemIds.length > 0 ? taskObj.reviewItemIds : undefined;
       if (ids && ids.length > 0) {
-        navigation.navigate('ReviewEvaluation', { reviewItemIds: ids, planId: taskObj.planId, startUnit: taskObj.startUnit, endUnit: taskObj.endUnit });
+        // Open the RecordSession screen prefilled for the review range so user records a session instead of separate evaluation
+        navigation.navigate('RecordSession', { planId: taskObj.planId, startUnit: taskObj.startUnit, endUnit: taskObj.endUnit });
         return;
       }
       // Fallback: if task id encodes a single review or no underlying ids available, attempt single-item navigation
       const reviewId = (taskObj && taskObj.reviewItemIds && taskObj.reviewItemIds.length > 0) ? taskObj.reviewItemIds[0] : null;
       if (reviewId) {
-        navigation.navigate('ReviewEvaluation', { itemId: reviewId });
+        // Try to resolve review item from dueReviewItems (fetched at top of component) to get plan/unit
+        try {
+          const found = dueReviewItems.find((r: any) => r.id === reviewId);
+          if (found) {
+            const unit = typeof found.unitNumber === 'number' ? found.unitNumber : Number(found.unitNumber);
+            if (!Number.isNaN(unit)) {
+              navigation.navigate('RecordSession', { planId: found.planId, startUnit: unit, endUnit: unit });
+              return;
+            }
+          }
+        } catch (e) {
+          // ignore and fall back
+        }
+        // fallback: if we have taskObj context, open RecordSession with its range
+        if (taskObj && taskObj.planId) {
+          navigation.navigate('RecordSession', { planId: taskObj.planId, startUnit: taskObj.startUnit, endUnit: taskObj.endUnit });
+          return;
+        }
+        // final fallback: open session modal for taskObj
         return;
       }
       // If we detected a synthetic review task (id startsWith 'review-') but no underlying ids, still navigate to the evaluation screen
       // so the user can see context; ReviewEvaluation will no-op if there are no ids — this is better than opening the session recorder.
       if (isReviewIdName) {
-        navigation.navigate('ReviewEvaluation', { planId: taskObj?.planId, startUnit: taskObj?.startUnit, endUnit: taskObj?.endUnit });
+        navigation.navigate('RecordSession', { planId: taskObj?.planId, startUnit: taskObj?.startUnit, endUnit: taskObj?.endUnit });
         return;
       }
     }

@@ -162,12 +162,28 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
       status: PlanStatus.ACTIVE,
   } as any);
     if (isEditMode && existingPlan) {
-      // update existing plan (keep same id)
-  const props = { ...newPlan, id: existingPlan.id, studyDays: Array.from(existingPlan.studyDays ?? []) } as any;
+    // update existing plan (keep same id)
+  const props = { ...newPlan, id: existingPlan.id, studyDays: normalizedStudyDays } as any;
   const updated = new StudyPlanEntity(props);
-  updatePlanMutate(updated);
-      //Alert.alert(t('createPlan.success'), t('createPlan.updateSuccessMessage') || t('createPlan.successMessage'));
+  // Log and wait for mutation success before navigating back so we can confirm persistence
+  try {
+    // eslint-disable-next-line no-console
+    console.debug(`[PERSIST/PLAN] update requested id=${updated.id}`);
+  } catch (e) {
+    // ignore
+  }
+  updatePlanMutate(updated, {
+    onSuccess: () => {
+      try {
+        // eslint-disable-next-line no-console
+        console.debug(`[PERSIST/PLAN] update succeeded id=${updated.id}`);
+      } catch (e) {}
       navigation.goBack();
+    },
+    onError: () => {
+      Alert.alert(t('errors.saveFailed'), t('createPlan.error'));
+    },
+  });
     } else {
       createPlan(newPlan, {
         onSuccess: () => {
