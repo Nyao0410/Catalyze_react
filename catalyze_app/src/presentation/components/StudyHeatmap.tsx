@@ -3,11 +3,11 @@
  * 学習ヒートマップコンポーネント（GitHub風）
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { colors, spacing, textStyles } from '../theme';
 import type { HeatmapDay } from '../../application/services/StatisticsService';
-import { format, startOfWeek, addWeeks } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 
 interface StudyHeatmapProps {
@@ -15,6 +15,19 @@ interface StudyHeatmapProps {
 }
 
 export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
+  const [anchorDate, setAnchorDate] = useState<Date>(new Date());
+
+  const goPrevQuarter = () => {
+    const d = new Date(anchorDate);
+    d.setMonth(d.getMonth() - 3);
+    setAnchorDate(d);
+  };
+
+  const goNextQuarter = () => {
+    const d = new Date(anchorDate);
+    d.setMonth(d.getMonth() + 3);
+    setAnchorDate(d);
+  };
   // レベルごとの色
   const getLevelColor = (level: number) => {
     switch (level) {
@@ -33,37 +46,52 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
     }
   };
 
-  // データを週ごとにグループ化
+  // 今月のカレンダー範囲（先頭週の日曜〜最終週の土曜）でグリッドを作成
+  const now = anchorDate;
+  // 四半期（3か月）: anchorDate の属する四半期の月初〜月末を計算
+  const month = now.getMonth(); // 0-11
+  const quarterIndex = Math.floor(month / 3); // 0..3
+  const quarterStartMonth = quarterIndex * 3; // 0,3,6,9
+  const quarterEndMonth = quarterStartMonth + 2;
+  const rangeStartMonth = startOfMonth(new Date(now.getFullYear(), quarterStartMonth, 1));
+  const rangeEndMonth = endOfMonth(new Date(now.getFullYear(), quarterEndMonth, 1));
+  const gridStart = startOfWeek(rangeStartMonth, { weekStartsOn: 0 });
+  const gridEnd = endOfWeek(rangeEndMonth, { weekStartsOn: 0 });
+
+  // データを日付マップに変換して、月のレンジに含まれる日を取り出す
+  const dataMap = new Map(data.map((d) => [d.date, d]));
+  const allDays = eachDayOfInterval({ start: gridStart, end: gridEnd });
+
   const weeks: HeatmapDay[][] = [];
   let currentWeek: HeatmapDay[] = [];
-
-  data.forEach((day, index) => {
-    currentWeek.push(day);
+  allDays.forEach((day) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const dayData = dataMap.get(dateStr) || { date: dateStr, value: 0, level: 0 };
+    currentWeek.push(dayData);
     if (currentWeek.length === 7) {
       weeks.push(currentWeek);
       currentWeek = [];
     }
   });
-  if (currentWeek.length > 0) {
-    weeks.push(currentWeek);
-  }
 
   // 曜日ラベル
   const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
-
-  // 月のラベルを計算（簡易版）
-  const monthLabels: string[] = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const date = new Date(now);
-    date.setMonth(date.getMonth() - (11 - i));
-    monthLabels.push(format(date, 'M月', { locale: ja }));
-  }
+  const subtitleLabel = `${format(rangeStartMonth, 'yyyy年M月', { locale: ja })} 〜 ${format(rangeEndMonth, 'yyyy年M月', { locale: ja })}`;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>学習ヒートマップ</Text>
-      <Text style={styles.subtitle}>過去1年間の学習記録</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={styles.title}>学習ヒートマップ</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={goPrevQuarter} style={styles.navButton}>
+            <Text style={styles.navButtonText}>{'◀'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={goNextQuarter} style={styles.navButton}>
+            <Text style={styles.navButtonText}>{'▶'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      <Text style={styles.subtitle}>{subtitleLabel} の学習記録</Text>
 
       <ScrollView
         horizontal
@@ -153,14 +181,14 @@ const styles = StyleSheet.create({
   },
   grid: {
     flexDirection: 'row',
-    gap: 2,
+    gap: 4,
   },
   column: {
-    gap: 2,
+    gap: 4,
   },
   cell: {
-    width: 12,
-    height: 12,
+    width: 14,
+    height: 14,
     borderRadius: 2,
     borderWidth: 1,
     borderColor: colors.border,
@@ -187,5 +215,16 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  navButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  navButtonText: {
+    ...textStyles.body,
+    color: colors.text,
+    fontWeight: '600',
   },
 });

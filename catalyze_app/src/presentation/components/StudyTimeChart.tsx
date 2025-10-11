@@ -77,6 +77,40 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
     },
   };
 
+  const contentInset = { top: 10, bottom: 10 };
+
+  // compute max total hours for the Y axis and choose a readable tick step
+  const maxTotalHours = Math.max(
+    0,
+    ...currentData.map((d) => {
+      const planSum = d.perPlanMinutes?.reduce((s, p) => s + p.minutes, 0);
+      const totalMinutes = typeof planSum === 'number' ? planSum : d.minutes;
+      return totalMinutes / 60;
+    })
+  );
+
+  const computeStep = (maxH: number) => {
+    if (maxH <= 1) return 0.25; // 15 minutes
+    if (maxH <= 3) return 0.5; // 30 minutes
+    if (maxH <= 6) return 1; // 1 hour
+    if (maxH <= 12) return 1; // 1 hour
+    return Math.ceil(maxH / 6); // spread into ~6 steps for large ranges
+  };
+
+  const step = computeStep(maxTotalHours);
+  const maxTick = Math.ceil((maxTotalHours || 0) / step) * step;
+  const ticks: number[] = [];
+  for (let v = 0; v <= maxTick + 1e-9; v += step) {
+    ticks.push(Number(v.toFixed(2)));
+  }
+
+  const formatHourLabel = (value: number) => {
+    const minutes = Math.round(value * 60);
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h}:${m.toString().padStart(2, '0')}`;
+  };
+
   // calculate chart width: use containerWidth but shrink slightly when many bars to reduce bar width
   // start from container width but allow a small right extension so the purple
   // background area reaches closer to the right card edge. We still shrink
@@ -92,6 +126,12 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
     minChartWidth,
     baseChartWidth - Math.max(0, labels.length - 1) * extraShrinkPerBar
   );
+
+  // layout adjustments for custom Y axis column
+  const leftYAxisWidth = 44; // px reserved for Y axis labels
+  const chartHeight = 180;
+  const adjustedChartWidth = Math.max(120, chartWidth - leftYAxisWidth);
+  const innerChartHeight = Math.max(4, chartHeight - contentInset.top - contentInset.bottom);
 
   return (
     <View
@@ -140,8 +180,39 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
       {/** reduce left padding so y-axis labels sit closer to the card edge */}
       <View style={{ ...styles.chart, marginLeft: -6, marginRight: 4, paddingBottom: 12 }}>
         <RNView style={{ height: 220, flexDirection: 'column' }}>
-          <StackedBarChart
-            style={{ height: 180 }}
+          <RNView style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            {/* Y axis labels column */}
+            <Svg width={leftYAxisWidth} height={chartHeight}>
+              {(() => {
+                try {
+                  if (ticks.length === 0) return null;
+                  const maxV = ticks[ticks.length - 1] || 0;
+                  return ticks.map((t, i) => {
+                    // map value to y coordinate inside chart
+                    const y = maxV === 0
+                      ? contentInset.top + innerChartHeight
+                      : contentInset.top + ((maxV - t) / (maxV || 1)) * innerChartHeight;
+                    return (
+                      <SvgText
+                        key={`y-${i}`}
+                        x={leftYAxisWidth - 6}
+                        y={y + 4} // small vertical offset to better align with bars
+                        fontSize={11}
+                        fill="#6B7280"
+                        textAnchor="end"
+                      >
+                        {formatHourLabel(t)}
+                      </SvgText>
+                    );
+                  });
+                } catch (e) {
+                  return null;
+                }
+              })()}
+            </Svg>
+
+            <StackedBarChart
+              style={{ height: chartHeight, width: adjustedChartWidth }}
             keys={planIds.length > 0 ? planIds : ['total']}
             colors={planIds.length > 0 ? planIds.map((_, i) => palette[i % palette.length]) : [palette[0]]}
             data={currentData.map((d) => {
@@ -165,8 +236,10 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
             <Grid />
           </StackedBarChart>
 
+          </RNView>
+
           {/* Custom X-axis labels: staggered to prevent overlap */}
-          <Svg width={chartWidth} height={40} style={{ marginTop: 8 }}>
+          <Svg width={adjustedChartWidth} height={40} style={{ marginTop: 8, marginLeft: leftYAxisWidth }}>
             {(() => {
               try {
                 const xScale = scale.scaleBand().domain(labels).range([12, Math.max(12, chartWidth - 12)]).padding(0.2 as any);

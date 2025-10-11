@@ -31,7 +31,7 @@ export const Timer: React.FC<TimerProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [phase, setPhase] = useState<'work' | 'break'>('work');
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const workTimeAccumulator = useRef(0); // 完了した作業時間の累積
 
   const totalPomodoroSeconds = phase === 'work' ? pomodoroMinutes * 60 : pomodoroBreakMinutes * 60;
