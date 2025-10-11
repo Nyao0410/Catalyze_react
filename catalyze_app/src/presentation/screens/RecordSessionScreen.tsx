@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Slider from '@react-native-community/slider';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors, spacing, textStyles } from '../theme';
@@ -25,6 +25,7 @@ export const RecordSessionScreen: React.FC = () => {
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
   const recordReview = useRecordReview();
+  const queryClient = useQueryClient();
   const toast = useTopToast();
 
   // 編集モードかどうか
@@ -91,11 +92,30 @@ export const RecordSessionScreen: React.FC = () => {
     }
   }, [task, existingSession, isEditMode, elapsedMinutes, paramStartUnit, paramEndUnit]);
 
-  // プレビュー計算: これまでの合計から開始単元を決め、入力値から終了単元を計算
+  // プレビュー計算: タイマーなどで start/end が直接渡されていればそれを優先して表示する。
+  // そうでなければ、これまでの合計から開始単元を決め、入力値から終了単元を計算する。
   const cumulativeCompleted = Array.isArray(sessions) ? sessions.reduce((s: number, it: any) => s + (it.unitsCompleted || 0), 0) : 0;
-  const previewStartUnit = cumulativeCompleted + 1;
-  const previewUnitsNumber = unitsInput && !isNaN(parseInt(unitsInput, 10)) ? Math.max(1, parseInt(unitsInput, 10)) : (task?.units ?? (paramStartUnit !== undefined && paramEndUnit !== undefined ? (paramEndUnit - paramStartUnit + 1) : 1));
-  const previewEndUnit = previewStartUnit + previewUnitsNumber - 1;
+  let previewStartUnit: number;
+  let previewEndUnit: number;
+  if (paramStartUnit !== undefined && paramEndUnit !== undefined) {
+    // タイマーなどから渡された絶対単元番号をそのまま表示
+    previewStartUnit = paramStartUnit;
+    previewEndUnit = paramEndUnit;
+  } else if (plan && (plan.unitRange as any)?.start !== undefined && (plan.unitRange as any)?.end !== undefined) {
+    // プランに unitRange がある場合は、累計完了数を unitRange.start でオフセットして絶対単元を算出
+    const range = plan.unitRange as { start: number; end: number };
+    previewStartUnit = range.start + cumulativeCompleted;
+    const previewUnitsNumber = unitsInput && !isNaN(parseInt(unitsInput, 10))
+      ? Math.max(1, parseInt(unitsInput, 10))
+      : (task?.units ?? 1);
+    previewEndUnit = Math.min(range.end, previewStartUnit + previewUnitsNumber - 1);
+  } else {
+    previewStartUnit = cumulativeCompleted + 1;
+    const previewUnitsNumber = unitsInput && !isNaN(parseInt(unitsInput, 10))
+      ? Math.max(1, parseInt(unitsInput, 10))
+      : (task?.units ?? 1);
+    previewEndUnit = previewStartUnit + previewUnitsNumber - 1;
+  }
 
   // ...existing code...
 
@@ -200,6 +220,20 @@ export const RecordSessionScreen: React.FC = () => {
           computedEndUnit,
           initialQuality
         );
+        // 新規セッション作成経路は service を直接呼んでいるため React Query のキャッシュ更新が行われない。
+        // 保存後に関連クエリを無効化して TasksScreen / Review リストが最新化されるようにする。
+        try {
+          queryClient.invalidateQueries({ queryKey: ['dailyTasks', userId] });
+          queryClient.invalidateQueries({ queryKey: ['upcomingTasks', userId] });
+          queryClient.invalidateQueries({ queryKey: ['tasksForDate', userId] });
+          queryClient.invalidateQueries({ queryKey: ['reviewItems', 'due', userId] });
+          queryClient.invalidateQueries({ queryKey: ['studySessions', 'user', userId] });
+          // PlanDetail uses the ['studySessions', planId] key; invalidate it so the detail view refreshes
+          queryClient.invalidateQueries({ queryKey: ['studySessions', planId] });
+          queryClient.invalidateQueries({ queryKey: ['dailyTasks', 'plan', planId] });
+        } catch (e) {
+          // ignore
+        }
       }
       // 成功時はトーストを表示して戻る
       try {

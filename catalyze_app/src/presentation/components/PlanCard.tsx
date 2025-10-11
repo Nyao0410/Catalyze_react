@@ -167,7 +167,14 @@ export const PlanCard: React.FC<PlanCardProps> = ({
           <View style={styles.statItem}>
             <Ionicons name="book-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.statText}>
-              {displayCompletedUnits}/{plan.totalUnits}{plan.unit}
+              {(() => {
+                const range = (effectivePlan.unitRange as { start: number; end: number } | undefined);
+                if (range && typeof range.start === 'number' && typeof range.end === 'number') {
+                  const current = Math.min(range.end, range.start + displayCompletedUnits);
+                  return `${current}/${range.end}${plan.unit}`;
+                }
+                return `${displayCompletedUnits}/${plan.totalUnits}${plan.unit}`;
+              })()}
             </Text>
           </View>
           <View style={styles.statItem}>

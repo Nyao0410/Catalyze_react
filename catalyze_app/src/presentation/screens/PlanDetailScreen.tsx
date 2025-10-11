@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackScreenProps } from '../navigation/types';
-import { useStudyPlan, usePausePlan, useResumePlan, useCompletePlan, useStudySessions, useDeletePlan } from '../hooks';
+import { useStudyPlan, usePausePlan, useResumePlan, useCompletePlan, useStudySessions, useDeletePlan, useUpdatePlan } from '../hooks';
 import { ProgressBar } from '../components/ProgressBar';
 import InlineMenu from '../components/InlineMenu';
 import { colors, spacing, textStyles } from '../theme';
@@ -24,6 +24,15 @@ import { PlanStatus, PlanDifficulty, type StudySessionEntity } from 'catalyze-ai
 import { ProgressAnalysisService, PerformanceTrend, AchievabilityStatus } from 'catalyze-ai';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+
+// ヘルパー: ミリ秒を「X時間Y分」形式で返す
+const formatMsToHoursMinutes = (ms: number) => {
+  const totalMinutes = Math.round(ms / 1000 / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours}時間${minutes}分`;
+  return `${minutes}分`;
+};
 
 type Props = RootStackScreenProps<'PlanDetail'>;
 
@@ -90,6 +99,15 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
   const pausePlan = usePausePlan();
   const resumePlan = useResumePlan();
   const completePlan = useCompletePlan();
+  const { mutate: updatePlanMutate } = useUpdatePlan();
+  const [isSavingStudyDays, setIsSavingStudyDays] = React.useState(false);
+
+  // UI uses 0=Sun..6=Sat, domain uses 1=Mon..7=Sun -> normalize for rendering and updates
+  const uiStudyDays = React.useMemo(() => {
+    if (!plan?.studyDays) return [] as number[];
+    // domain -> ui: map 7 -> 0, others stay the same (1..6)
+    return Array.from(new Set((plan.studyDays as number[]).map((d) => d % 7))).sort((a, b) => a - b);
+  }, [plan?.studyDays]);
 
   // パフォーマンス分析サービス
   const analysisService = new ProgressAnalysisService();
@@ -285,9 +303,18 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
         <Text style={textStyles.h3}>進捗状況</Text>
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
-            {/* 現在の周の進捗を表示（例: 185/200 問） */}
+            {/* 現在の周の進捗を表示（例: 185/200 問）。unitRange があれば絶対単元で表示 */}
             <Text style={textStyles.h2}>
-              {completedInCurrentRound} / {plan.totalUnits} {plan.unit}
+              {(() => {
+                const range = (plan.unitRange as { start: number; end: number } | undefined);
+                if (range && typeof range.start === 'number' && typeof range.end === 'number') {
+                  const current = range.start + (completedInCurrentRound > 0 ? completedInCurrentRound - 1 : 0);
+                  // clamp to end
+                  const clamped = Math.min(current, range.end);
+                  return `${clamped}/${range.end} ${plan.unit}`;
+                }
+                return `${completedInCurrentRound} / ${plan.totalUnits} ${plan.unit}`;
+              })()}
             </Text>
             {/* 全体の進捗（累計 / 総数）をパーセンテージで表示（例: 193%） */}
             <Text style={textStyles.h2}>
@@ -308,18 +335,49 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
         <Text style={textStyles.h3}>統計情報</Text>
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Ionicons name="repeat-outline" size={24} color={colors.primary} />
-            <Text style={styles.statValue}>
-              {plan.rounds} / {plan.targetRounds}
-            </Text>
+            {/* 表示を PlanCard に合わせて 0 始まりに揃える */}
+            {(() => {
+              const totalUnits = plan.totalUnits;
+              const completedUnits = sessions.reduce((sum: number, s: StudySessionEntity) => sum + s.unitsCompleted, 0);
+              let displayRound = plan.rounds ?? 1;
+              if (totalUnits > 0) {
+                const fullRounds = Math.floor(completedUnits / totalUnits);
+                const remainder = completedUnits % totalUnits;
+                if (remainder === 0 && fullRounds > 0) {
+                  displayRound = fullRounds;
+                } else {
+                  displayRound = fullRounds + 1;
+                }
+              }
+              const displayTargetRounds = Math.max(plan.targetRounds ?? 1, displayRound);
+              const shownRound = Math.max(0, displayRound - 1);
+              return (
+                <>
+                  <Ionicons name="repeat-outline" size={24} color={colors.primary} />
+                  <Text style={styles.statValue}>
+                    {shownRound} / {displayTargetRounds}
+                  </Text>
+                </>
+              );
+            })()}
             <Text style={styles.statLabel}>周回数</Text>
           </View>
           <View style={styles.statCard}>
             <Ionicons name="time-outline" size={24} color={colors.primary} />
-            <Text style={styles.statValue}>
-              {Math.round((plan.estimatedTimePerUnit / 1000 / 60) * plan.totalUnits)}
-            </Text>
-            <Text style={styles.statLabel}>推定時間（分）</Text>
+            {/* セッションがあればその平均時間（分）を使って算出、なければ plan の固定値を使用 */}
+            {(() => {
+              const perUnitMs = (sessions && sessions.length > 0 && averagePerformance.averageTimePerUnit > 0)
+                ? averagePerformance.averageTimePerUnit * 60 * 1000
+                : plan.estimatedTimePerUnit;
+              return (
+                <>
+                  <Text style={styles.statValue}>
+                    {formatMsToHoursMinutes(perUnitMs * plan.totalUnits)}
+                  </Text>
+                  <Text style={styles.statLabel}>推定時間</Text>
+                </>
+              );
+            })()}
           </View>
           <View style={styles.statCard}>
             <Ionicons name="calendar-number-outline" size={24} color={colors.primary} />
@@ -341,13 +399,39 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
         <Text style={textStyles.h3}>学習曜日</Text>
         <View style={styles.daysContainer}>
           {['日', '月', '火', '水', '木', '金', '土'].map((day, index) => {
-            const isActive = plan.studyDays.includes(index);
+            const isActive = uiStudyDays.includes(index);
+            const toggleDay = async () => {
+              try {
+                // operate on UI indices (0..6)
+                const newUiStudyDays = isActive
+                  ? uiStudyDays.filter((d) => d !== index)
+                  : [...uiStudyDays, index].sort((a, b) => a - b);
+
+                // convert back to domain format: 0 -> 7, others unchanged
+                const normalizedDomain = newUiStudyDays.map((d) => (d === 0 ? 7 : d));
+                const updated = { ...plan, studyDays: normalizedDomain } as any;
+                setIsSavingStudyDays(true);
+                updatePlanMutate(updated, {
+                  onSuccess: () => setIsSavingStudyDays(false),
+                  onError: () => {
+                    setIsSavingStudyDays(false);
+                    Alert.alert('エラー', '学習曜日の更新に失敗しました');
+                  },
+                });
+              } catch (e) {
+                Alert.alert('エラー', '学習曜日の更新に失敗しました');
+              }
+            };
+
             return (
-              <View
+              <TouchableOpacity
                 key={day}
+                onPress={toggleDay}
+                disabled={isSavingStudyDays}
                 style={[
                   styles.dayBadge,
                   isActive ? styles.dayBadgeActive : styles.dayBadgeInactive,
+                  isSavingStudyDays && styles.dayBadgeDisabled,
                 ]}
               >
                 <Text
@@ -358,7 +442,7 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
                 >
                   {day}
                 </Text>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -697,6 +781,9 @@ const styles = StyleSheet.create({
   },
   dayBadgeInactive: {
     backgroundColor: colors.backgroundSecondary,
+  },
+  dayBadgeDisabled: {
+    opacity: 0.6,
   },
   dayText: {
     ...textStyles.caption,

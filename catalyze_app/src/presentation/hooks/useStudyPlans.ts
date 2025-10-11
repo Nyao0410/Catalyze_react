@@ -73,6 +73,12 @@ export const useUpdatePlan = () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, plan.userId] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'active', plan.userId] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, plan.id] });
+      // Invalidate task-related queries so UI (TasksScreen) updates
+      queryClient.invalidateQueries({ queryKey: ['dailyTasks', plan.userId] });
+      queryClient.invalidateQueries({ queryKey: ['upcomingTasks', plan.userId] });
+      queryClient.invalidateQueries({ queryKey: ['tasksForDate', plan.userId] });
+      // also invalidate per-plan daily tasks
+      queryClient.invalidateQueries({ queryKey: ['dailyTasks', 'plan', plan.id] });
     },
   });
 };
@@ -103,6 +109,11 @@ export const usePausePlan = () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, plan.userId] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'active', plan.userId] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, plan.id] });
+      // Ensure task lists are refreshed
+      queryClient.invalidateQueries({ queryKey: ['dailyTasks', plan.userId] });
+      queryClient.invalidateQueries({ queryKey: ['upcomingTasks', plan.userId] });
+      queryClient.invalidateQueries({ queryKey: ['tasksForDate', plan.userId] });
+      queryClient.invalidateQueries({ queryKey: ['dailyTasks', 'plan', plan.id] });
     },
   });
 };
@@ -119,6 +130,11 @@ export const useResumePlan = () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, plan.userId] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'active', plan.userId] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, plan.id] });
+      // Ensure task lists are refreshed
+      queryClient.invalidateQueries({ queryKey: ['dailyTasks', plan.userId] });
+      queryClient.invalidateQueries({ queryKey: ['upcomingTasks', plan.userId] });
+      queryClient.invalidateQueries({ queryKey: ['tasksForDate', plan.userId] });
+      queryClient.invalidateQueries({ queryKey: ['dailyTasks', 'plan', plan.id] });
     },
   });
 };
