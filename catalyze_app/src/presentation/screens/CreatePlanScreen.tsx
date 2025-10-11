@@ -39,7 +39,7 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [difficulty, setDifficulty] = useState<PlanDifficulty>(PlanDifficulty.NORMAL);
-  const [studyDays, setStudyDays] = useState<number[]>([]);
+  const [studyDays, setStudyDays] = useState<number[]>([1,2,3,4,5]);
   // advanced settings
   const [targetRounds, setTargetRounds] = useState('1');
   const [rounds, setRounds] = useState('1');

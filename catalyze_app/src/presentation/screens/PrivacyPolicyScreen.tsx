@@ -115,7 +115,7 @@ export const PrivacyPolicyScreen: React.FC<{ navigation: any }> = ({ navigation 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>7. お問い合わせ</Text>
           <Text style={[styles.paragraph, { color: colors.textSecondary }]}>
-            プライバシーに関するお問い合わせは、privacy@studynext.app までご連絡ください。
+            プライバシーに関するお問い合わせは、vercy.app@gmail.com までご連絡ください。
           </Text>
         </View>
       </ScrollView>

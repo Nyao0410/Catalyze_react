@@ -60,6 +60,8 @@ export interface PlanBreakdown {
 export interface StudyTimeData {
   date: string; // yyyy-MM-dd
   minutes: number;
+  // 科目（プラン）ごとの内訳
+  perPlanMinutes?: { planId: string; minutes: number }[];
   label: string; // 表示用ラベル（例: "月", "1/1"）
 }
 
@@ -85,9 +87,18 @@ export class StatisticsService {
         0
       );
 
+      // プランごとに集計（科目別内訳）
+      const planMap = new Map<string, number>();
+      daySessions.forEach((s) => {
+        const prev = planMap.get(s.planId) || 0;
+        planMap.set(s.planId, prev + s.durationMinutes);
+      });
+      const perPlanMinutes = Array.from(planMap.entries()).map(([planId, minutes]) => ({ planId, minutes }));
+
       return {
         date: dayStr,
         minutes: totalMinutes,
+        perPlanMinutes,
         label: weekLabels[index],
       };
     });
@@ -121,9 +132,18 @@ export class StatisticsService {
         0
       );
 
+      // 週内のプランごとの合計を計算
+      const planMap = new Map<string, number>();
+      weekSessions.forEach((s) => {
+        const prev = planMap.get(s.planId) || 0;
+        planMap.set(s.planId, prev + s.durationMinutes);
+      });
+      const perPlanMinutes = Array.from(planMap.entries()).map(([planId, minutes]) => ({ planId, minutes }));
+
       weeks.push({
         date: format(currentWeekStart, 'yyyy-MM-dd'),
         minutes: totalMinutes,
+        perPlanMinutes,
         label: weekLabel,
       });
 
