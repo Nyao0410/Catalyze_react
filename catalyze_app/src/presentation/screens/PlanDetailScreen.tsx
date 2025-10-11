@@ -354,7 +354,7 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
                   displayRound = fullRounds + 1;
                 }
               }
-              const displayTargetRounds = Math.max(plan.targetRounds ?? 1, displayRound);
+              const displayTargetRounds = plan.targetRounds ?? 1;
               const shownRound = Math.max(0, displayRound - 1);
               return (
                 <>

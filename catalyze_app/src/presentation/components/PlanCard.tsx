@@ -78,8 +78,8 @@ export const PlanCard: React.FC<PlanCardProps> = ({
     }
   }
 
-  // 表示上の targetRounds は、完了数に応じて少なくとも displayRound 以上にする
-  const displayTargetRounds = Math.max(effectivePlan.targetRounds ?? 1, displayRound);
+  // 表示上の targetRounds はユーザーの設定値をそのまま使う（分母が勝手に増えないように固定）
+  const displayTargetRounds = effectivePlan.targetRounds ?? 1;
   // 表示上は周回番号を1引く（初回表示を0にする要望に対応）
   const shownRound = Math.max(0, displayRound - 1);
   const progressPercentage = totalUnits > 0 ? displayCompletedUnits / totalUnits : 0;
