@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { colors, spacing, textStyles } from '../theme';
+import { getColorForPlan } from '../utils/planPalette';
 import type { PlanBreakdown } from '../../application/services/StatisticsService';
 
 interface PlanBreakdownChartProps {
@@ -29,7 +30,7 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
   const chartData = currentData.map((item) => ({
     name: item.planTitle,
     population: item.totalMinutes,
-    color: item.color,
+    color: getColorForPlan(item.planId),
     legendFontColor: colors.textSecondary,
     legendFontSize: 12,
   }));
@@ -103,7 +104,7 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
             {currentData.map((item) => (
               <View key={item.planId} style={styles.detailItem}>
                 <View style={styles.detailLeft}>
-                  <View style={[styles.colorIndicator, { backgroundColor: item.color }]} />
+                  <View style={[styles.colorIndicator, { backgroundColor: getColorForPlan(item.planId) }]} />
                   <Text style={styles.detailTitle} numberOfLines={1}>
                     {item.planTitle}
                   </Text>

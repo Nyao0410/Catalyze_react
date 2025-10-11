@@ -10,6 +10,7 @@ import { View as RNView } from 'react-native';
 import * as scale from 'd3-scale';
 import Svg, { Text as SvgText } from 'react-native-svg';
 import { colors, spacing, textStyles } from '../theme';
+import { getColorForPlan } from '../utils/planPalette';
 import type { StudyTimeData } from '../../application/services/StatisticsService';
 import { useStudyPlans } from '../../presentation/hooks/useStudyPlans';
 
@@ -46,6 +47,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
   const planIdToTitle = new Map(plans.map((p: any) => [p.id, p.title]));
 
   // palette (matches StatisticsService)
+  // fallback palette kept for legacy but colors should be derived from getColorForPlan
   const palette = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
 
   // build data arrays: each plan corresponds to an array of values (hours)
@@ -214,7 +216,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
             <StackedBarChart
               style={{ height: chartHeight, width: adjustedChartWidth }}
             keys={planIds.length > 0 ? planIds : ['total']}
-            colors={planIds.length > 0 ? planIds.map((_, i) => palette[i % palette.length]) : [palette[0]]}
+            colors={planIds.length > 0 ? planIds.map((pid) => getColorForPlan(pid)) : [getColorForPlan('total')]}
             data={currentData.map((d) => {
               const map = new Map(d.perPlanMinutes?.map((p) => [p.planId, Math.round((p.minutes / 60) * 10) / 10]) || []);
               const obj: Record<string, number> = {};
@@ -284,7 +286,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
               const short = typeof title === 'string' && title.length > 20 ? title.slice(0, 17) + '…' : title;
               return (
                 <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, marginBottom: 6 }}>
-                  <View style={{ width: 12, height: 12, backgroundColor: palette[i % palette.length], marginRight: 6, borderRadius: 2 }} />
+                  <View style={{ width: 12, height: 12, backgroundColor: getColorForPlan(pid), marginRight: 6, borderRadius: 2 }} />
                   <Text style={{ ...textStyles.bodySmall, color: colors.textSecondary }}>{short}</Text>
                 </View>
               );

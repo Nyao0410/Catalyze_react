@@ -51,7 +51,6 @@ export interface PlanBreakdown {
   planTitle: string;
   totalMinutes: number;
   percentage: number;
-  color: string; // 円グラフの色
 }
 
 /**
@@ -371,7 +370,6 @@ export class StatisticsService {
         planTitle: plan?.title || '不明な学習計画',
         totalMinutes: minutes,
         percentage: Math.round(percentage * 10) / 10,
-        color: colors[colorIndex % colors.length],
       });
 
       colorIndex++;
