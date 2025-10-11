@@ -16,13 +16,29 @@ import { HelpScreen } from '../screens/HelpScreen';
 import { TermsScreen } from '../screens/TermsScreen';
 import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 import { AboutScreen } from '../screens/AboutScreen';
+import { LoginScreen } from '../screens/LoginScreen';
+import { SignUpScreen } from '../screens/SignUpScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>() as any;
 
-export const RootNavigator: React.FC = () => {
+interface RootNavigatorProps {
+  initialRoute?: 'Login' | 'MainTabs';
+}
+
+export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Login' }) => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator initialRouteName={initialRoute}>
+      <Stack.Screen 
+        name="Login" 
+        component={LoginScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="SignUp" 
+        component={SignUpScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen 
         name="MainTabs" 
         component={MainTabNavigator}

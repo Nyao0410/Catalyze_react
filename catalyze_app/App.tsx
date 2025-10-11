@@ -20,7 +20,7 @@ import {
   reviewRepository,
 } from './src/services';
 import { AccountService, SocialService } from './src/application/services';
-import { ensureAnonymousSignIn } from './src/infrastructure/auth';
+import { ensureAnonymousSignIn, onAuthStateChange, getCurrentUser } from './src/infrastructure/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // React Query クライアントの設定
@@ -35,18 +35,30 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   const [isInitialized, setIsInitialized] = useState(false);
+  const [initialRoute, setInitialRoute] = useState<'Login' | 'MainTabs'>('MainTabs');
 
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // 認証（匿名サインイン）して UID を取得（firebaseConfig が未設定でも続行できるよう保護）
+        // 既存のユーザーがいるかチェック
+        const currentUser = getCurrentUser();
         let uid = 'user-001';
         let user: any = null;
-        try {
-          user = await ensureAnonymousSignIn();
-          uid = user.uid;
-        } catch (err) {
-          console.warn('Anonymous sign-in failed or firebase not configured, falling back to local UID user-001', err);
+        
+        if (currentUser) {
+          // 既にログイン済み
+          uid = currentUser.uid;
+          user = currentUser;
+        } else {
+          // ログインしていない場合は、匿名サインインまたはローカルデータを使用
+          try {
+            user = await ensureAnonymousSignIn();
+            uid = user.uid;
+          } catch (err) {
+            console.warn('Anonymous sign-in failed, using local data', err);
+            // 匿名ログインが失敗してもローカルデータで動作可能
+            uid = 'user-001';
+          }
         }
 
         // モックデータを投入（UID を使用） — 既にデータがある場合はスキップ
@@ -115,7 +127,7 @@ function AppContent() {
 
   return (
     <NavigationContainer>
-      <RootNavigator />
+      <RootNavigator initialRoute={initialRoute} />
       <StatusBar style="auto" />
     </NavigationContainer>
   );

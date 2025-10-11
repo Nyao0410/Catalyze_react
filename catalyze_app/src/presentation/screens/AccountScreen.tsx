@@ -20,6 +20,7 @@ import { colors, spacing, textStyles } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useProfile, useSettings, useUpdateProfile, useUpdateSettings, useInitializeProfile, useInitializeSettings } from '../hooks/useAccount';
+import { useTopToast } from '../hooks';
 import type { UserSettings } from '../../types';
 import {
   requestNotificationPermissions,
@@ -28,7 +29,7 @@ import {
   cancelAllNotifications,
   sendTestNotification,
 } from '../../infrastructure/notifications';
-import { useTopToast } from '../hooks/useTopToast';
+import { getCurrentUser, onAuthStateChange } from '../../infrastructure/auth';
 
 const CURRENT_USER_ID = 'user-001';
 const CURRENT_USER_EMAIL = 'user@studynext.app';
@@ -47,21 +48,49 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   const { mutate: initializeProfile } = useInitializeProfile();
   const { mutate: initializeSettings } = useInitializeSettings();
   
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+
   // 編集用のローカルstate
   const [tempDisplayName, setTempDisplayName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('👨‍💼');
   const [pomodoroWorkMinutesInput, setPomodoroWorkMinutesInput] = useState('');
   const [pomodoroBreakMinutesInput, setPomodoroBreakMinutesInput] = useState('');
+
+  // 認証状態の確認
+  useEffect(() => {
+    const checkAuthState = () => {
+      const currentUser = getCurrentUser();
+      // 匿名ユーザーは認証済みとみなさない（メール/パスワードログインのみを認証済みとする）
+      const isLoggedIn = !!(currentUser && !currentUser.isAnonymous);
+      setIsAuthenticated(isLoggedIn);
+      setCurrentUserEmail(currentUser?.email || null);
+    };
+    
+    checkAuthState();
+    
+    // 認証状態の変更を監視
+    const unsubscribe = onAuthStateChange((user) => {
+      // 匿名ユーザーは認証済みとみなさない（メール/パスワードログインのみを認証済みとする）
+      const isLoggedIn = !!(user && !user.isAnonymous);
+      setIsAuthenticated(isLoggedIn);
+      setCurrentUserEmail(user?.email || null);
+    });
+    
+    return unsubscribe;
+  }, []);
   
   // プロフィール・設定の初期化
   useEffect(() => {
     if (!profile) {
-      initializeProfile({ userId: CURRENT_USER_ID, email: CURRENT_USER_EMAIL });
+      // ログイン済みユーザーの場合は実際のメールアドレスを使用、匿名ユーザーの場合は固定値を使用
+      const emailToUse = currentUserEmail || CURRENT_USER_EMAIL;
+      initializeProfile({ userId: CURRENT_USER_ID, email: emailToUse });
     }
     if (!settings) {
       initializeSettings(CURRENT_USER_ID);
     }
-  }, [profile, settings, initializeProfile, initializeSettings]);
+  }, [profile, settings, initializeProfile, initializeSettings, currentUserEmail]);
   
   // プロフィール更新時に編集フォームを初期化
   useEffect(() => {
@@ -105,6 +134,47 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
       setSelectedAvatar(profile.avatar);
     }
     setIsEditing(false);
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'ログアウト',
+      'ログアウトしますか？',
+      [
+        {
+          text: 'キャンセル',
+          style: 'cancel',
+        },
+        {
+          text: 'ログアウト',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Firebase認証とAccountServiceの実装を動的にインポート
+              const { signOut } = await import('../../infrastructure/auth');
+              const { AccountService } = await import('../../application/services/AccountService');
+              
+              // ログアウト処理
+              await signOut();
+              
+              // ローカルデータをクリア
+              await AccountService.clearAll();
+              
+              // ログイン画面に戻る
+              (navigation.getParent() as any)?.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+              
+              toast.show('ログアウトしました');
+            } catch (error: any) {
+              console.error('Logout error:', error);
+              Alert.alert('エラー', 'ログアウトに失敗しました');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const toggleSetting = async (key: keyof UserSettings) => {
@@ -162,6 +232,15 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
   const renderProfileSection = () => (
     <View style={styles.section}>
+            {!isAuthenticated && (
+        <View style={styles.guestStatus}>
+          <Ionicons name="person-outline" size={20} color={colors.primary} />
+          <View style={styles.guestTextContainer}>
+            <Text style={styles.guestText}>ゲストとして利用中</Text>
+            <Text style={styles.guestSubtext}>アカウントを作成すると学習データをクラウドに保存できます</Text>
+          </View>
+        </View>
+      )}
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
           <Text style={styles.avatarLarge}>{isEditing ? selectedAvatar : profile.avatar}</Text>
@@ -223,15 +302,27 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
             <Text style={styles.profileLabel}>表示名</Text>
             <Text style={styles.profileValue}>{profile.displayName}</Text>
           </View>
-          <View style={styles.profileRow}>
-            <Text style={styles.profileLabel}>メール</Text>
-            <Text style={styles.profileValue}>{profile.email}</Text>
-          </View>
+          {isAuthenticated && currentUserEmail && (
+            <View style={styles.profileRow}>
+              <Text style={styles.profileLabel}>メール</Text>
+              <Text style={styles.profileValue}>{currentUserEmail}</Text>
+            </View>
+          )}
           
           <TouchableOpacity style={styles.editProfileButton} onPress={() => setIsEditing(true)}>
             <Ionicons name="create-outline" size={20} color={colors.primary} />
             <Text style={styles.editProfileButtonText}>プロフィールを編集</Text>
           </TouchableOpacity>
+          
+          {!isAuthenticated && (
+            <TouchableOpacity 
+              style={styles.createAccountButton} 
+              onPress={() => navigation.navigate('SignUp')}
+            >
+              <Ionicons name="person-add-outline" size={20} color={colors.white} />
+              <Text style={styles.createAccountButtonText}>アカウントを作成</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -391,10 +482,12 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton}>
-        <Ionicons name="log-out-outline" size={24} color={colors.error} />
-        <Text style={styles.logoutButtonText}>ログアウト</Text>
-      </TouchableOpacity>
+      {isAuthenticated && (
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={24} color={colors.error} />
+          <Text style={styles.logoutButtonText}>ログアウト</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -540,6 +633,21 @@ const styles = StyleSheet.create({
   editProfileButtonText: {
     ...textStyles.body,
     color: colors.primary,
+    fontWeight: '600',
+  },
+  createAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    gap: spacing.sm,
+  },
+  createAccountButtonText: {
+    ...textStyles.body,
+    color: colors.white,
     fontWeight: '600',
   },
   editContainer: {
@@ -716,5 +824,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     color: colors.text,
+  },
+  guestStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    gap: spacing.md,
+  },
+  guestTextContainer: {
+    flex: 1,
+  },
+  guestText: {
+    ...textStyles.body,
+    color: colors.primary,
+    fontWeight: '600',
+    marginBottom: spacing.xs / 2,
+  },
+  guestSubtext: {
+    ...textStyles.caption,
+    color: colors.primary,
   },
 });

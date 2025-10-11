@@ -9,6 +9,8 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 
 // Root Stack Navigator
 export type RootStackParamList = {
+  Login: undefined;
+  SignUp: undefined;
   MainTabs: undefined;
   PlanDetail: { planId: string };
   CreatePlan: undefined;
