@@ -11,12 +11,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackScreenProps } from '../navigation/types';
-import { useStudyPlan, usePausePlan, useResumePlan, useCompletePlan, useStudySessions } from '../hooks';
+import { useStudyPlan, usePausePlan, useResumePlan, useCompletePlan, useStudySessions, useDeletePlan } from '../hooks';
 import { ProgressBar } from '../components/ProgressBar';
+import InlineMenu from '../components/InlineMenu';
 import { colors, spacing, textStyles } from '../theme';
 import { PlanStatus, PlanDifficulty, type StudySessionEntity } from 'catalyze-ai';
 import { ProgressAnalysisService, PerformanceTrend, AchievabilityStatus } from 'catalyze-ai';
@@ -91,6 +93,42 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
 
   // パフォーマンス分析サービス
   const analysisService = new ProgressAnalysisService();
+
+  // ヘッダーメニューは InlineMenu コンポーネントで表示する（OS デフォルトは使わない）
+  const onEditPlan = () => navigation.navigate('EditPlan', { planId });
+  const onSharePlan = async () => {
+    if (!plan) return;
+    try {
+      await Share.share({
+        message: `${plan.title}\n進捗: ${completedUnits}/${plan.totalUnits} ${plan.unit}`,
+      });
+    } catch (e) {
+      Alert.alert('共有に失敗しました');
+    }
+  };
+
+  const deletePlan = useDeletePlan();
+  const confirmDeletePlan = () => {
+    if (!plan) return;
+    Alert.alert(
+      '確認',
+      'この学習計画を削除しますか？この操作は取り消せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除',
+          style: 'destructive',
+          onPress: () => {
+            deletePlan.mutate(planId, {
+              onSuccess: () => navigation.goBack(),
+              onError: () => Alert.alert('削除に失敗しました'),
+            });
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   // パフォーマンス分析の計算（planが読み込まれた場合のみ）
   const averagePerformance = analysisService.calculateAveragePerformance(sessions);
@@ -185,8 +223,12 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
 
   // 進捗計算
   const completedUnits = sessions.reduce((sum: number, session: StudySessionEntity) => sum + session.unitsCompleted, 0);
-  const progressPercentage = completedUnits / plan.totalUnits;
-  const remainingUnits = plan.totalUnits - completedUnits;
+  const progressPercentage = plan.totalUnits > 0 ? completedUnits / plan.totalUnits : 0;
+  // 現在の周（ラウンド）内での完了数を表示する（複数周が経過している場合はモジュロを取る）
+  const completedInCurrentRound = plan.totalUnits > 0
+    ? (completedUnits % plan.totalUnits === 0 && completedUnits > 0 ? plan.totalUnits : completedUnits % plan.totalUnits)
+    : completedUnits;
+  const remainingUnits = Math.max(plan.totalUnits - completedInCurrentRound, 0);
 
   return (
     <ScrollView style={styles.container}>
@@ -195,12 +237,29 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
         <View style={styles.titleRow}>
           <Text style={textStyles.h1}>{plan.title}</Text>
           <View style={styles.titleActions}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => navigation.navigate('EditPlan', { planId })}
-            >
-              <Ionicons name="pencil" size={18} color={colors.primary} />
-            </TouchableOpacity>
+            <InlineMenu
+              items={[
+                {
+                  key: 'edit',
+                  label: '編集',
+                  icon: <Ionicons name="pencil" size={18} color={colors.primary} />,
+                  onPress: onEditPlan,
+                },
+                {
+                  key: 'share',
+                  label: '共有',
+                  icon: <Ionicons name="share-social" size={18} color={colors.text} />,
+                  onPress: onSharePlan,
+                },
+                {
+                  key: 'delete',
+                  label: '削除',
+                  icon: <Ionicons name="trash" size={18} color={colors.error} />,
+                  color: colors.error,
+                  onPress: confirmDeletePlan,
+                },
+              ]}
+            />
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(plan.status) }]}>
               <Text style={styles.statusText}>{getStatusLabel(plan.status)}</Text>
             </View>
@@ -226,19 +285,20 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
         <Text style={textStyles.h3}>進捗状況</Text>
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
+            {/* 現在の周の進捗を表示（例: 185/200 問） */}
             <Text style={textStyles.h2}>
-              {completedUnits} / {plan.totalUnits}
+              {completedInCurrentRound} / {plan.totalUnits} {plan.unit}
             </Text>
+            {/* 全体の進捗（累計 / 総数）をパーセンテージで表示（例: 193%） */}
             <Text style={textStyles.h2}>
               {Math.round(progressPercentage * 100)}%
             </Text>
           </View>
           <ProgressBar progress={progressPercentage} />
           <View style={styles.progressFooter}>
-            <Text style={styles.unitText}>{plan.unit}</Text>
-            <Text style={styles.remainingText}>
-              残り {remainingUnits} {plan.unit}
-            </Text>
+            <Text style={styles.unitText}>{/* intentionally left blank for alignment */}</Text>
+            {/* 右寄せで合計を表示 */}
+            <Text style={styles.totalText}>合計：{completedUnits} {plan.unit}</Text>
           </View>
         </View>
       </View>
@@ -784,6 +844,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '600',
     minWidth: 35,
+    textAlign: 'right',
+  },
+  totalText: {
+    ...textStyles.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
     textAlign: 'right',
   },
   // パフォーマンス分析スタイル

@@ -8,6 +8,7 @@ import {
   InMemoryStudyPlanRepository,
   type StudyPlanRepository,
 } from 'catalyze-ai';
+import { studySessionService } from './StudySessionService';
 
 export class StudyPlanService {
   private repository: StudyPlanRepository;
@@ -73,6 +74,25 @@ export class StudyPlanService {
   }
 
   async deletePlan(planId: string): Promise<void> {
+    // まず、そのプランに紐づく学習セッションをすべて削除する
+    try {
+      const sessions = await studySessionService.getSessionsByPlanId(planId);
+      for (const s of sessions) {
+        try {
+          await studySessionService.deleteSession(s.id);
+        } catch (e) {
+          // 個々のセッション削除に失敗した場合はログ出力して処理を中断する
+          // 呼び出し元でエラーハンドリングするため再スローする
+          // eslint-disable-next-line no-console
+          console.error(`[SERVICE/PLAN] failed to delete session id=${s.id} for plan=${planId}`, e);
+          throw e;
+        }
+      }
+    } catch (e) {
+      // セッション取得/削除に失敗した場合はここで例外を伝播させる
+      throw e;
+    }
+
     await this.repository.delete(planId);
   }
 
