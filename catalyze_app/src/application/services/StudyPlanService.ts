@@ -97,7 +97,8 @@ export class StudyPlanService {
   }
 
   async pausePlan(planId: string): Promise<StudyPlanEntity> {
-    const plan = await this.repository.findById(planId);
+    const raw = await this.repository.findById(planId);
+    const plan = this.ensureEntity(raw);
     if (!plan) {
       throw new Error(`Plan not found: ${planId}`);
     }
@@ -107,17 +108,29 @@ export class StudyPlanService {
   }
 
   async resumePlan(planId: string): Promise<StudyPlanEntity> {
-    const plan = await this.repository.findById(planId);
+    const raw = await this.repository.findById(planId);
+    try {
+      // debug info to help trace issues where repository returns plain objects
+      // eslint-disable-next-line no-console
+      console.debug('[SERVICE/PLAN] resumePlan raw:', raw);
+    } catch (e) {}
+    const plan = this.ensureEntity(raw);
     if (!plan) {
       throw new Error(`Plan not found: ${planId}`);
     }
-    const resumedPlan = plan.resume();
+    try {
+      // debug whether resume exists
+      // eslint-disable-next-line no-console
+      console.debug('[SERVICE/PLAN] plan.resume typeof:', typeof (plan as any).resume);
+    } catch (e) {}
+    const resumedPlan = (plan as any).resume ? plan.resume() : (() => { throw new TypeError('plan.resume is not a function'); })();
     await this.repository.update(resumedPlan);
     return resumedPlan;
   }
 
   async completePlan(planId: string): Promise<StudyPlanEntity> {
-    const plan = await this.repository.findById(planId);
+    const raw = await this.repository.findById(planId);
+    const plan = this.ensureEntity(raw);
     if (!plan) {
       throw new Error(`Plan not found: ${planId}`);
     }

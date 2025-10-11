@@ -15,8 +15,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import type { RootStackScreenProps } from '../navigation/types';
-import { useStudyPlan, usePausePlan, useResumePlan, useCompletePlan, useStudySessions, useDeletePlan, useUpdatePlan } from '../hooks';
+import { useStudyPlan, usePausePlan, useResumePlan, useCompletePlan, useStudySessions, useDeletePlan, useUpdatePlan, useDeleteSession } from '../hooks';
 import { ProgressBar } from '../components/ProgressBar';
 import InlineMenu from '../components/InlineMenu';
 import { colors, spacing, textStyles } from '../theme';
@@ -48,11 +49,12 @@ const groupSessionsByDate = (sessions: StudySessionEntity[]) => {
   }, {} as Record<string, StudySessionEntity[]>);
 };
 
-// パフォーマンス係数に基づいて色を返す関数
-const getPerformanceColor = (performanceFactor: number) => {
-  if (performanceFactor >= 0.8) return colors.success;
-  if (performanceFactor >= 0.6) return colors.primary;
-  if (performanceFactor >= 0.4) return colors.warning;
+// パフォーマンス係数に基づいて色を返す関数（安全化: undefined/NaN を 0 として扱う）
+const getPerformanceColor = (performanceFactor?: number) => {
+  const pf = typeof performanceFactor === 'number' && Number.isFinite(performanceFactor) ? performanceFactor : 0;
+  if (pf >= 0.8) return colors.success;
+  if (pf >= 0.6) return colors.primary;
+  if (pf >= 0.4) return colors.warning;
   return colors.error;
 };
 
@@ -101,6 +103,8 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
   const completePlan = useCompletePlan();
   const { mutate: updatePlanMutate } = useUpdatePlan();
   const [isSavingStudyDays, setIsSavingStudyDays] = React.useState(false);
+  const queryClient = useQueryClient();
+  const deleteSession = useDeleteSession();
 
   // UI uses 0=Sun..6=Sat, domain uses 1=Mon..7=Sun -> normalize for rendering and updates
   const uiStudyDays = React.useMemo(() => {
@@ -231,7 +235,8 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
     // 確認ダイアログ・成功ダイアログは不要のため即実行
     completePlan.mutate(planId, {
       onSuccess: () => {
-        navigation.goBack();
+        // 完了後は自動で戻らず、画面上に「開始」ボタンを表示して再開できるようにする
+        // クエリは useCompletePlan の onSuccess で無効化されるため here は特に何もしない
       },
       onError: () => {
         Alert.alert('エラー', '計画の完了に失敗しました');
@@ -528,7 +533,7 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
 
       {/* アクションボタン */}
       <View style={styles.actionSection}>
-        {plan.status !== PlanStatus.COMPLETED && (
+        {!(plan.status === PlanStatus.COMPLETED || plan.status === PlanStatus.COMPLETED_TODAY) ? (
           <>
             {/* タイマーボタン */}
             <TouchableOpacity
@@ -568,6 +573,35 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
               <Text style={styles.actionButtonText}>完了</Text>
             </TouchableOpacity>
           </>
+  ) : (
+          // 完了済みの場合は「開始」ボタンを表示して再度計画を実行できるようにする
+          <TouchableOpacity
+            style={[styles.actionButton, styles.resumeButton]}
+            onPress={() => {
+              if (!planId) {
+                Alert.alert('エラー', 'planId が不正です');
+                return;
+              }
+              resumePlan.mutate(planId, {
+                onSuccess: () => {
+                  // resume の成功は useResumePlan の onSuccess でキャッシュ無効化される
+                },
+                onError: (err: any) => {
+                  try {
+                    // ログ出力してデバッグを容易にする
+                    // eslint-disable-next-line no-console
+                    console.error('[PlanDetail] resumePlan failed', err);
+                  } catch (e) {}
+                  const msg = err && err.message ? String(err.message) : String(err);
+                  Alert.alert('エラー', `計画の再開に失敗しました: ${msg}`);
+                },
+              });
+            }}
+            disabled={resumePlan.isPending}
+          >
+            <Ionicons name="play" size={20} color={colors.white} />
+            <Text style={styles.actionButtonText}>開始</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -597,17 +631,41 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
                             {format(session.date, 'HH:mm', { locale: ja })}
                           </Text>
                         </View>
-                        <View style={styles.performanceIndicator}>
-                          <View
-                            style={[
-                              styles.performanceDot,
-                              { backgroundColor: getPerformanceColor(session.performanceFactor) },
-                            ]}
-                          />
-                          <Text style={styles.performanceText}>
-                            {Math.round(session.performanceFactor * 100)}%
-                          </Text>
-                        </View>
+                        <InlineMenu
+                          items={[
+                            {
+                              key: 'edit-session',
+                              label: '編集',
+                              icon: <Ionicons name="pencil" size={16} color={colors.primary} />,
+                              onPress: () => navigation.navigate('RecordSession', { planId: plan.id, sessionId: session.id }),
+                            },
+                            {
+                              key: 'delete-session',
+                              label: '削除',
+                              icon: <Ionicons name="trash" size={16} color={colors.error} />,
+                              color: colors.error,
+                              onPress: () => {
+                                Alert.alert('確認', 'このセッションを削除しますか？', [
+                                  { text: 'キャンセル', style: 'cancel' },
+                                  {
+                                    text: '削除',
+                                    style: 'destructive',
+                                    onPress: () => {
+                                      deleteSession.mutate(session.id, {
+                                        onSuccess: () => {
+                                          // invalidate plan-specific sessions so PlanDetail refreshes
+                                          try {
+                                            queryClient.invalidateQueries({ queryKey: ['studySessions', plan.id] });
+                                          } catch (e) {}
+                                        },
+                                      });
+                                    },
+                                  },
+                                ]);
+                              },
+                            },
+                          ]}
+                        />
                       </View>
                       <View style={styles.sessionContent}>
                         <View style={styles.sessionStats}>
