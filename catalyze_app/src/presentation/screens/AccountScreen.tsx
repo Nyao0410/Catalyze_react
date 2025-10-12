@@ -21,6 +21,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useProfile, useSettings, useUpdateProfile, useUpdateSettings, useInitializeProfile, useInitializeSettings } from '../hooks/useAccount';
 import { useTopToast } from '../hooks';
+import { useCurrentUserId, useAuthState } from '../hooks/useAuth';
 import type { UserSettings } from '../../types';
 import {
   requestNotificationPermissions,
@@ -29,10 +30,7 @@ import {
   cancelAllNotifications,
   sendTestNotification,
 } from '../../infrastructure/notifications';
-import { getCurrentUser, onAuthStateChange } from '../../infrastructure/auth';
-
-const CURRENT_USER_ID = 'user-001';
-const CURRENT_USER_EMAIL = 'user@studynext.app';
+import { getCurrentUser, onAuthStateChange, getCurrentUserId } from '../../infrastructure/auth';
 
 export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -50,6 +48,7 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>('user-001');
 
   // 編集用のローカルstate
   const [tempDisplayName, setTempDisplayName] = useState('');
@@ -59,22 +58,26 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
   // 認証状態の確認
   useEffect(() => {
-    const checkAuthState = () => {
+    const checkAuthState = async () => {
       const currentUser = getCurrentUser();
+      const userId = await getCurrentUserId(); // Firebase UIDまたはフォールバック値を取得
       // 匿名ユーザーは認証済みとみなさない（メール/パスワードログインのみを認証済みとする）
       const isLoggedIn = !!(currentUser && !currentUser.isAnonymous);
       setIsAuthenticated(isLoggedIn);
       setCurrentUserEmail(currentUser?.email || null);
+      setCurrentUserId(userId);
     };
     
     checkAuthState();
     
     // 認証状態の変更を監視
-    const unsubscribe = onAuthStateChange((user) => {
+    const unsubscribe = onAuthStateChange(async (user) => {
+      const userId = await getCurrentUserId(); // Firebase UIDまたはフォールバック値を取得
       // 匿名ユーザーは認証済みとみなさない（メール/パスワードログインのみを認証済みとする）
       const isLoggedIn = !!(user && !user.isAnonymous);
       setIsAuthenticated(isLoggedIn);
       setCurrentUserEmail(user?.email || null);
+      setCurrentUserId(userId);
     });
     
     return unsubscribe;
@@ -82,15 +85,15 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   
   // プロフィール・設定の初期化
   useEffect(() => {
-    if (!profile) {
-      // ログイン済みユーザーの場合は実際のメールアドレスを使用、匿名ユーザーの場合は固定値を使用
-      const emailToUse = currentUserEmail || CURRENT_USER_EMAIL;
-      initializeProfile({ userId: CURRENT_USER_ID, email: emailToUse });
+    if (!profile && currentUserId) {
+      // ログイン済みユーザーの場合は実際のメールアドレスを使用、匿名ユーザーの場合は生成したメールアドレスを使用
+      const emailToUse = currentUserEmail || `${currentUserId}@local`;
+      initializeProfile({ userId: currentUserId, email: emailToUse });
     }
-    if (!settings) {
-      initializeSettings(CURRENT_USER_ID);
+    if (!settings && currentUserId) {
+      initializeSettings();
     }
-  }, [profile, settings, initializeProfile, initializeSettings, currentUserEmail]);
+  }, [profile, settings, initializeProfile, initializeSettings, currentUserEmail, currentUserId]);
   
   // プロフィール更新時に編集フォームを初期化
   useEffect(() => {
