@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザー固有のデータ（プロフィールなど）
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ユーザーのフレンドサブコレクション
+    match /users/{userId}/friends/{friendId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ユーザーのポイントサブコレクション
+    match /users/{userId}/points/{pointId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // フレンドのポイントを閲覧するための読み取りアクセスを許可
+      allow read: if request.auth != null;
+    }
+
+    // ユーザー設定コレクション
+    match /userSettings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 協力目標コレクション（参加者のみアクセス可能）
+    match /cooperationGoals/{goalId} {
+      allow read: if request.auth != null &&
+        (request.auth.uid in resource.data.participantIds ||
+         request.auth.uid == resource.data.creatorId);
+      allow create: if request.auth != null;
+      allow update: if request.auth != null &&
+        (request.auth.uid in resource.data.participantIds ||
+         request.auth.uid == resource.data.creatorId);
+      allow delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
+    }
+  }
+}
