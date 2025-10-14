@@ -20,7 +20,7 @@ import {
   reviewRepository,
 } from './src/services';
 import { AccountService, SocialService } from './src/application/services';
-import { ensureAnonymousSignIn, onAuthStateChange, getCurrentUser } from './src/infrastructure/auth';
+import { getCurrentUserId, isUserLoggedIn, onAuthStateChange, getCurrentUser } from './src/infrastructure/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // React Query クライアントの設定
@@ -40,25 +40,15 @@ function AppContent() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // 既存のユーザーがいるかチェック
-        const currentUser = getCurrentUser();
-        let uid = 'user-001';
-        let user: any = null;
+        // ローカルユーザーIDを取得（ログインしていない場合はローカルID）
+        const uid = await getCurrentUserId();
+        const user = getCurrentUser();
+        const loggedIn = isUserLoggedIn();
         
-        if (currentUser) {
-          // 既にログイン済み
-          uid = currentUser.uid;
-          user = currentUser;
-        } else {
-          // ログインしていない場合は、匿名サインインまたはローカルデータを使用
-          try {
-            user = await ensureAnonymousSignIn();
-            uid = user.uid;
-          } catch (err) {
-            console.warn('Anonymous sign-in failed, using local data', err);
-            // 匿名ログインが失敗してもローカルデータで動作可能
-            uid = 'user-001';
-          }
+        console.log('[Init] User ID:', uid);
+        console.log('[Init] Logged in:', loggedIn);
+        if (user) {
+          console.log('[Init] Firebase user:', user.uid, user.email);
         }
 
         // モックデータを投入（UID を使用） — 既にデータがある場合はスキップ
@@ -84,16 +74,39 @@ function AppContent() {
           );
         }
 
-        // アカウントとソーシャル機能の初期化（UID を使用）
-        const profile = await AccountService.getProfile();
-        if (!profile) {
-          await AccountService.initializeDefaultProfile(uid, user.email || `${uid}@local`);
-          await AccountService.initializeDefaultSettings(uid);
+        // アカウント初期化（ローカルで動作、プロフィールがなければ作成）
+        try {
+          const profile = await AccountService.getProfile();
+          if (!profile) {
+            console.log('[Init] Creating default local profile...');
+            await AccountService.initializeDefaultProfile(uid, `user@local`);
+            await AccountService.initializeDefaultSettings();
+          }
+        } catch (error) {
+          console.error('[Init] Failed to initialize account:', error);
         }
 
-        const friends = await SocialService.getFriends(uid);
-        if (friends.length === 0) {
-          await SocialService.initializeMockData(uid);
+        // ソーシャル機能の初期化（ログイン済みユーザーのみ）
+        if (loggedIn && user) {
+          console.log('[Init] User is logged in, initializing social features...');
+          
+          try {
+            console.log('[Init] Checking friends...');
+            if (uid && uid.trim() !== '') {
+              const friends = await SocialService.getFriends(uid);
+              console.log('[Init] Friends count:', friends.length);
+              if (friends.length === 0) {
+                console.log('[Init] Initializing social mock data...');
+                await SocialService.initializeMockData(uid);
+              }
+            }
+          } catch (error) {
+            console.error('[Init] Firestore operation failed:', error);
+            const errorObj = error as any;
+            console.error('[Init] Error details:', errorObj?.message, errorObj?.code);
+          }
+        } else {
+          console.log('[Init] User not logged in - social features will be disabled');
         }
         
         // Debug: dump account-related AsyncStorage keys to help diagnose persistence issues
@@ -102,7 +115,6 @@ function AppContent() {
           const settingsRaw = await AsyncStorage.getItem('@studynext:settings');
           console.log('[Debug] AsyncStorage profile length:', profileRaw ? profileRaw.length : 0);
           console.log('[Debug] AsyncStorage settings length:', settingsRaw ? settingsRaw.length : 0);
-          // Debug dumps removed: studyPlans raw dump was used during debugging and removed to reduce noise.
         } catch (e) {
           console.error('[Debug] Failed to read AsyncStorage during init', e);
         }

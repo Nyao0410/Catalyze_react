@@ -95,9 +95,9 @@ export const SignUpScreen: React.FC = () => {
       // FirestoreとAsyncStorageの両方にプロフィールを保存
       await Promise.all([
         FirebaseAccountService.initializeDefaultProfile(user.uid, email.trim(), displayName.trim()),
-        FirebaseAccountService.initializeDefaultSettings(user.uid),
-        AccountService.initializeDefaultProfile(user.uid, email.trim()),
-        AccountService.initializeDefaultSettings(user.uid),
+        FirebaseAccountService.initializeDefaultSettings(),
+        AccountService.initializeDefaultProfile(user.uid, email.trim(), displayName.trim()),
+        AccountService.initializeDefaultSettings(),
       ]);
       
       // プロフィール更新（displayNameを設定）

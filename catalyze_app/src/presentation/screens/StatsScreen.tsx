@@ -31,13 +31,13 @@ import {
   useOptimalStudyTime,
   useHeatmapData,
 } from '../hooks/useStats';
-import { getCurrentUserId } from '../../infrastructure/auth';
+import { useCurrentUserId } from '../hooks/useAuth';
 
 type Props = MainTabScreenProps<'Stats'>;
 
 export const StatsScreen: React.FC<Props> = () => {
   // 現在のユーザー UID を取得（Firebase Auth または fallback）
-  const userId = getCurrentUserId();
+  const { userId, isLoading: isLoadingUserId } = useCurrentUserId();
 
   // データ取得
   const { data: weeklyTime, isLoading: loadingWeekly, refetch: refetchWeekly } = useWeeklyStudyTime(userId);

@@ -19,7 +19,7 @@ import type {
 
 // 環境やビルド時に切り替えたい場合はここを書き換えるか
 // process.env.USE_FIRESTORE を利用してください。
-const USE_FIRESTORE = false; // TODO: ビルド時に変えたい場合は .env 経由で切り替え
+const USE_FIRESTORE = true; // Firebase Firestoreを使用
 
 // アプリ内で利用する最小のサービスインターフェースを定義
 export type AccountServiceInterface = {
@@ -28,8 +28,8 @@ export type AccountServiceInterface = {
 	getSettings(): Promise<UserSettings | null>;
 	updateSettings(updates: Partial<Omit<UserSettings, 'userId' | 'updatedAt'>>): Promise<UserSettings>;
 	addStudyHours(hours: number): Promise<UserProfile>;
-	initializeDefaultProfile(userId: string, email: string): Promise<UserProfile>;
-	initializeDefaultSettings(userId: string): Promise<UserSettings>;
+	initializeDefaultProfile(userId: string, email: string, displayName?: string): Promise<UserProfile>;
+	initializeDefaultSettings(): Promise<UserSettings>;
 	clearAll(): Promise<void>;
 };
 

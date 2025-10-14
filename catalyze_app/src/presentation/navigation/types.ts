@@ -11,6 +11,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
+  Auth: undefined;
   MainTabs: undefined;
   PlanDetail: { planId: string };
   CreatePlan: undefined;
@@ -20,6 +21,7 @@ export type RootStackParamList = {
   ReviewDetail: { reviewId: string };
   ReviewEvaluation: { itemId?: string; reviewItemIds?: string[]; planId?: string; startUnit?: number; endUnit?: number };
   FriendsList: undefined;
+  AddFriend: undefined;
   CreateCooperationGoal: undefined;
   Help: undefined;
   Terms: undefined;

@@ -3,7 +3,7 @@
  * 協力目標作成画面
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,8 +19,7 @@ import { colors, spacing, textStyles } from '../theme';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useFriends, useCreateCooperationGoal } from '../hooks';
 import { useTopToast } from '../hooks/useTopToast';
-
-const CURRENT_USER_ID = 'user-001';
+import { getCurrentUserId } from '../../infrastructure/auth';
 
 // 期限の選択肢（日数）
 const DEADLINE_OPTIONS = [
@@ -37,10 +36,21 @@ export const CreateCooperationGoalScreen: React.FC<MainTabScreenProps<'Social'>>
   const [targetProgress, setTargetProgress] = useState('100');
   const [selectedDeadlineDays, setSelectedDeadlineDays] = useState(30);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
 
-  const { data: friends = [], isLoading: isLoadingFriends } = useFriends(CURRENT_USER_ID);
+  const { data: friends = [], isLoading: isLoadingFriends } = useFriends(currentUserId);
   const createGoalMutation = useCreateCooperationGoal();
   const toast = useTopToast();
+
+  useEffect(() => {
+    const loadUserId = async () => {
+      const userId = await getCurrentUserId();
+      if (userId) {
+        setCurrentUserId(userId);
+      }
+    };
+    loadUserId();
+  }, []);
 
   const toggleFriendSelection = (friendId: string) => {
     setSelectedFriends(prev => 
@@ -67,8 +77,8 @@ export const CreateCooperationGoalScreen: React.FC<MainTabScreenProps<'Social'>>
       const goal = {
         title: title.trim(),
         description: description.trim(),
-        creatorId: CURRENT_USER_ID,
-        participantIds: [CURRENT_USER_ID, ...selectedFriends],
+        creatorId: currentUserId,
+        participantIds: [currentUserId, ...selectedFriends],
         currentProgress: 0,
         targetProgress: parseInt(targetProgress) || 100,
         deadline,
@@ -185,15 +195,15 @@ export const CreateCooperationGoalScreen: React.FC<MainTabScreenProps<'Social'>>
                     key={friend.id}
                     style={[
                       styles.friendItem,
-                      selectedFriends.includes(friend.userId) && styles.friendItemSelected,
+                      selectedFriends.includes(friend.id) && styles.friendItemSelected,
                     ]}
-                    onPress={() => toggleFriendSelection(friend.userId)}
+                    onPress={() => toggleFriendSelection(friend.id)}
                   >
                     <View style={styles.friendItemLeft}>
                       <Text style={styles.friendAvatar}>{friend.avatar}</Text>
                       <Text style={styles.friendName}>{friend.name}</Text>
                     </View>
-                    {selectedFriends.includes(friend.userId) && (
+                    {selectedFriends.includes(friend.id) && (
                       <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                     )}
                   </TouchableOpacity>
@@ -214,7 +224,7 @@ export const CreateCooperationGoalScreen: React.FC<MainTabScreenProps<'Social'>>
                   <Text style={styles.selectedName}>あなた</Text>
                 </View>
                 {friends
-                  .filter(f => selectedFriends.includes(f.userId))
+                  .filter(f => selectedFriends.includes(f.id))
                   .map(friend => (
                     <View key={friend.id} style={styles.selectedFriend}>
                       <Text style={styles.selectedAvatar}>{friend.avatar}</Text>

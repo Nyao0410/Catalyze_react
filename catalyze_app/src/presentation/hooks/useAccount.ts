@@ -78,8 +78,8 @@ export function useInitializeProfile() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ userId, email }: { userId: string; email: string }) =>
-      AccountService.initializeDefaultProfile(userId, email),
+    mutationFn: ({ userId, email, displayName }: { userId: string; email: string; displayName?: string }) =>
+      AccountService.initializeDefaultProfile(userId, email, displayName),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
@@ -93,7 +93,7 @@ export function useInitializeSettings() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (userId: string) => AccountService.initializeDefaultSettings(userId),
+    mutationFn: () => AccountService.initializeDefaultSettings(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
     },

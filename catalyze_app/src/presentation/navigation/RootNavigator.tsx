@@ -11,6 +11,7 @@ import { TimerScreen } from '../screens/TimerScreen';
 import { RecordSessionScreen } from '../screens/RecordSessionScreen';
 import { ReviewEvaluationScreen } from '../screens/ReviewEvaluationScreen';
 import { FriendsListScreen } from '../screens/FriendsListScreen';
+import { AddFriendScreen } from '../screens/AddFriendScreen';
 import { CreateCooperationGoalScreen } from '../screens/CreateCooperationGoalScreen';
 import { HelpScreen } from '../screens/HelpScreen';
 import { TermsScreen } from '../screens/TermsScreen';
@@ -18,6 +19,7 @@ import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 import { AboutScreen } from '../screens/AboutScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
+import { AuthScreen } from '../screens/AuthScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>() as any;
@@ -38,6 +40,14 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
         name="SignUp" 
         component={SignUpScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Auth" 
+        component={AuthScreen}
+        options={{ 
+          headerShown: false,
+          presentation: 'modal',
+        }}
       />
       <Stack.Screen 
         name="MainTabs" 
@@ -94,6 +104,13 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
       <Stack.Screen
         name="FriendsList"
         component={FriendsListScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="AddFriend"
+        component={AddFriendScreen}
         options={{
           headerShown: false,
         }}

@@ -1,0 +1,55 @@
+[debug] [2025-10-12T05:41:01.532Z] ----------------------------------------------------------------------
+[debug] [2025-10-12T05:41:01.536Z] Command:       /usr/local/bin/firebase /Users/haruki/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase init firestore
+[debug] [2025-10-12T05:41:01.536Z] CLI Version:   14.12.0
+[debug] [2025-10-12T05:41:01.536Z] Platform:      darwin
+[debug] [2025-10-12T05:41:01.536Z] Node Version:  v20.18.2
+[debug] [2025-10-12T05:41:01.537Z] Time:          Sun Oct 12 2025 14:41:01 GMT+0900 (GMT+09:00)
+[debug] [2025-10-12T05:41:01.537Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-12T05:41:01.543Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-12T05:41:01.545Z] > authorizing via signed-in user (pentyan0410@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/haruki/Documents/Programing/Projects/React Native/Catalyze_react
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] but for now we'll just set up a default project.
+[info] 
+[info] i  If you want to create a project in a Google Cloud organization or folder, please use "firebase projects:create" instead, and return to this command when you've created the project. 
+[debug] [2025-10-12T05:41:12.999Z] Checked if tokens are valid: false, expires at: 1758579704503
+[debug] [2025-10-12T05:41:13.004Z] Checked if tokens are valid: false, expires at: 1758579704503
+[debug] [2025-10-12T05:41:13.004Z] > refreshing access token with scopes: []
+[debug] [2025-10-12T05:41:13.006Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-12T05:41:13.007Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-12T05:41:13.313Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-12T05:41:13.313Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-12T05:41:13.329Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1/projects:checkProjectId [none]
+[debug] [2025-10-12T05:41:13.329Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"proposedId":"6-30 characters"}
+[debug] [2025-10-12T05:41:14.008Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1/projects:checkProjectId 200
+[debug] [2025-10-12T05:41:14.008Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"projectIdStatus":"PROJECT_ID_NOT_VALID","suggestedProjectId":"characters-bd4b5"}
+[debug] [2025-10-12T05:41:33.327Z] Checked if tokens are valid: true, expires at: 1760251272313
+[debug] [2025-10-12T05:41:33.327Z] Checked if tokens are valid: true, expires at: 1760251272313
+[debug] [2025-10-12T05:41:33.328Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1/projects:checkProjectId [none]
+[debug] [2025-10-12T05:41:33.328Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"proposedId":"6-30 characters6-30 characters"}
+[debug] [2025-10-12T05:41:33.610Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1/projects:checkProjectId 200
+[debug] [2025-10-12T05:41:33.611Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"projectIdStatus":"PROJECT_ID_NOT_VALID","suggestedProjectId":"characters6-30-characters"}
+[debug] [2025-10-12T05:46:16.502Z] Checked if tokens are valid: true, expires at: 1760251272313
+[debug] [2025-10-12T05:46:16.503Z] Checked if tokens are valid: true, expires at: 1760251272313
+[debug] [2025-10-12T05:46:16.505Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1/projects:checkProjectId [none]
+[debug] [2025-10-12T05:46:16.505Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"proposedId":"catalyze-react"}
+[debug] [2025-10-12T05:46:17.115Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1/projects:checkProjectId 200
+[debug] [2025-10-12T05:46:17.116Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"projectIdStatus":"PROJECT_ID_UNAVAILABLE","suggestedProjectId":"catalyze-react-d280b"}
+[debug] [2025-10-12T05:46:33.719Z] Error: read EIO
+    at TTY.onStreamRead (node:internal/stream_base_commons:218:20)
+    at TTY.callbackTrampoline (node:internal/async_hooks:130:17)

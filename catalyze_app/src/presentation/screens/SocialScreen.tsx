@@ -3,7 +3,7 @@
  * フレンドと協力・競争するソーシャル機能
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,22 +16,54 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, textStyles } from '../theme';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useFriends, useCooperationGoals, useRanking, useUserPoints } from '../hooks';
+import { getCurrentUserId, isUserLoggedIn } from '../../infrastructure/auth';
 
 type TabType = 'cooperation' | 'ranking';
 
-const CURRENT_USER_ID = 'user-001';
-
 export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState<TabType>('cooperation');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  
+  useEffect(() => {
+    const loadUserId = async () => {
+      const userId = await getCurrentUserId();
+      const isLoggedIn = isUserLoggedIn();
+      if (userId) {
+        setCurrentUserId(userId);
+        setLoggedIn(isLoggedIn);
+      }
+    };
+    loadUserId();
+  }, []);
   
   // データ取得
-  const { data: friends = [], isLoading: isLoadingFriends } = useFriends(CURRENT_USER_ID);
-  const { data: goals = [], isLoading: isLoadingGoals } = useCooperationGoals(CURRENT_USER_ID);
-  const { data: userPoints } = useUserPoints(CURRENT_USER_ID);
+  const { data: friends = [], isLoading: isLoadingFriends } = useFriends(currentUserId);
+  const { data: goals = [], isLoading: isLoadingGoals } = useCooperationGoals(currentUserId);
+  const { data: userPoints } = useUserPoints(currentUserId);
   
   // ランキング用のユーザーID（自分 + フレンド）
-  const rankingUserIds = [CURRENT_USER_ID, ...friends.map(f => f.id)];
+  const rankingUserIds = [currentUserId, ...friends.map(f => f.id)];
   const { data: ranking = [], isLoading: isLoadingRanking } = useRanking(rankingUserIds);
+
+  // ログインを促すUI
+  const renderLoginPrompt = () => (
+    <View style={styles.loginPromptContainer}>
+      <Ionicons name="lock-closed-outline" size={64} color={colors.textSecondary} />
+      <Text style={styles.loginPromptTitle}>ログインが必要です</Text>
+      <Text style={styles.loginPromptText}>
+        ソーシャル機能を使用するには{'\n'}
+        ログインしてください
+      </Text>
+      <TouchableOpacity
+        style={styles.loginButton}
+        onPress={() => navigation.navigate('Auth' as any)}
+      >
+        <Ionicons name="log-in-outline" size={20} color={colors.white} />
+        <Text style={styles.loginButtonText}>ログイン</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   const renderTabButton = (tab: TabType, label: string, icon: keyof typeof Ionicons.glyphMap) => (
     <TouchableOpacity
@@ -174,7 +206,7 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
             <View style={styles.statCard}>
               <Ionicons name="trophy" size={32} color={colors.primary} />
               <Text style={styles.statValue}>
-                {ranking.find(r => r.userId === CURRENT_USER_ID)?.rank || '-'}位
+                {ranking.find(r => r.userId === currentUserId)?.rank || '-'}位
               </Text>
               <Text style={styles.statLabel}>今週の順位</Text>
             </View>
@@ -206,7 +238,7 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
         {renderTabButton('ranking', 'ランキング', 'trophy')}
       </View>
 
-      {activeTab === 'cooperation' ? renderCooperationMode() : renderRankingMode()}
+      {!loggedIn ? renderLoginPrompt() : activeTab === 'cooperation' ? renderCooperationMode() : renderRankingMode()}
     </View>
   );
 };
@@ -215,6 +247,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loginPromptContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  loginPromptTitle: {
+    ...textStyles.h2,
+    color: colors.text,
+  },
+  loginPromptText: {
+    ...textStyles.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  loginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 8,
+    marginTop: spacing.md,
+  },
+  loginButtonText: {
+    ...textStyles.body,
+    color: colors.white,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',

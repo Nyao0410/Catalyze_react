@@ -151,10 +151,10 @@ export class AccountService {
   /**
    * デフォルトプロフィールを初期化
    */
-  static async initializeDefaultProfile(userId: string, email: string): Promise<UserProfile> {
+  static async initializeDefaultProfile(userId: string, email: string, displayName?: string): Promise<UserProfile> {
     const profile: UserProfile = {
       userId,
-      displayName: 'ユーザー',
+      displayName: displayName || 'ユーザー',
       avatar: '👨‍💼',
       email,
       level: 1,
@@ -170,9 +170,14 @@ export class AccountService {
   /**
    * デフォルト設定を初期化
    */
-  static async initializeDefaultSettings(userId: string): Promise<UserSettings> {
+  static async initializeDefaultSettings(): Promise<UserSettings> {
+    const profile = await this.getProfile();
+    if (!profile) {
+      throw new Error('Profile not found - cannot initialize settings');
+    }
+
     const settings: UserSettings = {
-      userId,
+      userId: profile.userId,
       notifications: true,
       darkMode: false,
       soundEffects: true,

@@ -13,7 +13,11 @@ import type { Friend, CooperationGoal, UserPoints } from '../../types';
 export function useFriends(userId: string) {
   return useQuery({
     queryKey: ['friends', userId],
-    queryFn: () => SocialService.getFriends(userId),
+    queryFn: () => {
+      console.log('[useFriends] Called with userId:', userId);
+      return SocialService.getFriends(userId);
+    },
+    enabled: !!userId && userId.trim() !== '',
   });
 }
 
@@ -39,6 +43,7 @@ export function useCooperationGoals(userId: string) {
   return useQuery({
     queryKey: ['cooperationGoals', userId],
     queryFn: () => SocialService.getCooperationGoals(userId),
+    enabled: !!userId && userId.trim() !== '',
   });
 }
 
@@ -78,7 +83,11 @@ export function useUpdateGoalProgress() {
 export function useUserPoints(userId: string) {
   return useQuery({
     queryKey: ['userPoints', userId],
-    queryFn: () => SocialService.getUserPoints(userId),
+    queryFn: () => {
+      console.log('[useUserPoints] Called with userId:', userId);
+      return SocialService.getUserPoints(userId);
+    },
+    enabled: !!userId && userId.trim() !== '',
   });
 }
 
@@ -105,7 +114,7 @@ export function useRanking(userIds: string[]) {
   return useQuery({
     queryKey: ['ranking', ...userIds],
     queryFn: () => SocialService.getRanking(userIds),
-    enabled: userIds.length > 0,
+    enabled: userIds.length > 0 && userIds.every(id => !!id && id.trim() !== ''),
   });
 }
 

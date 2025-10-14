@@ -1,6 +1,5 @@
 import {
   getAuth,
-  signInAnonymously,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -10,29 +9,50 @@ import {
 } from 'firebase/auth';
 import { app, auth } from './firebase';
 import firebaseConfig from './firebaseConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Do not initialize Auth at module load to avoid throwing when firebase isn't configured.
-export async function ensureAnonymousSignIn(): Promise<User> {
-  if (!auth) {
-    throw new Error('Firebase Auth not initialized. Check firebaseConfig.');
+const LOCAL_USER_ID_KEY = '@studynext:local_user_id';
+
+/**
+ * ローカルユーザーIDを生成・取得
+ * ログインしていない場合にデバイス固有のIDを使用
+ */
+async function getOrCreateLocalUserId(): Promise<string> {
+  try {
+    const storedId = await AsyncStorage.getItem(LOCAL_USER_ID_KEY);
+    if (storedId) {
+      return storedId;
+    }
+    
+    // 新しいローカルIDを生成
+    const newId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    await AsyncStorage.setItem(LOCAL_USER_ID_KEY, newId);
+    console.log('[Auth] Created new local user ID:', newId);
+    return newId;
+  } catch (error) {
+    console.error('Failed to get/create local user ID:', error);
+    return 'local-default';
   }
-  const currentUser = auth.currentUser;
-  if (currentUser) {
-    return currentUser;
-  }
-  const credential = await signInAnonymously(auth);
-  return credential.user;
 }
 
 /**
- * 現在のユーザー UID を取得（Firebase Auth または fallback）
+ * 現在のユーザー UID を取得
+ * - ログイン済み: Firebase UIDを返す
+ * - 未ログイン: ローカルユーザーIDを返す
  */
-export function getCurrentUserId(): string {
+export async function getCurrentUserId(): Promise<string> {
   if (auth && auth.currentUser) {
     return auth.currentUser.uid;
   }
-  // Firebase が未設定の場合はローカル固定 UID
-  return 'user-001';
+  // 未ログインの場合はローカルID
+  return await getOrCreateLocalUserId();
+}
+
+/**
+ * ユーザーがログインしているかチェック
+ */
+export function isUserLoggedIn(): boolean {
+  return !!(auth && auth.currentUser);
 }
 
 /**

@@ -3,7 +3,7 @@
  * フレンド一覧・追加・削除画面
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,10 +21,8 @@ import { colors, spacing, textStyles } from '../theme';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useFriends, useAddFriend, useInitializeSocialMockData, useRemoveFriend } from '../hooks';
 import { useTopToast } from '../hooks/useTopToast';
+import { getCurrentUserId } from '../../infrastructure/auth';
 
-const CURRENT_USER_ID = 'user-001';
-
-// ランダムなアバターを生成
 const AVATAR_OPTIONS = ['👨', '👩', '👨‍💼', '👩‍💼', '👨‍🎓', '👩‍🎓', '🧑', '👦', '👧'];
 
 const getRandomAvatar = () => {
@@ -35,9 +33,20 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
   const [showAddModal, setShowAddModal] = useState(false);
   const [friendName, setFriendName] = useState('');
   const [friendId, setFriendId] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const insets = useSafeAreaInsets();
   
-  const { data: friends = [], isLoading, refetch } = useFriends(CURRENT_USER_ID);
+  useEffect(() => {
+    const loadUserId = async () => {
+      const userId = await getCurrentUserId();
+      if (userId) {
+        setCurrentUserId(userId);
+      }
+    };
+    loadUserId();
+  }, []);
+  
+  const { data: friends = [], isLoading, refetch } = useFriends(currentUserId);
   const addFriendMutation = useAddFriend();
   const initMockData = useInitializeSocialMockData();
   const removeFriend = useRemoveFriend();
@@ -60,7 +69,7 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
       };
 
       await addFriendMutation.mutateAsync({
-        userId: CURRENT_USER_ID,
+        userId: currentUserId,
         friend: newFriend,
       });
 
@@ -77,7 +86,7 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
 
   const handleInitMockData = async () => {
     try {
-      await initMockData.mutateAsync(CURRENT_USER_ID);
+      await initMockData.mutateAsync(currentUserId);
   refetch();
   // トーストで成功を表示
   toast.show('モックデータを初期化しました');
@@ -103,7 +112,10 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitleSmall}>フレンド</Text>
-        <TouchableOpacity onPress={() => setShowAddModal(true)} style={styles.addButton}>
+        <TouchableOpacity 
+          onPress={() => (navigation as any).navigate('AddFriend')} 
+          style={styles.addButton}
+        >
           <Ionicons name="person-add" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -171,7 +183,7 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
                             style: 'destructive',
                             onPress: async () => {
                               try {
-                                await removeFriend.mutateAsync({ userId: CURRENT_USER_ID, friendId: friend.id });
+                                await removeFriend.mutateAsync({ userId: currentUserId, friendId: friend.id });
                                 toast.show(`${friend.name}さんを削除しました`);
                                 // refetch フレンド一覧
                                 // useFriends の refetch を available にするためはフック側で invalidate している

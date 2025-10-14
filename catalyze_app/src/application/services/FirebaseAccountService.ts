@@ -5,6 +5,7 @@
 
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase';
+import { getCurrentUserId } from '../../infrastructure/auth';
 import type { UserProfile, UserSettings } from '../../types';
 
 const USERS_COLLECTION = 'users';
@@ -120,7 +121,14 @@ export class FirebaseAccountService {
       
       const data = docSnap.data();
       return {
-        ...data,
+        userId: docSnap.id,
+        notifications: data.notifications ?? false,
+        darkMode: data.darkMode ?? false,
+        soundEffects: data.soundEffects ?? false,
+        dailyReminder: data.dailyReminder ?? false,
+        weeklyReport: data.weeklyReport ?? false,
+        pomodoroWorkMinutes: data.pomodoroWorkMinutes ?? 25,
+        pomodoroBreakMinutes: data.pomodoroBreakMinutes ?? 5,
         updatedAt: data.updatedAt?.toDate() || new Date(),
       } as UserSettings;
     } catch (error) {
@@ -211,7 +219,12 @@ export class FirebaseAccountService {
   /**
    * デフォルト設定を初期化（Firestore）
    */
-  static async initializeDefaultSettings(userId: string): Promise<UserSettings> {
+  static async initializeDefaultSettings(): Promise<UserSettings> {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
     const settings: UserSettings = {
       userId,
       notifications: true,
@@ -226,5 +239,22 @@ export class FirebaseAccountService {
 
     await this.saveSettings(settings);
     return settings;
+  }
+
+  /**
+   * UserIdでユーザーを検索（Firestore）
+   */
+  static async searchUserByUserId(userId: string): Promise<UserProfile | null> {
+    try {
+      if (!db) {
+        console.warn('Firestore not initialized');
+        return null;
+      }
+      
+      return await this.getProfile(userId);
+    } catch (error) {
+      console.error('Failed to search user by userId:', error);
+      return null;
+    }
   }
 }

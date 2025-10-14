@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザープロフィール - 自分のみアクセス可能
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ユーザー設定 - 自分のみアクセス可能
+    match /userSettings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // フレンド - 自分のみアクセス可能
+    match /friends/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // 協力目標 - 参加者のみアクセス可能
+    match /cooperationGoals/{goalId} {
+      allow read, write: if request.auth != null &&
+        (request.auth.uid in resource.data.participantIds ||
+         request.auth.uid == resource.data.creatorId);
+    }
+
+    // ユーザーポイント - 自分のみアクセス可能
+    match /userPoints/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

@@ -14,3 +14,4 @@ export { FriendsListScreen } from './FriendsListScreen';
 export { CreateCooperationGoalScreen } from './CreateCooperationGoalScreen';
 export { LoginScreen } from './LoginScreen';
 export { SignUpScreen } from './SignUpScreen';
+export { AuthScreen } from './AuthScreen';
