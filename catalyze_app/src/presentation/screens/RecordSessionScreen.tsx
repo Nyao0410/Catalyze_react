@@ -98,9 +98,11 @@ export const RecordSessionScreen: React.FC = () => {
   let previewStartUnit: number;
   let previewEndUnit: number;
   if (paramStartUnit !== undefined && paramEndUnit !== undefined) {
-    // タイマーなどから渡された絶対単元番号をそのまま表示
-    previewStartUnit = paramStartUnit;
-    previewEndUnit = paramEndUnit;
+    // タイマーなどから渡された範囲を基準に、累計完了数を考慮して調整
+    // タイマーが渡す範囲はタスクの全範囲なので、完了済みをオフセットして残りの範囲を表示
+    const timerRangeSize = paramEndUnit - paramStartUnit + 1;
+    previewStartUnit = paramStartUnit + cumulativeCompleted;
+    previewEndUnit = Math.min(paramEndUnit, previewStartUnit + timerRangeSize - 1);
   } else if (plan && (plan.unitRange as any)?.start !== undefined && (plan.unitRange as any)?.end !== undefined) {
     // プランに unitRange がある場合は、累計完了数を unitRange.start でオフセットして絶対単元を算出
     const range = plan.unitRange as { start: number; end: number };
@@ -285,7 +287,7 @@ export const RecordSessionScreen: React.FC = () => {
               placeholder="例: 10"
             />
           </View>
-          <Text style={styles.mutedText}>終了範囲: {previewStartUnit} 〜 {previewEndUnit}</Text>
+          <Text style={styles.mutedText}>学習範囲: {previewStartUnit} 〜 {previewEndUnit}</Text>
         </View>
 
         <View style={styles.formGroup}>
