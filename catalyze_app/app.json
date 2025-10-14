@@ -17,7 +17,7 @@
       "bundleIdentifier": "com.nyao0410.studynext"
     },
     "android": {
-      "package": "com.nyao0410.studynext",
+      "package": "com.example.studynext",
       "adaptiveIcon": {
         "foregroundImage": "../icon/Android/mipmap-mdpi/studynext_icon.png",
         "backgroundColor": "#ffffff"
@@ -38,6 +38,6 @@
         "projectId": "c6058c53-56a9-4191-8808-ae37918b7898"
       }
     },
-    "owner": "nyao0410"
+    "owner": "vercy"
   }
 }
