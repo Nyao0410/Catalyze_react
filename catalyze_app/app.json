@@ -4,7 +4,7 @@
     "slug": "studynext_app",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "../icon/Apple/iPhone/AppIcon.appiconset",
+    "icon": "./icon/Apple/iPhone/AppIcon.appiconset",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -17,11 +17,8 @@
       "bundleIdentifier": "com.nyao0410.studynext"
     },
     "android": {
-      "package": "com.example.studynext",
-      "adaptiveIcon": {
-        "foregroundImage": "../icon/Android/mipmap-mdpi/studynext_icon.png",
-        "backgroundColor": "#ffffff"
-      },
+      "package": "com.nyao0410.studynext",
+      "icon": "./icon/Android/mipmap-mdpi/studynext_icon.png",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },

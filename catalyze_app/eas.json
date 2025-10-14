@@ -4,6 +4,9 @@
   },
   "build": {
     "production": {
+      "ios": {
+        "buildType": "app-store"
+      },
       "android": {
         "buildType": "app-bundle"
       }
