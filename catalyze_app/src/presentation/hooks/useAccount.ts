@@ -14,6 +14,8 @@ export function useProfile() {
   return useQuery({
     queryKey: ['profile'],
     queryFn: () => AccountService.getProfile(),
+    staleTime: 5 * 60 * 1000, // 5分
+    gcTime: 10 * 60 * 1000, // 10分
   });
 }
 
@@ -39,6 +41,8 @@ export function useSettings() {
   return useQuery({
     queryKey: ['settings'],
     queryFn: () => AccountService.getSettings(),
+    staleTime: 5 * 60 * 1000, // 5分
+    gcTime: 10 * 60 * 1000, // 10分
   });
 }
 
@@ -80,8 +84,12 @@ export function useInitializeProfile() {
   return useMutation({
     mutationFn: ({ userId, email, displayName }: { userId: string; email: string; displayName?: string }) =>
       AccountService.initializeDefaultProfile(userId, email, displayName),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('[useInitializeProfile] Success:', data);
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+    onError: (error) => {
+      console.error('[useInitializeProfile] Error:', error);
     },
   });
 }
@@ -94,8 +102,12 @@ export function useInitializeSettings() {
   
   return useMutation({
     mutationFn: () => AccountService.initializeDefaultSettings(),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('[useInitializeSettings] Success:', data);
       queryClient.invalidateQueries({ queryKey: ['settings'] });
+    },
+    onError: (error) => {
+      console.error('[useInitializeSettings] Error:', error);
     },
   });
 }

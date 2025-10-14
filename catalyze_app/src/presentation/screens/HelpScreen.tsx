@@ -68,13 +68,13 @@ export const HelpScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>お問い合わせ</Text>
           <TouchableOpacity
             style={[styles.contactCard, { backgroundColor: colors.card }]}
-            onPress={() => Linking.openURL('mailto:support@studynext.app')}
+            onPress={() => Linking.openURL('mailto:vercy.app@gmail.com')}
           >
             <Ionicons name="mail-outline" size={24} color={colors.primary} />
             <View style={styles.contactText}>
               <Text style={[styles.contactTitle, { color: colors.text }]}>メールでお問い合わせ</Text>
               <Text style={[styles.contactDescription, { color: colors.textSecondary }]}>
-                support@studynext.app
+                vercy.app@gmail.com
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />

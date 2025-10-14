@@ -8,6 +8,7 @@ import { AccountService as AsyncAccountService } from './AccountService';
 import { SocialService as AsyncSocialService } from './SocialService';
 import { FirestoreAccountService } from './FirestoreAccountService';
 import { FirestoreSocialService } from './FirestoreSocialService';
+import { isUserLoggedIn } from '../../infrastructure/auth';
 import type {
 	UserProfile,
 	UserSettings,
@@ -19,7 +20,18 @@ import type {
 
 // 環境やビルド時に切り替えたい場合はここを書き換えるか
 // process.env.USE_FIRESTORE を利用してください。
-const USE_FIRESTORE = true; // Firebase Firestoreを使用
+const USE_FIRESTORE_DEFAULT = false; // Firebase Firestoreを使用（デフォルト） - 未ログイン時の問題を避けるためfalseに設定
+
+// ログイン状態によってサービスを選択
+function getAccountService(): AccountServiceInterface {
+  const useFirestore = USE_FIRESTORE_DEFAULT && isUserLoggedIn();
+  return (useFirestore ? (FirestoreAccountService as unknown) : (AsyncAccountService as unknown)) as AccountServiceInterface;
+}
+
+function getSocialService(): SocialServiceInterface {
+  const useFirestore = USE_FIRESTORE_DEFAULT && isUserLoggedIn();
+  return (useFirestore ? (FirestoreSocialService as unknown) : (AsyncSocialService as unknown)) as SocialServiceInterface;
+}
 
 // アプリ内で利用する最小のサービスインターフェースを定義
 export type AccountServiceInterface = {
@@ -48,7 +60,7 @@ export type SocialServiceInterface = {
 };
 
 // concrete export: cast implementations to the interface so callers see a stable API
-export const AccountService: AccountServiceInterface = (USE_FIRESTORE ? (FirestoreAccountService as unknown) : (AsyncAccountService as unknown)) as AccountServiceInterface;
-export const SocialService: SocialServiceInterface = (USE_FIRESTORE ? (FirestoreSocialService as unknown) : (AsyncSocialService as unknown)) as SocialServiceInterface;
+export const AccountService: AccountServiceInterface = getAccountService();
+export const SocialService: SocialServiceInterface = getSocialService();
 
 export default { AccountService, SocialService };

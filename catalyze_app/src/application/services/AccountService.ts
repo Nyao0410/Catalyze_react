@@ -15,17 +15,22 @@ export class AccountService {
    */
   static async getProfile(): Promise<UserProfile | null> {
     try {
+      console.log('[AccountService] getProfile called');
       const data = await AsyncStorage.getItem(PROFILE_KEY);
-      if (!data) return null;
+      if (!data) {
+        console.log('[AccountService] getProfile: no data found');
+        return null;
+      }
       
       const profile = JSON.parse(data);
+      console.log('[AccountService] getProfile: data found', { userId: profile.userId });
       return {
         ...profile,
         createdAt: new Date(profile.createdAt),
         updatedAt: new Date(profile.updatedAt),
       };
     } catch (error) {
-      console.error('Failed to get profile:', error);
+      console.error('[AccountService] getProfile error:', error);
       return null;
     }
   }
@@ -75,16 +80,21 @@ export class AccountService {
    */
   static async getSettings(): Promise<UserSettings | null> {
     try {
+      console.log('[AccountService] getSettings called');
       const data = await AsyncStorage.getItem(SETTINGS_KEY);
-      if (!data) return null;
+      if (!data) {
+        console.log('[AccountService] getSettings: no data found');
+        return null;
+      }
       
       const settings = JSON.parse(data);
+      console.log('[AccountService] getSettings: data found', { userId: settings.userId });
       return {
         ...settings,
         updatedAt: new Date(settings.updatedAt),
       };
     } catch (error) {
-      console.error('Failed to get settings:', error);
+      console.error('[AccountService] getSettings error:', error);
       return null;
     }
   }
@@ -152,6 +162,7 @@ export class AccountService {
    * デフォルトプロフィールを初期化
    */
   static async initializeDefaultProfile(userId: string, email: string, displayName?: string): Promise<UserProfile> {
+    console.log('[AccountService] initializeDefaultProfile called', { userId, email, displayName });
     const profile: UserProfile = {
       userId,
       displayName: displayName || 'ユーザー',
@@ -164,6 +175,7 @@ export class AccountService {
     };
 
     await this.saveProfile(profile);
+    console.log('[AccountService] initializeDefaultProfile success', { userId });
     return profile;
   }
 
@@ -171,8 +183,10 @@ export class AccountService {
    * デフォルト設定を初期化
    */
   static async initializeDefaultSettings(): Promise<UserSettings> {
+    console.log('[AccountService] initializeDefaultSettings called');
     const profile = await this.getProfile();
     if (!profile) {
+      console.error('[AccountService] initializeDefaultSettings: profile not found');
       throw new Error('Profile not found - cannot initialize settings');
     }
 
@@ -189,6 +203,7 @@ export class AccountService {
     };
 
     await this.saveSettings(settings);
+    console.log('[AccountService] initializeDefaultSettings success', { userId: profile.userId });
     return settings;
   }
 

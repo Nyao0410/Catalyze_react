@@ -49,6 +49,29 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('user-001');
+  const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [initializationTimeout, setInitializationTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // 初期化タイムアウトを設定
+  useEffect(() => {
+    if (!profile || !settings) {
+      const timeout = setTimeout(() => {
+        setInitializationError('初期化がタイムアウトしました。アプリを再起動してください。');
+      }, 10000); // 10秒
+      setInitializationTimeout(timeout);
+      
+      return () => {
+        if (timeout) clearTimeout(timeout);
+      };
+    } else {
+      // データが取得できた場合はタイムアウトをクリア
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout);
+        setInitializationTimeout(null);
+      }
+      setInitializationError(null);
+    }
+  }, [profile, settings, initializationTimeout]);
 
   // 編集用のローカルstate
   const [tempDisplayName, setTempDisplayName] = useState('');
@@ -85,15 +108,21 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   
   // プロフィール・設定の初期化
   useEffect(() => {
-    if (!profile && currentUserId) {
+    if (!profile && currentUserId && !isLoadingProfile) {
       // ログイン済みユーザーの場合は実際のメールアドレスを使用、匿名ユーザーの場合は生成したメールアドレスを使用
       const emailToUse = currentUserEmail || `${currentUserId}@local`;
+      console.log('[AccountScreen] Initializing profile for userId:', currentUserId, 'email:', emailToUse);
       initializeProfile({ userId: currentUserId, email: emailToUse });
     }
-    if (!settings && currentUserId) {
+  }, [profile, currentUserEmail, currentUserId, isLoadingProfile]);
+
+  // プロフィールが初期化された後に設定を初期化
+  useEffect(() => {
+    if (profile && !settings && currentUserId && !isLoadingSettings) {
+      console.log('[AccountScreen] Initializing settings for userId:', currentUserId);
       initializeSettings();
     }
-  }, [profile, settings, initializeProfile, initializeSettings, currentUserEmail, currentUserId]);
+  }, [profile, settings, currentUserId, isLoadingSettings]);
   
   // プロフィール更新時に編集フォームを初期化
   useEffect(() => {
@@ -229,6 +258,9 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>初期化中...</Text>
+        {initializationError && (
+          <Text style={styles.errorText}>{initializationError}</Text>
+        )}
       </View>
     );
   }
@@ -815,6 +847,12 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: colors.textSecondary,
     marginTop: spacing.md,
+  },
+  errorText: {
+    ...textStyles.body,
+    color: colors.error,
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
   numberInput: {
     width: 60,

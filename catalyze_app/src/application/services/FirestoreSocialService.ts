@@ -1,5 +1,6 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, Firestore } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase';
+import { isUserLoggedIn } from '../../infrastructure/auth';
 import type { Friend, CooperationGoal, UserPoints, RankingEntry } from '../../types';
 
 export class FirestoreSocialService {
@@ -18,6 +19,11 @@ export class FirestoreSocialService {
 
   static async getFriends(userId: string): Promise<Friend[]> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        return [];
+      }
+
       console.log('[FirestoreSocialService] getFriends called with userId:', userId);
       const snap = await getDocs(this.friendsCollection(userId));
       const friends: Friend[] = [];
@@ -42,6 +48,11 @@ export class FirestoreSocialService {
   }
 
   static async addFriend(ownerId: string, friend: Omit<Friend, 'id' | 'addedAt'>): Promise<Friend> {
+    // 未ログイン時はFirestoreにアクセスしない
+    if (!isUserLoggedIn()) {
+      throw new Error('User must be logged in to add friends');
+    }
+
     const id = `friend-${Date.now()}`;
     const ref = doc(this.friendsCollection(ownerId), id);
     // friend param omits id/addedAt; use provided userId field when present
@@ -57,8 +68,13 @@ export class FirestoreSocialService {
 
   static async getCooperationGoals(userId: string): Promise<CooperationGoal[]> {
     try {
-      const q = query(this.cooperationCollection(), where('participantIds', 'array-contains', userId));
-      const snap = await getDocs(q);
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        return [];
+      }
+
+      console.log('[FirestoreSocialService] getCooperationGoals called with userId:', userId);
+      const snap = await getDocs(this.cooperationCollection());
       const goals: CooperationGoal[] = [];
       snap.forEach(d => {
         const data = d.data() as any;
@@ -72,7 +88,7 @@ export class FirestoreSocialService {
           targetProgress: data.targetProgress || 100,
           deadline: data.deadline?.toDate ? data.deadline.toDate() : new Date(data.deadline),
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          status: data.status || 'active',
+          status: data.status,
         });
       });
       return goals;
@@ -84,6 +100,11 @@ export class FirestoreSocialService {
 
   static async createCooperationGoal(goal: Omit<CooperationGoal, 'id' | 'createdAt' | 'status'>): Promise<CooperationGoal> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        throw new Error('User must be logged in to create cooperation goals');
+      }
+
       const id = `goal-${Date.now()}`;
       const ref = doc(this.cooperationCollection(), id);
       const payload = {
@@ -102,6 +123,11 @@ export class FirestoreSocialService {
 
   static async updateGoalProgress(goalId: string, progress: number): Promise<CooperationGoal> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        throw new Error('User must be logged in to update goal progress');
+      }
+
       const ref = doc(this.cooperationCollection(), goalId);
       await updateDoc(ref, { currentProgress: progress, status: progress >= 100 ? 'completed' : 'active' });
       const snap = await getDoc(ref);
@@ -139,6 +165,11 @@ export class FirestoreSocialService {
 
   static async getUserPoints(userId: string): Promise<UserPoints | null> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        return null;
+      }
+
       console.log('[FirestoreSocialService] getUserPoints called with userId:', userId);
       const snap = await getDocs(this.userPointsCollection(userId));
       if (snap.empty) return null;
@@ -159,6 +190,11 @@ export class FirestoreSocialService {
 
   static async addPoints(userId: string, points: number): Promise<UserPoints> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        throw new Error('User must be logged in to add points');
+      }
+
       const existing = await this.getUserPoints(userId);
       if (!existing) {
         const ref = doc(this.userPointsCollection(userId), 'points');
@@ -184,6 +220,11 @@ export class FirestoreSocialService {
 
   static async resetWeeklyPoints(userId: string): Promise<UserPoints> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        throw new Error('User must be logged in to reset weekly points');
+      }
+
       const snap = await getDocs(this.userPointsCollection(userId));
       if (snap.empty) throw new Error('User points not found');
       const d = snap.docs[0];
@@ -199,6 +240,11 @@ export class FirestoreSocialService {
 
   static async removeFriend(ownerId: string, friendId: string): Promise<void> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        throw new Error('User must be logged in to remove friends');
+      }
+
       const ref = doc(this.friendsCollection(ownerId), friendId);
       // Note: Firestore doesn't have a direct delete method in this context, but we can use deleteDoc
       // For now, we'll mark as inactive or just remove the document
@@ -211,6 +257,11 @@ export class FirestoreSocialService {
 
   static async initializeMockData(userId: string): Promise<void> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        throw new Error('User must be logged in to initialize mock data');
+      }
+
       // Create some mock friends
       const mockFriends = [
         {
@@ -262,6 +313,11 @@ export class FirestoreSocialService {
   // For brevity, only a subset is implemented as an example.
   static async getRanking(userIds: string[]): Promise<RankingEntry[]> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        return [];
+      }
+
       // Query points collection - need to query each user's subcollection
       const entries: RankingEntry[] = [];
       

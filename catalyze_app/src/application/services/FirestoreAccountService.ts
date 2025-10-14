@@ -1,11 +1,16 @@
 import { doc, getDoc, setDoc, updateDoc, Firestore } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase';
-import { getCurrentUserId } from '../../infrastructure/auth';
+import { getCurrentUserId, isUserLoggedIn } from '../../infrastructure/auth';
 import type { UserProfile, UserSettings } from '../../types';
 
 export class FirestoreAccountService {
   static async getProfile(): Promise<UserProfile | null> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        return null;
+      }
+
       const userId = await getCurrentUserId();
       if (!userId) return null;
 
@@ -58,6 +63,11 @@ export class FirestoreAccountService {
 
   static async getSettings(): Promise<UserSettings | null> {
     try {
+      // 未ログイン時はFirestoreにアクセスしない
+      if (!isUserLoggedIn()) {
+        return null;
+      }
+
       const userId = await getCurrentUserId();
       if (!userId) return null;
 
