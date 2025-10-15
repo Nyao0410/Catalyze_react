@@ -6,7 +6,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import type { StreakData } from '../../application/services/StatisticsService';
 
 interface StudyStreakProps {
@@ -14,11 +15,12 @@ interface StudyStreakProps {
 }
 
 export const StudyStreak: React.FC<StudyStreakProps> = ({ data }) => {
+  const { colors } = useTheme();
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Ionicons name="flame" size={24} color={colors.warning} />
-        <Text style={styles.title}>学習ストリーク</Text>
+        <Text style={[styles.title, { color: colors.text }]}>学習ストリーク</Text>
       </View>
 
       <View style={styles.content}>
@@ -58,7 +60,7 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({ data }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -71,20 +73,20 @@ const styles = StyleSheet.create({
   },
   title: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
   },
   content: {
     gap: spacing.md,
   },
   streakCard: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 12,
     padding: spacing.md,
     alignItems: 'center',
   },
   streakLabel: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginBottom: spacing.xs,
   },
   streakValueContainer: {
@@ -95,15 +97,15 @@ const styles = StyleSheet.create({
   streakValue: {
     fontSize: 48,
     fontWeight: '700',
-    color: colors.warning,
+    color: defaultColors.warning,
   },
   streakUnit: {
     ...textStyles.h2,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   encouragement: {
     ...textStyles.bodySmall,
-    color: colors.success,
+    color: defaultColors.success,
     marginTop: spacing.sm,
     fontWeight: '600',
   },
@@ -113,19 +115,19 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 12,
     padding: spacing.md,
     alignItems: 'center',
   },
   statLabel: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginBottom: spacing.xs,
   },
   statValue: {
     ...textStyles.h3,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '700',
   },
 });

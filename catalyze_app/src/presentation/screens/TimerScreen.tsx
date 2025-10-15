@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RootStackScreenProps } from '../navigation/types';
 import { Timer, TimerMode } from '../components';
-import { colors, spacing, textStyles } from '../theme';
+import { spacing, colors as defaultColors, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { useStudyPlan } from '../hooks';
 import { useSettings } from '../hooks/useAccount';
 
@@ -18,6 +19,7 @@ type Props = RootStackScreenProps<'TimerScreen'>;
 export const TimerScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<Props['route']>();
+  const { colors } = useTheme();
   const { planId, taskId, startUnit, endUnit } = route.params;
 
   const [timerMode, setTimerMode] = useState<TimerMode>('stopwatch');
@@ -140,7 +142,7 @@ export const TimerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   scrollView: {
     flex: 1,
@@ -155,9 +157,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   headerCenter: {
     flex: 1,
@@ -166,22 +168,22 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '700',
   },
   headerSubtitle: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginTop: spacing.xs,
   },
   infoCard: {
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     marginHorizontal: spacing.lg,
     marginTop: spacing.lg,
     padding: spacing.md,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
   },
   infoRow: {
     flexDirection: 'row',
@@ -191,23 +193,23 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   infoValue: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
     marginLeft: spacing.lg + spacing.xs,
   },
   tipsCard: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     marginHorizontal: spacing.lg,
     marginTop: spacing.lg,
     padding: spacing.md,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
   },
   tipsHeader: {
     flexDirection: 'row',
@@ -217,12 +219,12 @@ const styles = StyleSheet.create({
   },
   tipsTitle: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
   },
   tipsText: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     lineHeight: 20,
   },
   bottomActions: {
@@ -230,9 +232,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: defaultColors.border,
     padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     paddingVertical: spacing.md,
     borderRadius: 12,
     shadowColor: '#000',
@@ -252,6 +254,6 @@ const styles = StyleSheet.create({
   },
   recordButtonText: {
     ...textStyles.button,
-    color: colors.white,
+    color: defaultColors.white,
   },
 });

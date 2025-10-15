@@ -7,7 +7,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface EmptyStateProps {
   icon: ComponentProps<typeof Ionicons>['name'];
@@ -22,13 +23,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   action,
 }) => {
+  const { colors } = useTheme();
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
         <Ionicons name={icon} size={64} color={colors.textTertiary} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {description && <Text style={styles.description}>{description}</Text>}
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      {description && <Text style={[styles.description, { color: colors.textSecondary }]}>{description}</Text>}
       {action && <View style={styles.actionContainer}>{action}</View>}
     </View>
   );
@@ -46,13 +48,13 @@ const styles = StyleSheet.create({
   },
   title: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   description: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
   },

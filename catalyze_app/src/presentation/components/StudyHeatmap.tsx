@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import type { HeatmapDay } from '../../application/services/StatisticsService';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -16,6 +17,7 @@ interface StudyHeatmapProps {
 
 export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
   const [anchorDate, setAnchorDate] = useState<Date>(new Date());
+  const { colors } = useTheme();
 
   const goPrevQuarter = () => {
     const d = new Date(anchorDate);
@@ -146,19 +148,19 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
   },
   title: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
     marginBottom: spacing.xs,
   },
   subtitle: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginBottom: spacing.md,
   },
   scrollView: {
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
   },
   dayLabel: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontSize: 10,
     height: 12,
     lineHeight: 12,
@@ -191,7 +193,7 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 2,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
   },
   legend: {
     flexDirection: 'row',
@@ -202,7 +204,7 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontSize: 10,
   },
   legendColors: {
@@ -214,17 +216,17 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 2,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
   },
   navButton: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
   },
   navButtonText: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
   },
 });

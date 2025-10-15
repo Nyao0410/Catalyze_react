@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StudyPlanEntity, PlanStatus, PlanDifficulty } from 'catalyze-ai';
 import { Card } from './Card';
 import { ProgressBar } from './ProgressBar';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { t } from '../../locales';
@@ -25,6 +26,8 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   onPress, 
   completedUnits = 0,
 }) => {
+  const { colors } = useTheme();
+  
   // Ensure we have a StudyPlanEntity instance. Some data sources (navigation params, JSON) may
   // provide plain objects that lost prototype methods like isOverdue(). Convert when needed.
   let effectivePlan: StudyPlanEntity = plan as StudyPlanEntity;
@@ -88,15 +91,15 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   const getStatusInfo = () => {
     switch (effectivePlan.status) {
       case PlanStatus.ACTIVE:
-        return { label: t('status.active'), color: colors.success };
+        return { label: t('status.active'), color: defaultColors.success };
       case PlanStatus.PAUSED:
-        return { label: t('status.paused'), color: colors.textSecondary };
+        return { label: t('status.paused'), color: defaultColors.textSecondary };
       case PlanStatus.COMPLETED:
-        return { label: t('status.completed'), color: colors.primary };
+        return { label: t('status.completed'), color: defaultColors.primary };
       case PlanStatus.COMPLETED_TODAY:
-        return { label: t('status.completedToday'), color: colors.accent };
+        return { label: t('status.completedToday'), color: defaultColors.accent };
       default:
-        return { label: t('common.unknown'), color: colors.textSecondary };
+        return { label: t('common.unknown'), color: defaultColors.textSecondary };
     }
   };
 
@@ -224,7 +227,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...textStyles.h4,
-    color: colors.text,
+    color: defaultColors.text,
     marginBottom: spacing.xs,
   },
   badges: {
@@ -238,7 +241,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...textStyles.caption,
-    color: colors.textInverse,
+    color: defaultColors.textInverse,
     fontWeight: '600',
   },
   progressSection: {
@@ -256,11 +259,11 @@ const styles = StyleSheet.create({
   },
   statText: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: defaultColors.border,
     paddingTop: spacing.sm,
   },
   editButton: {
@@ -270,6 +273,6 @@ const styles = StyleSheet.create({
   },
   deadlineText: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
 });

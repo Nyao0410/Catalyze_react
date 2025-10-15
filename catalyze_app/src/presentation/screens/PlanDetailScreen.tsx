@@ -20,7 +20,8 @@ import type { RootStackScreenProps } from '../navigation/types';
 import { useStudyPlan, usePausePlan, useResumePlan, useCompletePlan, useStudySessions, useDeletePlan, useUpdatePlan, useDeleteSession } from '../hooks';
 import { ProgressBar } from '../components/ProgressBar';
 import InlineMenu from '../components/InlineMenu';
-import { colors, spacing, textStyles } from '../theme';
+import { spacing, colors as defaultColors, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { PlanStatus, PlanDifficulty, type StudySessionEntity } from 'catalyze-ai';
 import { ProgressAnalysisService, PerformanceTrend, AchievabilityStatus } from 'catalyze-ai';
 import { format } from 'date-fns';
@@ -50,7 +51,7 @@ const groupSessionsByDate = (sessions: StudySessionEntity[]) => {
 };
 
 // パフォーマンス係数に基づいて色を返す関数（安全化: undefined/NaN を 0 として扱う）
-const getPerformanceColor = (performanceFactor?: number) => {
+const getPerformanceColor = (colors: any, performanceFactor?: number) => {
   const pf = typeof performanceFactor === 'number' && Number.isFinite(performanceFactor) ? performanceFactor : 0;
   if (pf >= 0.8) return colors.success;
   if (pf >= 0.6) return colors.primary;
@@ -62,11 +63,11 @@ const getPerformanceColor = (performanceFactor?: number) => {
 const getTrendInfo = (trend: PerformanceTrend) => {
   switch (trend) {
     case PerformanceTrend.IMPROVING:
-      return { color: colors.success, label: '向上中', icon: 'trending-up' };
+      return { color: defaultColors.success, label: '向上中', icon: 'trending-up' };
     case PerformanceTrend.DECLINING:
-      return { color: colors.error, label: '低下中', icon: 'trending-down' };
+      return { color: defaultColors.error, label: '低下中', icon: 'trending-down' };
     default:
-      return { color: colors.textSecondary, label: '安定', icon: 'remove' };
+      return { color: defaultColors.textSecondary, label: '安定', icon: 'remove' };
   }
 };
 
@@ -74,27 +75,28 @@ const getTrendInfo = (trend: PerformanceTrend) => {
 const getAchievabilityInfo = (status: AchievabilityStatus) => {
   switch (status) {
     case AchievabilityStatus.ACHIEVED:
-      return { color: colors.success, label: '達成済み', icon: 'checkmark-circle' };
+      return { color: defaultColors.success, label: '達成済み', icon: 'checkmark-circle' };
     case AchievabilityStatus.COMFORTABLE:
-      return { color: colors.success, label: '余裕あり', icon: 'thumbs-up' };
+      return { color: defaultColors.success, label: '余裕あり', icon: 'thumbs-up' };
     case AchievabilityStatus.ON_TRACK:
-      return { color: colors.primary, label: '順調', icon: 'checkmark' };
+      return { color: defaultColors.primary, label: '順調', icon: 'checkmark' };
     case AchievabilityStatus.CHALLENGING:
-      return { color: colors.warning, label: '挑戦的', icon: 'alert-circle' };
+      return { color: defaultColors.warning, label: '挑戦的', icon: 'alert-circle' };
     case AchievabilityStatus.AT_RISK:
-      return { color: colors.warning, label: '要注意', icon: 'warning' };
+      return { color: defaultColors.warning, label: '要注意', icon: 'warning' };
     case AchievabilityStatus.OVERDUE:
-      return { color: colors.error, label: '期限切れ', icon: 'close-circle' };
+      return { color: defaultColors.error, label: '期限切れ', icon: 'close-circle' };
     case AchievabilityStatus.IMPOSSIBLE:
-      return { color: colors.error, label: '達成困難', icon: 'close-circle' };
+      return { color: defaultColors.error, label: '達成困難', icon: 'close-circle' };
     default:
-      return { color: colors.textSecondary, label: '不明', icon: 'help-circle' };
+      return { color: defaultColors.textSecondary, label: '不明', icon: 'help-circle' };
   }
 };
 
 export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
   const { planId } = route.params;
   const navigation = useNavigation();
+  const { colors } = useTheme();
   
   const { data: plan, isLoading, error } = useStudyPlan(planId);
   const { data: sessions = [] } = useStudySessions(planId);
@@ -278,7 +280,7 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
                   key: 'delete',
                   label: '削除',
                   icon: <Ionicons name="trash" size={18} color={colors.error} />,
-                  color: colors.error,
+                  color: defaultColors.error,
                   onPress: confirmDeletePlan,
                 },
               ]}
@@ -643,7 +645,7 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
                               key: 'delete-session',
                               label: '削除',
                               icon: <Ionicons name="trash" size={16} color={colors.error} />,
-                              color: colors.error,
+                              color: defaultColors.error,
                               onPress: () => {
                                 Alert.alert('確認', 'このセッションを削除しますか？', [
                                   { text: 'キャンセル', style: 'cancel' },
@@ -718,23 +720,23 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   errorText: {
     marginTop: spacing.md,
-    color: colors.error,
+    color: defaultColors.error,
   },
   header: {
     padding: spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   titleRow: {
     flexDirection: 'row',
@@ -754,7 +756,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     ...textStyles.caption,
-    color: colors.white,
+    color: defaultColors.white,
     fontWeight: '600',
   },
   metaRow: {
@@ -768,14 +770,14 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   section: {
     padding: spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     marginTop: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   progressContainer: {
     marginTop: spacing.md,
@@ -793,11 +795,11 @@ const styles = StyleSheet.create({
   },
   unitText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   remainingText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -809,18 +811,18 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: '45%',
     padding: spacing.md,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 12,
     alignItems: 'center',
     gap: spacing.xs,
   },
   statValue: {
     ...textStyles.h2,
-    color: colors.primary,
+    color: defaultColors.primary,
   },
   statLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   daysContainer: {
     flexDirection: 'row',
@@ -835,10 +837,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayBadgeActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   dayBadgeInactive: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
   },
   dayBadgeDisabled: {
     opacity: 0.6,
@@ -848,10 +850,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dayTextActive: {
-    color: colors.white,
+    color: defaultColors.white,
   },
   dayTextInactive: {
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   actionSection: {
     padding: spacing.lg,
@@ -872,20 +874,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   timerButton: {
-    backgroundColor: colors.warning,
+    backgroundColor: defaultColors.warning,
   },
   pauseButton: {
-    backgroundColor: colors.textSecondary,
+    backgroundColor: defaultColors.textSecondary,
   },
   resumeButton: {
-    backgroundColor: colors.success,
+    backgroundColor: defaultColors.success,
   },
   completeButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   actionButtonText: {
     ...textStyles.button,
-    color: colors.white,
+    color: defaultColors.white,
   },
   // セッション履歴スタイル
   emptyContainer: {
@@ -894,7 +896,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginTop: spacing.md,
   },
   sessionsContainer: {
@@ -905,15 +907,15 @@ const styles = StyleSheet.create({
   },
   dateHeader: {
     ...textStyles.h4,
-    color: colors.primary,
+    color: defaultColors.primary,
     marginBottom: spacing.xs,
   },
   sessionCard: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 12,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
   },
   sessionHeader: {
     flexDirection: 'row',
@@ -928,7 +930,7 @@ const styles = StyleSheet.create({
   },
   sessionTimeText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   performanceIndicator: {
     flexDirection: 'row',
@@ -942,7 +944,7 @@ const styles = StyleSheet.create({
   },
   performanceText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   sessionContent: {
@@ -959,7 +961,7 @@ const styles = StyleSheet.create({
   },
   sessionStatText: {
     ...textStyles.caption,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '500',
   },
   sessionQuality: {
@@ -969,31 +971,31 @@ const styles = StyleSheet.create({
   },
   sessionQualityLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     minWidth: 50,
   },
   concentrationBar: {
     flex: 1,
     height: 6,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
     borderRadius: 3,
     overflow: 'hidden',
   },
   concentrationFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     borderRadius: 3,
   },
   concentrationText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
     minWidth: 35,
     textAlign: 'right',
   },
   totalText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
     textAlign: 'right',
   },
@@ -1008,7 +1010,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: '45%',
     padding: spacing.md,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 12,
     alignItems: 'center',
     gap: spacing.sm,
@@ -1021,12 +1023,12 @@ const styles = StyleSheet.create({
   },
   performanceTitle: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   performanceValue: {
     ...textStyles.h2,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '700',
   },
   performanceDetails: {
@@ -1041,17 +1043,17 @@ const styles = StyleSheet.create({
   },
   performanceDetailLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontSize: 12,
   },
   performanceDetailValue: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
   },
   performanceDescription: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.xs,
   },

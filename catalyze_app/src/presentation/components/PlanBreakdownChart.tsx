@@ -6,7 +6,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { getColorForPlan } from '../utils/planPalette';
 import type { PlanBreakdown } from '../../application/services/StatisticsService';
 
@@ -23,6 +24,7 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
 }) => {
   const [period, setPeriod] = useState<PeriodType>('weekly');
   const screenWidth = Dimensions.get('window').width;
+  const { colors } = useTheme();
 
   const currentData = period === 'weekly' ? weeklyData : monthlyData;
 
@@ -47,29 +49,31 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
     <View style={styles.container}>
       {/* ヘッダー */}
       <View style={styles.header}>
-        <Text style={styles.title}>学習項目の内訳</Text>
-        <View style={styles.periodToggle}>
+        <Text style={[styles.title, { color: colors.text }]}>学習項目の内訳</Text>
+        <View style={[styles.periodToggle, { backgroundColor: colors.backgroundSecondary }]}>
           <TouchableOpacity
-            style={[styles.periodButton, period === 'weekly' && styles.periodButtonActive]}
+            style={[styles.periodButton, period === 'weekly' && [styles.periodButtonActive, { backgroundColor: colors.primary }]]}
             onPress={() => setPeriod('weekly')}
           >
             <Text
               style={[
                 styles.periodButtonText,
-                period === 'weekly' && styles.periodButtonTextActive,
+                { color: colors.textSecondary },
+                period === 'weekly' && [styles.periodButtonTextActive, { color: colors.textInverse }],
               ]}
             >
               週間
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.periodButton, period === 'monthly' && styles.periodButtonActive]}
+            style={[styles.periodButton, period === 'monthly' && [styles.periodButtonActive, { backgroundColor: colors.primary }]]}
             onPress={() => setPeriod('monthly')}
           >
             <Text
               style={[
                 styles.periodButtonText,
-                period === 'monthly' && styles.periodButtonTextActive,
+                { color: colors.textSecondary },
+                period === 'monthly' && [styles.periodButtonTextActive, { color: colors.textInverse }],
               ]}
             >
               月間
@@ -81,7 +85,7 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
       {/* データがない場合 */}
       {chartData.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             {period === 'weekly' ? '今週' : '今月'}の学習記録がありません
           </Text>
         </View>
@@ -102,16 +106,16 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
           {/* 詳細リスト */}
           <View style={styles.detailList}>
             {currentData.map((item) => (
-              <View key={item.planId} style={styles.detailItem}>
+              <View key={item.planId} style={[styles.detailItem, { borderBottomColor: colors.border }]}>
                 <View style={styles.detailLeft}>
                   <View style={[styles.colorIndicator, { backgroundColor: getColorForPlan(item.planId) }]} />
-                  <Text style={styles.detailTitle} numberOfLines={1}>
+                  <Text style={[styles.detailTitle, { color: colors.text }]} numberOfLines={1}>
                     {item.planTitle}
                   </Text>
                 </View>
                 <View style={styles.detailRight}>
-                  <Text style={styles.detailPercentage}>{item.percentage}%</Text>
-                  <Text style={styles.detailTime}>
+                  <Text style={[styles.detailPercentage, { color: colors.textSecondary }]}>{item.percentage}%</Text>
+                  <Text style={[styles.detailTime, { color: colors.text }]}>
                     {Math.round((item.totalMinutes / 60) * 10) / 10}h
                   </Text>
                 </View>
@@ -120,9 +124,9 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
           </View>
 
           {/* 合計 */}
-          <View style={styles.summary}>
-            <Text style={styles.summaryLabel}>合計学習時間</Text>
-            <Text style={styles.summaryValue}>{totalHours} 時間</Text>
+          <View style={[styles.summary, { borderTopColor: colors.border }]}>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>合計学習時間</Text>
+            <Text style={[styles.summaryValue, { color: colors.primary }]}>{totalHours} 時間</Text>
           </View>
         </>
       )}
@@ -132,7 +136,7 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -145,11 +149,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
   },
   periodToggle: {
     flexDirection: 'row',
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 8,
     padding: 2,
   },
@@ -159,15 +163,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   periodButtonActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   periodButtonText: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   periodButtonTextActive: {
-    color: colors.textInverse,
+    color: defaultColors.textInverse,
   },
   emptyState: {
     paddingVertical: spacing.xl * 2,
@@ -175,7 +179,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   detailList: {
     marginTop: spacing.md,
@@ -186,7 +190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   detailLeft: {
     flexDirection: 'row',
@@ -202,7 +206,7 @@ const styles = StyleSheet.create({
   },
   detailTitle: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     flex: 1,
   },
   detailRight: {
@@ -212,14 +216,14 @@ const styles = StyleSheet.create({
   },
   detailPercentage: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
     minWidth: 45,
     textAlign: 'right',
   },
   detailTime: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
     minWidth: 45,
     textAlign: 'right',
@@ -231,15 +235,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 2,
-    borderTopColor: colors.border,
+    borderTopColor: defaultColors.border,
   },
   summaryLabel: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   summaryValue: {
     ...textStyles.h3,
-    color: colors.primary,
+    color: defaultColors.primary,
   },
 });

@@ -12,7 +12,8 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
-import { colors, textStyles, spacing } from '../theme';
+import { colors as defaultColors, textStyles, spacing } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -31,6 +32,8 @@ export const Input: React.FC<InputProps> = ({
   style,
   ...props
 }) => {
+  const { colors } = useTheme();
+  
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -60,25 +63,25 @@ const styles = StyleSheet.create({
   label: {
     ...textStyles.bodySmall,
     fontWeight: '600',
-    color: colors.text,
+    color: defaultColors.text,
     marginBottom: spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
     borderRadius: 8,
     paddingHorizontal: spacing.md,
   },
   inputContainerError: {
-    borderColor: colors.error,
+    borderColor: defaultColors.error,
   },
   input: {
     ...textStyles.body,
     flex: 1,
-    color: colors.text,
+    color: defaultColors.text,
     paddingVertical: spacing.sm,
     minHeight: 44,
   },
@@ -96,7 +99,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...textStyles.caption,
-    color: colors.error,
+    color: defaultColors.error,
     marginTop: spacing.xs,
   },
 });

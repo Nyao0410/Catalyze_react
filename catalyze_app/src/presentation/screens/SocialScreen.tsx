@@ -13,7 +13,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, textStyles } from '../theme';
+import { spacing, textStyles, colors as defaultColors } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useFriends, useCooperationGoals, useRanking, useUserPoints } from '../hooks';
 import { getCurrentUserId, isUserLoggedIn } from '../../infrastructure/auth';
@@ -21,6 +22,7 @@ import { getCurrentUserId, isUserLoggedIn } from '../../infrastructure/auth';
 type TabType = 'cooperation' | 'ranking';
 
 export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigation }) => {
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>('cooperation');
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
@@ -46,9 +48,21 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
   const rankingUserIds = [currentUserId, ...friends.map(f => f.id)];
   const { data: ranking = [], isLoading: isLoadingRanking } = useRanking(rankingUserIds);
 
+  // 動的スタイル（テーマ対応）
+  const dynamicStyles = {
+    container: [styles.container, { backgroundColor: colors.background }],
+    loginPromptContainer: [styles.loginPromptContainer, { backgroundColor: colors.background }],
+    loginButton: [styles.loginButton, { backgroundColor: colors.primary }],
+    header: [styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }],
+    tabButton: [styles.tabButton, { borderBottomColor: colors.border }],
+    tabButtonActive: [styles.tabButtonActive, { borderBottomColor: colors.primary }],
+    tabButtonText: [styles.tabButtonText, { color: colors.textSecondary }],
+    tabButtonTextActive: [styles.tabButtonTextActive, { color: colors.primary }],
+  };
+
   // ログインを促すUI
   const renderLoginPrompt = () => (
-    <View style={styles.loginPromptContainer}>
+    <View style={dynamicStyles.loginPromptContainer}>
       <Ionicons name="lock-closed-outline" size={64} color={colors.textSecondary} />
       <Text style={styles.loginPromptTitle}>ログインが必要です</Text>
       <Text style={styles.loginPromptText}>
@@ -56,7 +70,7 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
         ログインしてください
       </Text>
       <TouchableOpacity
-        style={styles.loginButton}
+        style={dynamicStyles.loginButton}
         onPress={() => navigation.navigate('Auth' as any)}
       >
         <Ionicons name="log-in-outline" size={20} color={colors.white} />
@@ -67,7 +81,7 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
 
   const renderTabButton = (tab: TabType, label: string, icon: keyof typeof Ionicons.glyphMap) => (
     <TouchableOpacity
-      style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
+      style={[dynamicStyles.tabButton, activeTab === tab && dynamicStyles.tabButtonActive]}
       onPress={() => setActiveTab(tab)}
     >
       <Ionicons 
@@ -75,7 +89,7 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
         size={20} 
         color={activeTab === tab ? colors.primary : colors.textSecondary} 
       />
-      <Text style={[styles.tabButtonText, activeTab === tab && styles.tabButtonTextActive]}>
+      <Text style={[dynamicStyles.tabButtonText, activeTab === tab && dynamicStyles.tabButtonTextActive]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -222,8 +236,8 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={dynamicStyles.container}>
+      <View style={dynamicStyles.header}>
         <Text style={styles.headerTitle}>ソーシャル</Text>
         <TouchableOpacity 
           style={styles.addFriendButton}
@@ -246,7 +260,7 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   loginPromptContainer: {
     flex: 1,
@@ -257,18 +271,18 @@ const styles = StyleSheet.create({
   },
   loginPromptTitle: {
     ...textStyles.h2,
-    color: colors.text,
+    color: defaultColors.text,
   },
   loginPromptText: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     textAlign: 'center',
   },
   loginButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: 8,
@@ -276,7 +290,7 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     ...textStyles.body,
-    color: colors.white,
+    color: defaultColors.white,
     fontWeight: '600',
   },
   header: {
@@ -285,20 +299,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   headerTitle: {
     ...textStyles.h2,
-    color: colors.text,
+    color: defaultColors.text,
   },
   addFriendButton: {
     padding: spacing.sm,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     gap: spacing.md,
@@ -311,19 +325,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: 8,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
     gap: spacing.sm,
   },
   tabButtonActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: defaultColors.primaryLight,
   },
   tabButtonText: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   tabButtonTextActive: {
-    color: colors.primary,
+    color: defaultColors.primary,
   },
   content: {
     flex: 1,
@@ -333,25 +347,25 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
     marginBottom: spacing.md,
   },
   goalCard: {
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     padding: spacing.lg,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
   },
   goalTitle: {
     ...textStyles.h4,
-    color: colors.text,
+    color: defaultColors.text,
     marginBottom: spacing.xs,
   },
   goalDescription: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginBottom: spacing.md,
   },
   participantsContainer: {
@@ -363,7 +377,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: defaultColors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -375,18 +389,18 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: colors.border,
+    backgroundColor: defaultColors.border,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: spacing.xs,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   progressText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     textAlign: 'right',
   },
   goalFooter: {
@@ -401,7 +415,7 @@ const styles = StyleSheet.create({
   },
   deadlineText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   detailButton: {
     flexDirection: 'row',
@@ -410,7 +424,7 @@ const styles = StyleSheet.create({
   },
   detailButtonText: {
     ...textStyles.body,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '600',
   },
   createButton: {
@@ -418,20 +432,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: defaultColors.primary,
     borderStyle: 'dashed',
     gap: spacing.sm,
   },
   createButtonText: {
     ...textStyles.body,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '600',
   },
   rankingCard: {
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.lg,
@@ -442,7 +456,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   rankingLeft: {
     flexDirection: 'row',
@@ -453,7 +467,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.border,
+    backgroundColor: defaultColors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -469,7 +483,7 @@ const styles = StyleSheet.create({
   rankNumber: {
     ...textStyles.body,
     fontWeight: 'bold',
-    color: colors.white,
+    color: defaultColors.white,
   },
   rankingAvatarContainer: {
     position: 'relative',
@@ -484,16 +498,16 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.success,
+    backgroundColor: defaultColors.success,
     borderWidth: 2,
-    borderColor: colors.card,
+    borderColor: defaultColors.card,
   },
   rankingInfo: {
     gap: spacing.xs,
   },
   rankingName: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
   },
   levelContainer: {
@@ -503,19 +517,19 @@ const styles = StyleSheet.create({
   },
   levelText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   rankingRight: {
     alignItems: 'flex-end',
   },
   pointsText: {
     ...textStyles.h4,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: 'bold',
   },
   pointsLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -523,7 +537,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     padding: spacing.lg,
     alignItems: 'center',
@@ -531,12 +545,12 @@ const styles = StyleSheet.create({
   },
   statValue: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: 'bold',
   },
   statLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     textAlign: 'center',
   },
   centerContent: {

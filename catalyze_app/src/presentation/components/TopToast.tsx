@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { Animated, Text, StyleSheet, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, textStyles } from '../theme';
+import { colors as defaultColors, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 
 type Props = {
   message: string | null;
@@ -12,6 +13,7 @@ type Props = {
 export const TopToast: React.FC<Props> = ({ message, visible, onHidden }) => {
   const translateY = React.useRef(new Animated.Value(-80)).current;
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (visible && message) {
@@ -36,11 +38,11 @@ export const TopToast: React.FC<Props> = ({ message, visible, onHidden }) => {
     <Animated.View
       style={[
         styles.container,
-        { transform: [{ translateY }], paddingTop: topOffset, height: 64 + topOffset },
+        { transform: [{ translateY }], paddingTop: topOffset, height: 64 + topOffset, backgroundColor: colors.primary },
       ]}
       pointerEvents="none"
     >
-      <Text style={styles.text}>{message}</Text>
+      <Text style={[styles.text, { color: colors.white }]}>{message}</Text>
     </Animated.View>
   );
 };
@@ -52,7 +54,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 64,
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     paddingTop: 18,
@@ -61,7 +63,7 @@ const styles = StyleSheet.create({
   },
   text: {
     ...textStyles.button,
-    color: colors.white,
+    color: defaultColors.white,
   },
 });
 

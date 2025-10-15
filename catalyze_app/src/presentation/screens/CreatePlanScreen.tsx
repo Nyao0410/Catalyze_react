@@ -14,7 +14,8 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import { colors, spacing, textStyles } from '../theme';
+import { spacing, colors as defaultColors, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { t } from '../../locales';
 import { useCreatePlan, useStudyPlan, useUpdatePlan } from '../hooks/useStudyPlans';
 import { useTopToast } from '../hooks/useTopToast';
@@ -26,6 +27,7 @@ import type { RootStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'CreatePlan' | 'EditPlan'>;
 
 export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { colors } = useTheme();
   const { mutate: createPlan, isPending } = useCreatePlan();
   const toast = useTopToast();
   const planId = route?.params?.planId as string | undefined;
@@ -371,7 +373,7 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* 詳細設定 */}
         <View style={styles.field}>
           <TouchableOpacity onPress={() => setAdvancedVisible(!advancedVisible)}>
-            <Text style={[styles.label, { color: colors.primary }]}>{advancedVisible ? t('createPlan.advanced.close') : t('createPlan.advanced.open')}</Text>
+            <Text style={[styles.label, { color: defaultColors.primary }]}>{advancedVisible ? t('createPlan.advanced.close') : t('createPlan.advanced.open')}</Text>
           </TouchableOpacity>
           {advancedVisible && (
             <View style={styles.advancedContainer}>
@@ -430,7 +432,7 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
 
   // ヘッダー
@@ -440,22 +442,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   headerTitle: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
   },
   cancelButton: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   saveButton: {
     ...textStyles.button,
-    color: colors.primary,
+    color: defaultColors.primary,
   },
   saveButtonDisabled: {
-    color: colors.textTertiary,
+    color: defaultColors.textTertiary,
   },
 
   // コンテンツ
@@ -472,18 +474,18 @@ const styles = StyleSheet.create({
   },
   label: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     marginBottom: spacing.sm,
     fontWeight: '600',
   },
   input: {
     ...textStyles.body,
-    color: colors.text,
-    backgroundColor: colors.card,
+    color: defaultColors.text,
+    backgroundColor: defaultColors.card,
     padding: spacing.md,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
   },
   // range inputs (start/end) row
   fieldRow: {
@@ -501,15 +503,15 @@ const styles = StyleSheet.create({
   },
   dateText: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
   },
   datePlaceholder: {
     ...textStyles.body,
-    color: colors.textTertiary,
+    color: defaultColors.textTertiary,
   },
   hint: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginTop: spacing.xs,
   },
 
@@ -520,23 +522,23 @@ const styles = StyleSheet.create({
   },
   difficultyButton: {
     flex: 1,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     padding: spacing.md,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
     alignItems: 'center',
   },
   difficultyButtonActive: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
+    backgroundColor: defaultColors.primaryLight,
+    borderColor: defaultColors.primary,
   },
   difficultyButtonText: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   difficultyButtonTextActive: {
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '600',
   },
 
@@ -549,36 +551,36 @@ const styles = StyleSheet.create({
   weekdayButton: {
     flex: 1,
     aspectRatio: 1,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   weekdayButtonActive: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
+    backgroundColor: defaultColors.primaryLight,
+    borderColor: defaultColors.primary,
   },
   weekdayButtonText: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   weekdayButtonTextActive: {
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '600',
   },
 
   // 情報
   infoContainer: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     padding: spacing.md,
     borderRadius: 8,
     marginTop: spacing.md,
   },
   infoText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   // Calendar modal styles
   calendarOverlay: {
@@ -589,7 +591,7 @@ const styles = StyleSheet.create({
   },
   calendarContainer: {
     width: '92%',
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
     borderRadius: 12,
     padding: spacing.md,
   },
@@ -601,12 +603,12 @@ const styles = StyleSheet.create({
   },
   calendarNav: {
     ...textStyles.body,
-    color: colors.primary,
+    color: defaultColors.primary,
     paddingHorizontal: spacing.sm,
   },
   calendarTitle: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
   },
   calendarGrid: {
@@ -623,11 +625,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   calendarDaySelected: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   calendarDayText: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
   },
   calendarClose: {
     marginTop: spacing.md,
@@ -635,12 +637,12 @@ const styles = StyleSheet.create({
   },
   calendarCloseText: {
     ...textStyles.body,
-    color: colors.primary,
+    color: defaultColors.primary,
   },
   advancedContainer: {
     marginTop: spacing.sm,
     padding: spacing.md,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 8,
   },
 });

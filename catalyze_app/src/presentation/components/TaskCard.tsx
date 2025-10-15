@@ -7,7 +7,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { DailyTaskEntity, StudyPlanEntity, AchievabilityStatus } from 'catalyze-ai';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { ProgressBar } from './ProgressBar';
 import { t } from '../../locales';
 
@@ -22,7 +23,7 @@ interface TaskCardProps {
 }
 
 // 達成可能性に応じた色を返す
-const getAchievabilityColor = (status: AchievabilityStatus): string => {
+const getAchievabilityColor = (status: AchievabilityStatus, colors: any): string => {
   switch (status) {
     case 'achieved':
     case 'comfortable':
@@ -71,7 +72,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onComplete,
   onStartTimer,
 }) => {
-  const achievabilityColor = getAchievabilityColor(achievability);
+  const { colors } = useTheme();
+  const achievabilityColor = getAchievabilityColor(achievability, colors);
   const achievabilityLabel = getAchievabilityLabel(achievability);
 
   return (
@@ -172,12 +174,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -200,7 +202,7 @@ const styles = StyleSheet.create({
   },
   reviewLabel: {
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: defaultColors.primary,
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: 8,
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
   },
   reviewLabelText: {
     ...textStyles.caption,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '600',
     fontSize: 11,
   },
@@ -224,13 +226,13 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...textStyles.caption,
-    color: colors.white,
+    color: defaultColors.white,
     fontWeight: '600',
     fontSize: 11,
   },
   roundText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontStyle: 'italic',
   },
   details: {
@@ -245,7 +247,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     ...textStyles.caption,
-    color: colors.text,
+    color: defaultColors.text,
   },
   progressSection: {
     marginTop: spacing.sm,
@@ -259,25 +261,25 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   progressValue: {
     ...textStyles.caption,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '600',
   },
   adviceSection: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     padding: spacing.sm,
     borderRadius: 8,
     marginTop: spacing.sm,
   },
   adviceText: {
     ...textStyles.caption,
-    color: colors.text,
+    color: defaultColors.text,
     flex: 1,
   },
   actionButtons: {
@@ -295,13 +297,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   timerButton: {
-    backgroundColor: colors.warning,
+    backgroundColor: defaultColors.warning,
   },
   completeButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   actionButtonText: {
     ...textStyles.button,
-    color: colors.white,
+    color: defaultColors.white,
   },
 });

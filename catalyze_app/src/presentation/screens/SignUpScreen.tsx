@@ -27,7 +27,7 @@ type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const SignUpScreen: React.FC = () => {
   const navigation = useNavigation<SignUpScreenNavigationProp>();
-  const { colors: themeColors } = useTheme();
+  const { colors: colors } = useTheme();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -142,7 +142,7 @@ export const SignUpScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: defaultColors.background }]} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -153,10 +153,10 @@ export const SignUpScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={[styles.title, { color: themeColors.text }]}>
+            <Text style={[styles.title, { color: defaultColors.text }]}>
               アカウント作成
             </Text>
-            <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+            <Text style={[styles.subtitle, { color: defaultColors.textSecondary }]}>
               StudyNextへようこそ
             </Text>
           </View>
@@ -234,11 +234,11 @@ export const SignUpScreen: React.FC = () => {
             />
 
             <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>
+              <Text style={[styles.footerText, { color: defaultColors.textSecondary }]}>
                 すでにアカウントをお持ちですか？
               </Text>
               <TouchableOpacity onPress={handleGoToLogin} disabled={loading}>
-                <Text style={[styles.linkText, { color: themeColors.primary }]}>
+                <Text style={[styles.linkText, { color: defaultColors.primary }]}>
                   ログイン
                 </Text>
               </TouchableOpacity>

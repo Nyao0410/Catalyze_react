@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 
 type MenuItem = {
   key: string;
@@ -17,6 +18,7 @@ type Props = {
 
 export const InlineMenu: React.FC<Props> = ({ items }) => {
   const [visible, setVisible] = useState(false);
+  const { colors } = useTheme();
 
   return (
     <>
@@ -26,7 +28,7 @@ export const InlineMenu: React.FC<Props> = ({ items }) => {
 
       {visible && (
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setVisible(false)}>
-          <View style={styles.menu}>
+          <View style={[styles.menu, { backgroundColor: colors.white }]}>
             {items.map((it) => (
               <TouchableOpacity
                 key={it.key}
@@ -37,7 +39,7 @@ export const InlineMenu: React.FC<Props> = ({ items }) => {
                 }}
               >
                 {it.icon}
-                <Text style={[styles.menuText, it.color ? { color: it.color } : undefined]}>{it.label}</Text>
+                <Text style={[styles.menuText, { color: colors.text }, it.color ? { color: it.color } : undefined]}>{it.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -63,7 +65,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 8,
     top: 56,
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     borderRadius: 12,
     paddingVertical: spacing.xs,
     minWidth: 160,
@@ -83,7 +85,7 @@ const styles = StyleSheet.create({
   },
   menuText: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     marginLeft: spacing.sm,
   },
 });

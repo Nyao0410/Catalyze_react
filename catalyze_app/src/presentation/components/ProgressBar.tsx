@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface ProgressBarProps {
   progress: number; // 0-1
@@ -22,29 +23,34 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   label,
   showPercentage = false,
   height = 8,
-  color = colors.progressFill,
-  backgroundColor = colors.progressTrack,
+  color,
+  backgroundColor,
   style,
 }) => {
+  const { colors } = useTheme();
   const clampedProgress = Math.max(0, Math.min(1, progress));
   const percentage = Math.round(clampedProgress * 100);
+
+  // デフォルトカラーを動的に設定
+  const progressColor = color || colors.progressFill;
+  const trackColor = backgroundColor || colors.progressTrack;
 
   return (
     <View style={[styles.container, style]}>
       {(label || showPercentage) && (
         <View style={styles.labelContainer}>
-          {label && <Text style={styles.label}>{label}</Text>}
-          {showPercentage && <Text style={styles.percentage}>{percentage}%</Text>}
+          {label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
+          {showPercentage && <Text style={[styles.percentage, { color: colors.text }]}>{percentage}%</Text>}
         </View>
       )}
-      <View style={[styles.track, { height, backgroundColor }]}>
+      <View style={[styles.track, { height, backgroundColor: trackColor }]}>
         <View
           style={[
             styles.fill,
             {
               width: `${clampedProgress * 100}%`,
               height,
-              backgroundColor: color,
+              backgroundColor: progressColor,
             },
           ]}
         />
@@ -65,12 +71,12 @@ const styles = StyleSheet.create({
   },
   label: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   percentage: {
     ...textStyles.bodySmall,
     fontWeight: '600',
-    color: colors.text,
+    color: defaultColors.text,
   },
   track: {
     width: '100%',

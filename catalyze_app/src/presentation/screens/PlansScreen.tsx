@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PlanStatus } from 'catalyze-ai';
-import { colors, spacing, textStyles } from '../theme';
+import { spacing, textStyles, colors as defaultColors } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
 import { Button, PlanCard, EmptyState } from '../components';
 import { PlanDetailScreen } from './PlanDetailScreen';
@@ -39,7 +39,7 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
   // ユーザーの全セッションを取得してプラン毎に集計
   const { data: userSessions = [] } = useUserSessions(userId as any);
 
-  const { isTablet } = useTheme();
+  const { isTablet, colors } = useTheme();
 
   // フィルタリング
   const filteredPlans = plans.filter((plan) => {
@@ -69,6 +69,21 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
     });
   }, [navigation]);
 
+  // 動的スタイル（テーマ対応） - FilterButtonより前に定義
+  const dynamicStyles = {
+    container: [styles.container, { backgroundColor: colors.background }],
+    centerContainer: [styles.centerContainer, { backgroundColor: colors.background }],
+    filterContainer: [styles.filterContainer, { borderBottomColor: colors.border }],
+    filterButton: [styles.filterButton, { backgroundColor: colors.backgroundSecondary }],
+    filterButtonActive: [styles.filterButtonActive, { backgroundColor: colors.primary }],
+    filterButtonText: [styles.filterButtonText, { color: colors.textSecondary }],
+    filterButtonTextActive: [styles.filterButtonTextActive, { color: colors.textInverse }],
+    fab: [styles.fab, { backgroundColor: colors.primary, shadowColor: colors.cardShadow }],
+    splitContainer: [styles.splitContainer, { backgroundColor: colors.background }],
+    leftPane: [styles.leftPane, { borderRightColor: colors.border, backgroundColor: colors.background }],
+    rightPane: [styles.rightPane, { backgroundColor: colors.background }],
+  };
+
   // プラン詳細へ遷移
   const handlePlanPress = (planId: string) => {
     if (isTablet) {
@@ -87,10 +102,10 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
     const isActive = filter === type;
     return (
       <TouchableOpacity
-        style={[styles.filterButton, isActive && styles.filterButtonActive]}
+        style={[dynamicStyles.filterButton, isActive && dynamicStyles.filterButtonActive]}
         onPress={() => setFilter(type)}
       >
-        <Text style={[styles.filterButtonText, isActive && styles.filterButtonTextActive]}>
+        <Text style={[dynamicStyles.filterButtonText, isActive && dynamicStyles.filterButtonTextActive]}>
           {label} ({count})
         </Text>
       </TouchableOpacity>
@@ -131,16 +146,16 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={dynamicStyles.centerContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={dynamicStyles.container}>
       {/* フィルター */}
-      <View style={styles.filterContainer}>
+      <View style={dynamicStyles.filterContainer}>
         <FilterButton type="all" label={t('plans.filter.all')} count={plans.length} />
         <FilterButton type="active" label={t('plans.filter.active')} count={activeCount} />
         <FilterButton type="completed" label={t('plans.filter.completed')} count={completedCount} />
@@ -165,8 +180,8 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
         />
       ) : isTablet ? (
         // Split view: left list + right detail
-        <View style={styles.splitContainer}>
-          <View style={styles.leftPane}>
+        <View style={dynamicStyles.splitContainer}>
+          <View style={dynamicStyles.leftPane}>
             <FlatList
               data={filteredPlans}
               keyExtractor={(item) => item.id}
@@ -190,7 +205,7 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
 
-          <View style={styles.rightPane}>
+          <View style={dynamicStyles.rightPane}>
             {selectedPlanId ? (
               // Render inline PlanDetailScreen by passing route and navigation props
               <PlanDetailScreen
@@ -227,7 +242,7 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
       )}
 
       {/* フローティングアクションボタン（常に表示） */}
-      <TouchableOpacity style={styles.fab} onPress={handleCreatePlan}>
+      <TouchableOpacity style={dynamicStyles.fab} onPress={handleCreatePlan}>
         <Ionicons name="add" size={32} color={colors.textInverse} />
       </TouchableOpacity>
     </View>
@@ -237,39 +252,39 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   filterContainer: {
     flexDirection: 'row',
     padding: spacing.md,
     gap: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   filterButton: {
     flex: 1,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: 20,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     alignItems: 'center',
   },
   filterButtonActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   filterButtonText: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   filterButtonTextActive: {
-    color: colors.textInverse,
+    color: defaultColors.textInverse,
   },
   listContent: {
     padding: spacing.md,
@@ -284,10 +299,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.cardShadow,
+    shadowColor: defaultColors.cardShadow,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -315,12 +330,12 @@ const styles = StyleSheet.create({
   leftPane: {
     width: '40%',
     borderRightWidth: 1,
-    borderRightColor: colors.border,
-    backgroundColor: colors.background,
+    borderRightColor: defaultColors.border,
+    backgroundColor: defaultColors.background,
   },
   rightPane: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   leftListContent: {
     padding: spacing.md,
@@ -329,7 +344,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   listItemSelected: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 8,
   },
   placeholderContainer: {

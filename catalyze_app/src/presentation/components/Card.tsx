@@ -10,7 +10,8 @@ import {
   type ViewProps,
   type ViewStyle,
 } from 'react-native';
-import { colors, spacing } from '../theme';
+import { colors as defaultColors, spacing } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface CardProps extends ViewProps {
   variant?: 'default' | 'outlined' | 'elevated';
@@ -26,9 +27,17 @@ export const Card: React.FC<CardProps> = ({
   children,
   ...props
 }) => {
+  const { colors } = useTheme();
   const cardStyles = [
-    styles.card,
-    styles[`card_${variant}`],
+    { borderRadius: 12, backgroundColor: colors.card },
+    variant === 'outlined' && { borderWidth: 1, borderColor: colors.border },
+    variant === 'elevated' && {
+      shadowColor: colors.cardShadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
     { padding: spacing[padding] },
     style,
   ];
@@ -43,17 +52,17 @@ export const Card: React.FC<CardProps> = ({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
   },
   card_default: {
     // No additional styles
   },
   card_outlined: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
   },
   card_elevated: {
-    shadowColor: colors.cardShadow,
+    shadowColor: defaultColors.cardShadow,
     shadowOffset: {
       width: 0,
       height: 2,

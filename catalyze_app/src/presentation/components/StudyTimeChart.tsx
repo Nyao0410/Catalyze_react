@@ -9,7 +9,8 @@ import { StackedBarChart, Grid } from 'react-native-svg-charts';
 import { View as RNView } from 'react-native';
 import * as scale from 'd3-scale';
 import Svg, { Text as SvgText } from 'react-native-svg';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { getColorForPlan } from '../utils/planPalette';
 import type { StudyTimeData } from '../../application/services/StatisticsService';
 import { useStudyPlans } from '../../presentation/hooks/useStudyPlans';
@@ -30,6 +31,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
   const [containerWidth, setContainerWidth] = useState<number>(
     screenWidth - spacing.lg * 2
   );
+  const { colors } = useTheme();
 
   const currentData = period === 'weekly' ? weeklyData : monthlyData;
   const labels = currentData.map((d) => d.label);
@@ -65,9 +67,9 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
       ];
 
   const chartConfig = {
-    backgroundColor: colors.background,
-    backgroundGradientFrom: colors.backgroundSecondary,
-    backgroundGradientTo: colors.backgroundSecondary,
+    backgroundColor: defaultColors.background,
+    backgroundGradientFrom: defaultColors.backgroundSecondary,
+    backgroundGradientTo: defaultColors.backgroundSecondary,
     decimalPlaces: 1,
     color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`, // primary color
     labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`, // text secondary
@@ -287,7 +289,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
               return (
                 <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, marginBottom: 6 }}>
                   <View style={{ width: 12, height: 12, backgroundColor: getColorForPlan(pid), marginRight: 6, borderRadius: 2 }} />
-                  <Text style={{ ...textStyles.bodySmall, color: colors.textSecondary }}>{short}</Text>
+                  <Text style={{ ...textStyles.bodySmall, color: defaultColors.textSecondary }}>{short}</Text>
                 </View>
               );
             })}
@@ -314,7 +316,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -331,11 +333,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
   },
   periodToggle: {
     flexDirection: 'row',
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 8,
     padding: 2,
   },
@@ -345,15 +347,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   periodButtonActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   periodButtonText: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   periodButtonTextActive: {
-    color: colors.textInverse,
+    color: defaultColors.textInverse,
   },
   chart: {
     marginVertical: spacing.sm,
@@ -366,15 +368,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: defaultColors.border,
   },
   summaryLabel: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   summaryValue: {
     ...textStyles.h3,
-    color: colors.primary,
+    color: defaultColors.primary,
   },
   legendContainer: {
     marginTop: 6,

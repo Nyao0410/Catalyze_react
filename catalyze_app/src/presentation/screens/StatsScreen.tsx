@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { colors, spacing, textStyles } from '../theme';
+import { spacing, textStyles, colors as defaultColors } from '../theme';
 import type { MainTabScreenProps } from '../navigation/types';
 import { t } from '../../locales';
 import {
@@ -32,10 +32,13 @@ import {
   useHeatmapData,
 } from '../hooks/useStats';
 import { useCurrentUserId } from '../hooks/useAuth';
+import { useTheme } from '../theme/ThemeProvider';
 
 type Props = MainTabScreenProps<'Stats'>;
 
 export const StatsScreen: React.FC<Props> = () => {
+  const { colors } = useTheme();
+  
   // 現在のユーザー UID を取得（Firebase Auth または fallback）
   const { userId, isLoading: isLoadingUserId } = useCurrentUserId();
 
@@ -73,16 +76,23 @@ export const StatsScreen: React.FC<Props> = () => {
     setIsRefreshing(false);
   };
 
+  // 動的スタイル（テーマ対応）
+  const dynamicStyles = {
+    container: [styles.container, { backgroundColor: colors.background }],
+    centerContainer: [styles.centerContainer, { backgroundColor: colors.background }],
+    header: [styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }],
+  };
+
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={dynamicStyles.centerContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
   return (
     <ScrollView
-      style={styles.container}
+      style={dynamicStyles.container}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
@@ -93,7 +103,7 @@ export const StatsScreen: React.FC<Props> = () => {
       }
     >
       {/* ヘッダー */}
-      <View style={styles.header}>
+      <View style={dynamicStyles.header}>
         <Text style={styles.headerTitle}>学習統計</Text>
         <Text style={styles.headerSubtitle}>あなたの学習パターンを可視化</Text>
       </View>
@@ -129,13 +139,13 @@ export const StatsScreen: React.FC<Props> = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   content: {
     padding: spacing.md,
@@ -145,12 +155,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...textStyles.h1,
-    color: colors.text,
+    color: defaultColors.text,
     marginBottom: spacing.xs,
   },
   headerSubtitle: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   bottomPadding: {
     height: spacing.xl,

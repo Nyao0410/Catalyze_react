@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Slider from '@react-native-community/slider';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { colors, spacing, textStyles } from '../theme';
+import { spacing, colors as defaultColors, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { addDays } from 'date-fns';
 import type { RootStackScreenProps } from '../navigation/types';
 import { useCreateSession, useDailyTasksByPlan, useUpdateSession, useStudySession } from '../hooks';
@@ -20,6 +21,7 @@ export const RecordSessionScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProps['route']>();
   const { planId, taskId, sessionId, elapsedMinutes, startUnit: paramStartUnit, endUnit: paramEndUnit, fromTimer } = route.params as any;
+  const { colors } = useTheme();
 
   const userId = 'user-001';
   const createSession = useCreateSession();
@@ -343,7 +345,7 @@ export const RecordSessionScreen: React.FC = () => {
                 onPress={() => setDifficulty(value)}
                 style={styles.starButton}
               >
-                <Ionicons name={value <= difficulty ? 'star' : 'star-outline'} size={28} color={value <= difficulty ? colors.primary : colors.border} />
+                <Ionicons name={value <= difficulty ? 'star' : 'star-outline'} size={28} color={value <= difficulty ? colors.primary : defaultColors.border} />
               </TouchableOpacity>
             ))}
           </View>
@@ -366,31 +368,31 @@ export const RecordSessionScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: { padding: spacing.lg, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerTitle: { ...textStyles.h1, color: colors.text },
+  container: { flex: 1, backgroundColor: defaultColors.background },
+  header: { padding: spacing.lg, backgroundColor: defaultColors.white, borderBottomWidth: 1, borderBottomColor: defaultColors.border },
+  headerTitle: { ...textStyles.h1, color: defaultColors.text },
   content: { padding: spacing.lg },
   formGroup: { marginBottom: spacing.lg },
   label: { ...textStyles.body, fontWeight: '600', marginBottom: spacing.sm },
-  input: { ...textStyles.body, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.md, backgroundColor: colors.background },
-  saveButton: { backgroundColor: colors.primary, padding: spacing.md, borderRadius: 8, alignItems: 'center' },
-  saveButtonText: { ...textStyles.button, color: colors.white },
+  input: { ...textStyles.body, borderWidth: 1, borderColor: defaultColors.border, borderRadius: 8, padding: spacing.md, backgroundColor: defaultColors.background },
+  saveButton: { backgroundColor: defaultColors.primary, padding: spacing.md, borderRadius: 8, alignItems: 'center' },
+  saveButtonText: { ...textStyles.button, color: defaultColors.white },
   ratingButtons: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-  ratingButton: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSecondary },
-  ratingButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  ratingButtonText: { ...textStyles.bodySmall, color: colors.textSecondary },
-  ratingButtonTextActive: { color: colors.textInverse },
+  ratingButton: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: defaultColors.border, backgroundColor: defaultColors.backgroundSecondary },
+  ratingButtonActive: { backgroundColor: defaultColors.primary, borderColor: defaultColors.primary },
+  ratingButtonText: { ...textStyles.bodySmall, color: defaultColors.textSecondary },
+  ratingButtonTextActive: { color: defaultColors.textInverse },
   roundText: { ...textStyles.body, fontWeight: '700' },
-  mutedText: { ...textStyles.bodySmall, color: colors.textSecondary, marginTop: spacing.sm },
+  mutedText: { ...textStyles.bodySmall, color: defaultColors.textSecondary, marginTop: spacing.sm },
   sliderContainer: { flexDirection: 'row', alignItems: 'center' },
   slider: { width: 250, marginRight: spacing.md },
-  stepperButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSecondary, minWidth: 40, alignItems: 'center', justifyContent: 'center' },
-  stepperButtonText: { ...textStyles.body, fontWeight: '700', color: colors.text },
+  stepperButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 8, borderWidth: 1, borderColor: defaultColors.border, backgroundColor: defaultColors.backgroundSecondary, minWidth: 40, alignItems: 'center', justifyContent: 'center' },
+  stepperButtonText: { ...textStyles.body, fontWeight: '700', color: defaultColors.text },
   // new styles for centered icon controls
   centerAlignedGroup: { alignItems: 'center' },
   centeredRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
-  iconButton: { padding: spacing.sm, borderRadius: 8, marginHorizontal: spacing.xs, backgroundColor: colors.backgroundSecondary },
-  iconButtonActive: { backgroundColor: colors.primary },
+  iconButton: { padding: spacing.sm, borderRadius: 8, marginHorizontal: spacing.xs, backgroundColor: defaultColors.backgroundSecondary },
+  iconButtonActive: { backgroundColor: defaultColors.primary },
   starButton: { paddingHorizontal: spacing.sm, marginHorizontal: spacing.xs },
 });
 

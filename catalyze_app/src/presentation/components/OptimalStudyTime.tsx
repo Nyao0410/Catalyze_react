@@ -6,7 +6,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import type { TimeOfDayStats } from '../../application/services/StatisticsService';
 
 interface OptimalStudyTimeProps {
@@ -15,6 +16,7 @@ interface OptimalStudyTimeProps {
 
 export const OptimalStudyTime: React.FC<OptimalStudyTimeProps> = ({ data }) => {
   const screenWidth = Dimensions.get('window').width;
+  const { colors } = useTheme();
 
   // データがない場合
   if (data.every((d) => d.totalMinutes === 0)) {
@@ -84,7 +86,7 @@ export const OptimalStudyTime: React.FC<OptimalStudyTimeProps> = ({ data }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>最適学習時間帯</Text>
+      <Text style={[styles.title, { color: colors.text }]}>最適学習時間帯</Text>
 
       {/* グラフ */}
       <BarChart
@@ -100,12 +102,12 @@ export const OptimalStudyTime: React.FC<OptimalStudyTimeProps> = ({ data }) => {
       />
 
       {/* 分析結果 */}
-      <View style={styles.analysisCard}>
-        <Text style={styles.analysisLabel}>あなたの学習ゴールデンタイム</Text>
-        <Text style={styles.analysisValue}>
+      <View style={[styles.analysisCard, { backgroundColor: colors.backgroundSecondary }]}>
+        <Text style={[styles.analysisLabel, { color: colors.textSecondary }]}>あなたの学習ゴールデンタイム</Text>
+        <Text style={[styles.analysisValue, { color: colors.primary }]}>
           {optimalHour}:00 頃 ({getTimeDescription(optimalHour)})
         </Text>
-        <Text style={styles.analysisDescription}>
+        <Text style={[styles.analysisDescription, { color: colors.textSecondary }]}>
           この時間帯に最も多く学習しています
         </Text>
       </View>
@@ -115,14 +117,14 @@ export const OptimalStudyTime: React.FC<OptimalStudyTimeProps> = ({ data }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
+    backgroundColor: defaultColors.card,
     borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
   },
   title: {
     ...textStyles.h3,
-    color: colors.text,
+    color: defaultColors.text,
     marginBottom: spacing.md,
   },
   emptyState: {
@@ -131,14 +133,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   chart: {
     marginVertical: spacing.sm,
     borderRadius: 16,
   },
   analysisCard: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 12,
     padding: spacing.md,
     marginTop: spacing.sm,
@@ -146,17 +148,17 @@ const styles = StyleSheet.create({
   },
   analysisLabel: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginBottom: spacing.xs,
   },
   analysisValue: {
     ...textStyles.h2,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '700',
     marginBottom: spacing.xs,
   },
   analysisDescription: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
 });

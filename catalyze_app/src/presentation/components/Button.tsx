@@ -13,7 +13,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { colors, textStyles, spacing } from '../theme';
+import { colors as defaultColors, textStyles, spacing } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
 
 interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
@@ -37,7 +37,7 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
   ...props
 }) => {
-  const { isTablet } = useTheme();
+  const { isTablet, colors } = useTheme();
   const buttonStyles = [
     styles.button,
     styles[`button_${variant}`],
@@ -66,7 +66,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'outline' || variant === 'text' ? colors.primary : colors.textInverse}
+          color={variant === 'outline' || variant === 'text' ? colors.primary : defaultColors.textInverse}
         />
       ) : (
         <Text style={textStyles_custom}>{title}</Text>
@@ -88,15 +88,15 @@ const styles = StyleSheet.create({
 
   // Variants
   button_primary: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   button_secondary: {
-    backgroundColor: colors.secondary,
+    backgroundColor: defaultColors.secondary,
   },
   button_outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: defaultColors.primary,
   },
   button_text: {
     backgroundColor: 'transparent',
@@ -146,16 +146,16 @@ const styles = StyleSheet.create({
     ...textStyles.button,
   },
   buttonText_primary: {
-    color: colors.textInverse,
+    color: defaultColors.textInverse,
   },
   buttonText_secondary: {
-    color: colors.textInverse,
+    color: defaultColors.textInverse,
   },
   buttonText_outline: {
-    color: colors.primary,
+    color: defaultColors.primary,
   },
   buttonText_text: {
-    color: colors.primary,
+    color: defaultColors.primary,
   },
   buttonText_small: {
     fontSize: 14,

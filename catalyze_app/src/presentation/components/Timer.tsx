@@ -6,7 +6,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, textStyles } from '../theme';
+import { colors as defaultColors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 
 export type TimerMode = 'stopwatch' | 'pomodoro';
 
@@ -33,6 +34,8 @@ export const Timer: React.FC<TimerProps> = ({
   const [phase, setPhase] = useState<'work' | 'break'>('work');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const workTimeAccumulator = useRef(0); // 完了した作業時間の累積
+
+  const { colors } = useTheme();
 
   const totalPomodoroSeconds = phase === 'work' ? pomodoroMinutes * 60 : pomodoroBreakMinutes * 60;
   const remainingSeconds = mode === 'pomodoro' ? Math.max(0, totalPomodoroSeconds - elapsedSeconds) : 0;
@@ -142,9 +145,9 @@ export const Timer: React.FC<TimerProps> = ({
   return (
     <View style={styles.container}>
       {/* モード切替 */}
-      <View style={styles.modeSelector}>
+      <View style={[styles.modeSelector, { backgroundColor: colors.backgroundSecondary }]}>
         <TouchableOpacity
-          style={[styles.modeButton, mode === 'stopwatch' && styles.modeButtonActive]}
+          style={[styles.modeButton, mode === 'stopwatch' && [styles.modeButtonActive, { backgroundColor: colors.primary }]]}
           onPress={() => handleModeToggle('stopwatch')}
         >
           <Ionicons
@@ -155,14 +158,15 @@ export const Timer: React.FC<TimerProps> = ({
           <Text
             style={[
               styles.modeButtonText,
-              mode === 'stopwatch' && styles.modeButtonTextActive,
+              { color: colors.textSecondary },
+              mode === 'stopwatch' && [styles.modeButtonTextActive, { color: colors.white }],
             ]}
           >
             ストップウォッチ
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.modeButton, mode === 'pomodoro' && styles.modeButtonActive]}
+          style={[styles.modeButton, mode === 'pomodoro' && [styles.modeButtonActive, { backgroundColor: colors.primary }]]}
           onPress={() => handleModeToggle('pomodoro')}
         >
           <Ionicons
@@ -173,7 +177,8 @@ export const Timer: React.FC<TimerProps> = ({
           <Text
             style={[
               styles.modeButtonText,
-              mode === 'pomodoro' && styles.modeButtonTextActive,
+              { color: colors.textSecondary },
+              mode === 'pomodoro' && [styles.modeButtonTextActive, { color: colors.white }],
             ]}
           >
             ポモドーロ
@@ -183,11 +188,11 @@ export const Timer: React.FC<TimerProps> = ({
 
       {/* タイマー表示 */}
       <View style={styles.timerDisplay}>
-        <Text style={styles.timerText}>
+        <Text style={[styles.timerText, { color: colors.text }]}>
           {mode === 'stopwatch' ? formatTime(elapsedSeconds) : formatTime(remainingSeconds)}
         </Text>
         {mode === 'pomodoro' && (
-          <Text style={styles.timerSubtext}>
+          <Text style={[styles.timerSubtext, { color: colors.textSecondary }]}>
             {phase === 'work' ? '作業中' : '休憩中'}
           </Text>
         )}
@@ -196,25 +201,25 @@ export const Timer: React.FC<TimerProps> = ({
       {/* コントロールボタン */}
       <View style={styles.controls}>
         {!isRunning ? (
-          <TouchableOpacity style={[styles.controlButton, styles.startButton]} onPress={handleStart}>
+          <TouchableOpacity style={[styles.controlButton, styles.startButton, { backgroundColor: colors.success }]} onPress={handleStart}>
             <Ionicons name="play" size={32} color={colors.white} />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={[styles.controlButton, styles.pauseButton]} onPress={handlePause}>
+          <TouchableOpacity style={[styles.controlButton, styles.pauseButton, { backgroundColor: colors.warning }]} onPress={handlePause}>
             <Ionicons name="pause" size={32} color={colors.white} />
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={[styles.controlButton, styles.resetButton]} onPress={handleReset}>
+        <TouchableOpacity style={[styles.controlButton, styles.resetButton, { backgroundColor: colors.textSecondary }]} onPress={handleReset}>
           <Ionicons name="refresh" size={28} color={colors.white} />
         </TouchableOpacity>
       </View>
 
       {/* ポモドーロ時のみ統計表示（ストップウォッチ時の「経過時間 XX分」は不要のため非表示） */}
       {mode === 'pomodoro' ? (
-        <View style={styles.stats}>
+        <View style={[styles.stats, { backgroundColor: colors.backgroundSecondary }]}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>ポモドーロ合計作業時間</Text>
-            <Text style={styles.statValue}>{Math.floor(totalWorkSeconds / 60)}分</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>ポモドーロ合計作業時間</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{Math.floor(totalWorkSeconds / 60)}分</Text>
           </View>
         </View>
       ) : null}
@@ -231,7 +236,7 @@ const styles = StyleSheet.create({
   modeSelector: {
     flexDirection: 'row',
     gap: spacing.sm,
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     padding: spacing.xs,
     borderRadius: 12,
   },
@@ -246,15 +251,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   modeButtonActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
   },
   modeButtonText: {
     ...textStyles.bodySmall,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   modeButtonTextActive: {
-    color: colors.white,
+    color: defaultColors.white,
   },
   timerDisplay: {
     alignItems: 'center',
@@ -265,12 +270,12 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: 64,
     fontWeight: '700',
-    color: colors.text,
+    color: defaultColors.text,
     fontVariant: ['tabular-nums'],
   },
   timerSubtext: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginTop: spacing.sm,
   },
   controls: {
@@ -291,13 +296,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   startButton: {
-    backgroundColor: colors.success,
+    backgroundColor: defaultColors.success,
   },
   pauseButton: {
-    backgroundColor: colors.warning,
+    backgroundColor: defaultColors.warning,
   },
   resetButton: {
-    backgroundColor: colors.textSecondary,
+    backgroundColor: defaultColors.textSecondary,
     width: 64,
     height: 64,
     borderRadius: 32,
@@ -305,7 +310,7 @@ const styles = StyleSheet.create({
   stats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     padding: spacing.lg,
     borderRadius: 12,
   },
@@ -315,11 +320,11 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   statValue: {
     ...textStyles.h2,
-    color: colors.primary,
+    color: defaultColors.primary,
     fontWeight: '700',
   },
 });

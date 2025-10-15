@@ -21,7 +21,7 @@ import { TabView, TabBar } from 'react-native-tab-view';
 import { CalendarView } from '../components/CalendarView';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, textStyles } from '../theme';
+import { spacing, textStyles, colors as defaultColors } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useDailyTasks, useStudyPlans, useUserSessions, useCreateSession, useTasksForDate, useUpcomingTasks } from '../hooks';
@@ -37,7 +37,7 @@ import { PlansScreen } from './PlansScreen';
 type Props = MainTabScreenProps<'Tasks'>;
 
 // パフォーマンス係数に基づいて色を返す関数
-const getPerformanceColor = (performanceFactor: number) => {
+const getPerformanceColor = (performanceFactor: number, colors: any) => {
   if (performanceFactor >= 0.8) return colors.success;
   if (performanceFactor >= 0.6) return colors.primary;
   if (performanceFactor >= 0.4) return colors.warning;
@@ -55,7 +55,7 @@ interface SessionForm {
 export const TodayScreen: React.FC<Props> = () => {
   const userId = 'user-001'; // TODO: 実際のユーザーIDを取得
   const navigation = useNavigation();
-  const { isTablet } = useTheme();
+  const { isTablet, colors } = useTheme();
   const { width } = useWindowDimensions();
   // default index: on phone show 'today' (index 1), on tablet show first tab (history)
   const [index, setIndex] = useState<number>(isTablet ? 0 : 1);
@@ -241,14 +241,14 @@ export const TodayScreen: React.FC<Props> = () => {
 
     if (isLoading) {
       return (
-        <View style={styles.centerContainer}>
+        <View style={dynamicStyles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       );
     }
 
     return (
-      <View style={styles.container}>
+      <View style={dynamicStyles.container}>
         {groupedSessions.length === 0 ? (
           <EmptyState
             icon="time-outline"
@@ -261,15 +261,15 @@ export const TodayScreen: React.FC<Props> = () => {
             keyExtractor={(item) => item.date}
             renderItem={({ item }) => (
               <View style={styles.dateGroup}>
-                <Text style={styles.dateHeader}>
+                <Text style={dynamicStyles.dateHeader}>
                   {format(new Date(item.date), 'yyyy年MM月dd日 (E)', { locale: ja })}
                 </Text>
                 {item.sessions.map((session) => {
                   const plan = plans.find((p) => p.id === session.planId);
                   return (
-                    <View key={session.id} style={styles.sessionCard}>
+                    <View key={session.id} style={dynamicStyles.sessionCard}>
                       <View style={styles.cardHeader}>
-                        <Text style={styles.planTitle}>
+                        <Text style={dynamicStyles.planTitle}>
                           {plan ? plan.title : '不明な計画'}
                         </Text>
                         <TouchableOpacity
@@ -282,7 +282,7 @@ export const TodayScreen: React.FC<Props> = () => {
                       <View style={styles.sessionHeader}>
                         <View style={styles.sessionTime}>
                           <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                          <Text style={styles.sessionTimeText}>
+                          <Text style={dynamicStyles.sessionTimeText}>
                             {format(session.date, 'HH:mm', { locale: ja })}
                           </Text>
                         </View>
@@ -290,10 +290,10 @@ export const TodayScreen: React.FC<Props> = () => {
                           <View
                             style={[
                               styles.performanceDot,
-                              { backgroundColor: getPerformanceColor(session.performanceFactor) },
+                              { backgroundColor: getPerformanceColor(session.performanceFactor, colors) },
                             ]}
                           />
-                          <Text style={styles.performanceText}>
+                          <Text style={dynamicStyles.performanceText}>
                             {Math.round(session.performanceFactor * 100)}%
                           </Text>
                         </View>
@@ -302,34 +302,34 @@ export const TodayScreen: React.FC<Props> = () => {
                         <View style={styles.sessionStats}>
                           <View style={styles.sessionStat}>
                             <Ionicons name="book-outline" size={16} color={colors.primary} />
-                            <Text style={styles.sessionStatText}>
+                            <Text style={dynamicStyles.sessionStatText}>
                               {session.unitsCompleted} {plan ? plan.unit : 'ユニット'}
                             </Text>
                           </View>
                           <View style={styles.sessionStat}>
                             <Ionicons name="timer-outline" size={16} color={colors.primary} />
-                            <Text style={styles.sessionStatText}>
+                            <Text style={dynamicStyles.sessionStatText}>
                               {session.durationMinutes}分
                             </Text>
                           </View>
                           <View style={styles.sessionStat}>
                             <Ionicons name="speedometer-outline" size={16} color={colors.primary} />
-                            <Text style={styles.sessionStatText}>
+                            <Text style={dynamicStyles.sessionStatText}>
                               難易度 {session.difficulty}/5
                             </Text>
                           </View>
                         </View>
                         <View style={styles.sessionQuality}>
-                          <Text style={styles.sessionQualityLabel}>集中度</Text>
-                          <View style={styles.concentrationBar}>
+                          <Text style={dynamicStyles.sessionQualityLabel}>集中度</Text>
+                          <View style={dynamicStyles.concentrationBar}>
                             <View
                               style={[
-                                styles.concentrationFill,
+                                dynamicStyles.concentrationFill,
                                 { width: `${session.concentration * 100}%` },
                               ]}
                             />
                           </View>
-                          <Text style={styles.concentrationText}>
+                          <Text style={dynamicStyles.concentrationText}>
                             {Math.round(session.concentration * 100)}%
                           </Text>
                         </View>
@@ -476,7 +476,7 @@ export const TodayScreen: React.FC<Props> = () => {
 
     if (todayTasksLoading) {
       return (
-        <View style={styles.centerContainer}>
+        <View style={dynamicStyles.centerContainer}>
           <Text style={textStyles.body}>{t('common.loading')}</Text>
         </View>
       );
@@ -511,19 +511,19 @@ export const TodayScreen: React.FC<Props> = () => {
       }, [upcomingTasks, selectedDate]);
 
       return (
-        <View style={styles.splitContainer}>
-          <View style={styles.leftPaneCalendar}>
+        <View style={dynamicStyles.splitContainer}>
+          <View style={dynamicStyles.leftPaneCalendar}>
             <CalendarView
               selectedDate={selectedDate}
               onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))}
               markedDates={markedDates}
             />
           </View>
-          <View style={styles.rightPaneTasks}>
-            <View style={styles.header}>
+          <View style={dynamicStyles.rightPaneTasks}>
+            <View style={dynamicStyles.header}>
               <Text style={textStyles.h1}>{format(selectedDate, 'M月d日(E)', { locale: ja })}</Text>
             </View>
-            <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} />}> 
+            <ScrollView style={dynamicStyles.container} refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} />}> 
               <View style={styles.tasksSection}>
                 {mergedActiveTasksForDate.length === 0 ? (
                   <EmptyState icon="calendar-outline" title={t('today.empty.title')} description={t('today.empty.description')} />
@@ -554,40 +554,40 @@ export const TodayScreen: React.FC<Props> = () => {
 
     return (
       <ScrollView
-        style={styles.container}
+        style={dynamicStyles.container}
         refreshControl={
           <RefreshControl refreshing={false} onRefresh={onRefresh} />
         }
       >
         {/* ヘッダー */}
-        <View style={styles.header}>
+        <View style={dynamicStyles.header}>
           <Text style={textStyles.h1}>{t('today.title')}</Text>
-          <Text style={styles.dateText}>
+          <Text style={dynamicStyles.dateText}>
             {format(new Date(), 'M月d日(E)', { locale: ja })}
           </Text>
         </View>
 
         {/* サマリーカード */}
-        <View style={styles.summaryCard}>
+        <View style={dynamicStyles.summaryCard}>
           <View style={styles.summaryItem}>
             <Ionicons name="list-outline" size={24} color={colors.primary} />
             <View style={styles.summaryTextContainer}>
-              <Text style={styles.summaryValue}>{activeTasks.length}</Text>
-              <Text style={styles.summaryLabel}>{t('today.summary.plans')}</Text>
+              <Text style={dynamicStyles.summaryValue}>{activeTasks.length}</Text>
+              <Text style={dynamicStyles.summaryLabel}>{t('today.summary.plans')}</Text>
             </View>
           </View>
           <View style={styles.summaryItem}>
             <Ionicons name="book-outline" size={24} color={colors.primary} />
             <View style={styles.summaryTextContainer}>
-              <Text style={styles.summaryValue}>{totalUnits}</Text>
-              <Text style={styles.summaryLabel}>{t('today.summary.units')}</Text>
+              <Text style={dynamicStyles.summaryValue}>{totalUnits}</Text>
+              <Text style={dynamicStyles.summaryLabel}>{t('today.summary.units')}</Text>
             </View>
           </View>
           <View style={styles.summaryItem}>
             <Ionicons name="time-outline" size={24} color={colors.primary} />
             <View style={styles.summaryTextContainer}>
-              <Text style={styles.summaryValue}>{Math.round(totalMinutes / 60 * 10) / 10}h</Text>
-              <Text style={styles.summaryLabel}>{t('today.summary.estimatedTime')}</Text>
+              <Text style={dynamicStyles.summaryValue}>{Math.round(totalMinutes / 60 * 10) / 10}h</Text>
+              <Text style={dynamicStyles.summaryLabel}>{t('today.summary.estimatedTime')}</Text>
             </View>
           </View>
         </View>
@@ -651,12 +651,12 @@ export const TodayScreen: React.FC<Props> = () => {
     // Tablet: split view with calendar on left and upcoming list on right
     if (isTablet) {
       return (
-        <View style={styles.splitContainer}>
-          <View style={styles.leftPaneCalendar}>
+        <View style={dynamicStyles.splitContainer}>
+          <View style={dynamicStyles.leftPaneCalendar}>
             <CalendarView selectedDate={selectedDate} onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))} markedDates={markedDates} />
           </View>
-          <View style={styles.rightPaneTasks}>
-            <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: spacing.xl * 2 }}>
+          <View style={dynamicStyles.rightPaneTasks}>
+            <ScrollView style={dynamicStyles.container} contentContainerStyle={{ paddingBottom: spacing.xl * 2 }}>
               <View style={styles.tasksSection}>
                 {tasksForDateLoading ? (
                   <ActivityIndicator size="large" color={colors.primary} />
@@ -781,9 +781,9 @@ export const TodayScreen: React.FC<Props> = () => {
   const renderTabBar = (props: any) => (
     <TabBar
       {...props}
-      indicatorStyle={{ backgroundColor: colors.primary }}
-      style={{ backgroundColor: colors.white }}
-      labelStyle={{ color: colors.text }}
+      indicatorStyle={{ backgroundColor: defaultColors.primary }}
+      style={{ backgroundColor: defaultColors.card }}
+      labelStyle={{ color: defaultColors.text }}
       activeColor={colors.primary}
       inactiveColor={colors.textSecondary}
     />
@@ -791,6 +791,33 @@ export const TodayScreen: React.FC<Props> = () => {
 
   // Ensure index is within bounds if routes change (e.g., switching to tablet)
   const clampedIndex = Math.max(0, Math.min(index, routes.length - 1));
+
+  // 動的スタイル（テーマ対応）
+  const dynamicStyles = {
+    container: [styles.container, { backgroundColor: defaultColors.background }],
+    centerContainer: [styles.centerContainer, { backgroundColor: defaultColors.background }],
+    header: [styles.header, { backgroundColor: defaultColors.card, borderBottomColor: defaultColors.border }],
+    dateText: [styles.dateText, { color: defaultColors.textSecondary }],
+    summaryCard: [styles.summaryCard, { backgroundColor: defaultColors.card }],
+    summaryValue: [styles.summaryValue, { color: defaultColors.primary }],
+    summaryLabel: [styles.summaryLabel, { color: defaultColors.textSecondary }],
+    dateHeader: [styles.dateHeader, { color: defaultColors.primary }],
+    sessionCard: [styles.sessionCard, { backgroundColor: defaultColors.backgroundSecondary, borderColor: defaultColors.border }],
+    planTitle: [styles.planTitle, { color: defaultColors.primary }],
+    sessionTimeText: [styles.sessionTimeText, { color: defaultColors.textSecondary }],
+    performanceText: [styles.performanceText, { color: defaultColors.textSecondary }],
+    sessionStatText: [styles.sessionStatText, { color: defaultColors.text }],
+    sessionQualityLabel: [styles.sessionQualityLabel, { color: defaultColors.textSecondary }],
+    concentrationBar: [styles.concentrationBar, { backgroundColor: defaultColors.background }],
+    concentrationFill: [styles.concentrationFill, { backgroundColor: defaultColors.primary }],
+    concentrationText: [styles.concentrationText, { color: defaultColors.textSecondary }],
+    menuModal: [styles.menuModal, { backgroundColor: defaultColors.card }],
+    menuItemText: [styles.menuItemText, { color: defaultColors.text }],
+    menuDivider: [styles.menuDivider, { backgroundColor: defaultColors.border }],
+    splitContainer: [styles.splitContainer, { backgroundColor: defaultColors.background }],
+    leftPaneCalendar: [styles.leftPaneCalendar, { borderRightColor: defaultColors.border, backgroundColor: defaultColors.card }],
+    rightPaneTasks: [styles.rightPaneTasks, { backgroundColor: defaultColors.background }],
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -808,7 +835,7 @@ export const TodayScreen: React.FC<Props> = () => {
         <TouchableOpacity style={styles.menuOverlay} onPress={closeMenu}>
           <View
             style={[
-              styles.menuModal,
+              dynamicStyles.menuModal,
               {
                 position: 'absolute',
                 left: menuPosition.x - 180, // メニューの幅分左にずらす
@@ -819,12 +846,12 @@ export const TodayScreen: React.FC<Props> = () => {
           >
             <TouchableOpacity style={styles.menuItem} onPress={handleEdit}>
               <Ionicons name="pencil" size={20} color={colors.primary} />
-              <Text style={styles.menuItemText}>編集</Text>
+              <Text style={dynamicStyles.menuItemText}>編集</Text>
             </TouchableOpacity>
-            <View style={styles.menuDivider} />
+            <View style={dynamicStyles.menuDivider} />
             <TouchableOpacity style={styles.menuItem} onPress={handleDelete}>
               <Ionicons name="trash" size={20} color={colors.error} />
-              <Text style={[styles.menuItemText, { color: colors.error }]}>削除</Text>
+              <Text style={[dynamicStyles.menuItemText, { color: colors.error }]}>削除</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -839,31 +866,31 @@ export default TodayScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
     paddingVertical: spacing.lg,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   header: {
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: defaultColors.border,
   },
   dateText: {
     ...textStyles.body,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     marginTop: spacing.xs,
   },
   summaryCard: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     marginVertical: spacing.xs,
@@ -883,15 +910,15 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     ...textStyles.h2,
-    color: colors.primary,
+    color: defaultColors.primary,
   },
   summaryLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   dateHeader: {
     ...textStyles.h4,
-    color: colors.primary,
+    color: defaultColors.primary,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.md,
@@ -901,7 +928,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   modalContent: {
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: spacing.lg,
@@ -924,10 +951,10 @@ const styles = StyleSheet.create({
   input: {
     ...textStyles.body,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
     borderRadius: 8,
     padding: spacing.md,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   ratingButtons: {
     flexDirection: 'row',
@@ -938,24 +965,24 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+    borderColor: defaultColors.border,
+    backgroundColor: defaultColors.background,
     alignItems: 'center',
   },
   ratingButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: defaultColors.primary,
+    borderColor: defaultColors.primary,
   },
   ratingButtonText: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
   },
   ratingButtonTextActive: {
-    color: colors.white,
+    color: defaultColors.white,
   },
   saveButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     padding: spacing.md,
     borderRadius: 8,
     alignItems: 'center',
@@ -963,7 +990,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     ...textStyles.button,
-    color: colors.white,
+    color: defaultColors.white,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -975,24 +1002,24 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+    borderColor: defaultColors.border,
+    backgroundColor: defaultColors.background,
     alignItems: 'center',
   },
   filterButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: defaultColors.primary,
+    borderColor: defaultColors.primary,
   },
   filterButtonText: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '600',
   },
   filterButtonTextActive: {
-    color: colors.white,
+    color: defaultColors.white,
   },
   createButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     padding: spacing.md,
     borderRadius: 8,
     alignItems: 'center',
@@ -1000,10 +1027,10 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     ...textStyles.button,
-    color: colors.white,
+    color: defaultColors.white,
   },
   planCard: {
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     padding: spacing.md,
     marginHorizontal: spacing.md,
     marginVertical: spacing.xs,
@@ -1016,7 +1043,7 @@ const styles = StyleSheet.create({
   },
   planStatus: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   listContent: {
     paddingBottom: spacing.xl * 2,
@@ -1028,7 +1055,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -1041,11 +1068,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sessionCard: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: defaultColors.backgroundSecondary,
     borderRadius: 12,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: defaultColors.border,
     marginBottom: spacing.sm,
   },
   cardHeader: {
@@ -1056,7 +1083,7 @@ const styles = StyleSheet.create({
   },
   planTitle: {
     ...textStyles.h4,
-    color: colors.primary,
+    color: defaultColors.primary,
     flex: 1,
     marginRight: spacing.sm,
   },
@@ -1081,7 +1108,7 @@ const styles = StyleSheet.create({
   },
   sessionTimeText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
   },
   performanceIndicator: {
     flexDirection: 'row',
@@ -1095,7 +1122,7 @@ const styles = StyleSheet.create({
   },
   performanceText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
   sessionContent: {
@@ -1112,7 +1139,7 @@ const styles = StyleSheet.create({
   },
   sessionStatText: {
     ...textStyles.caption,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '500',
   },
   sessionQuality: {
@@ -1122,24 +1149,24 @@ const styles = StyleSheet.create({
   },
   sessionQualityLabel: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     minWidth: 50,
   },
   concentrationBar: {
     flex: 1,
     height: 6,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
     borderRadius: 3,
     overflow: 'hidden',
   },
   concentrationFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: defaultColors.primary,
     borderRadius: 3,
   },
   concentrationText: {
     ...textStyles.caption,
-    color: colors.textSecondary,
+    color: defaultColors.textSecondary,
     fontWeight: '600',
     minWidth: 35,
     textAlign: 'right',
@@ -1154,7 +1181,7 @@ const styles = StyleSheet.create({
     // 背景を暗くしない
   },
   menuModal: {
-    backgroundColor: colors.white,
+    backgroundColor: defaultColors.white,
     borderRadius: 12,
     padding: spacing.sm,
     minWidth: 200,
@@ -1172,29 +1199,29 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     ...textStyles.body,
-    color: colors.text,
+    color: defaultColors.text,
     fontWeight: '500',
   },
   menuDivider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: defaultColors.border,
     marginHorizontal: spacing.sm,
   },
   // Split view for tablet: calendar on left, tasks on right
   splitContainer: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   leftPaneCalendar: {
     width: '36%',
     borderRightWidth: 1,
-    borderRightColor: colors.border,
-    backgroundColor: colors.white,
+    borderRightColor: defaultColors.border,
+    backgroundColor: defaultColors.white,
   },
   rightPaneTasks: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: defaultColors.background,
   },
   calendarContainer: {
     padding: spacing.md,

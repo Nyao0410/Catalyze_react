@@ -19,7 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
-import { colors, textStyles, spacing } from '../theme';
+import { textStyles, spacing, colors as defaultColors } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -27,7 +27,7 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { colors: themeColors } = useTheme();
+  const { colors } = useTheme();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -128,7 +128,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: defaultColors.background }]} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -139,10 +139,10 @@ export const LoginScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={[styles.title, { color: themeColors.text }]}>
+            <Text style={[styles.title, { color: defaultColors.text }]}>
               ログイン
             </Text>
-            <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+            <Text style={[styles.subtitle, { color: defaultColors.textSecondary }]}>
               アカウントにログイン
             </Text>
           </View>
@@ -185,7 +185,7 @@ export const LoginScreen: React.FC = () => {
               style={styles.forgotPassword}
               disabled={loading}
             >
-              <Text style={[styles.forgotPasswordText, { color: themeColors.primary }]}>
+              <Text style={[styles.forgotPasswordText, { color: defaultColors.primary }]}>
                 パスワードを忘れた場合
               </Text>
             </TouchableOpacity>
@@ -200,11 +200,11 @@ export const LoginScreen: React.FC = () => {
             />
 
             <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>
+              <Text style={[styles.footerText, { color: defaultColors.textSecondary }]}>
                 アカウントをお持ちでない方は
               </Text>
               <TouchableOpacity onPress={handleGoToSignUp} disabled={loading}>
-                <Text style={[styles.linkText, { color: themeColors.primary }]}>
+                <Text style={[styles.linkText, { color: defaultColors.primary }]}>
                   新規登録
                 </Text>
               </TouchableOpacity>
