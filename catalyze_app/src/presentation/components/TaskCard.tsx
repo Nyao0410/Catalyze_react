@@ -63,6 +63,22 @@ const getAchievabilityLabel = (status: AchievabilityStatus): string => {
   }
 };
 
+// 分を時間と分に変換して表示用文字列にする
+const formatDuration = (minutes: number): string => {
+  if (minutes < 60) {
+    return `${minutes}分`;
+  }
+  
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  
+  if (remainingMinutes === 0) {
+    return `${hours}時間`;
+  }
+  
+  return `${hours}時間${remainingMinutes}分`;
+};
+
 export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   plan,
@@ -115,7 +131,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <View style={styles.detailRow}>
           <Ionicons name="time-outline" size={16} color={colors.primary} />
           <Text style={styles.detailText}>
-            {t('today.task.about')} {task.estimatedMinutes}{t('today.task.minutes')}
+            {t('today.task.about')} {formatDuration(task.estimatedMinutes)}
           </Text>
         </View>
       </View>

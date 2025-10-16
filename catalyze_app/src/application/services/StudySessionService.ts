@@ -39,13 +39,19 @@ export class StudySessionService {
   /**
    * セッションを保存し、関連する復習アイテムの生成とポイント付与を一括で行う
    * startUnit/endUnit が渡されればその範囲をもとに復習アイテムを作成する
+   * 
+   * 戦略:
+   * 1. 新規復習アイテム作成時は本日（nextReviewDate = 今日）で生成 → 即座に表示
+   * 2. initialQualityが渡されれば、SM-2を適用して復習予定を計算 → 未来の復習予定も表示
+   * UIで「今日の復習」と「今後の復習予定」を分けて表示することで、
+   * ユーザーが復習スケジュールを把握できる
    */
   async recordSessionWithReviewItems(
     session: StudySessionEntity,
     planId: string,
     startUnit?: number,
     endUnit?: number,
-    // Optional initial quality (0..5) to apply to newly created review items so SM-2 can initialize intervals
+    // Optional initial quality (0..5) to apply to newly created review items for SM-2 scheduling
     initialQuality?: number
   ): Promise<StudySessionEntity> {
     // 永続化（リポジトリに委譲）
@@ -57,31 +63,34 @@ export class StudySessionService {
         const existing = await reviewItemService.getReviewItemsByPlanId(planId);
         const existingUnits = new Set(existing.map((e: any) => e.unitNumber));
         const now = new Date();
-        const nextDay = new Date(now);
-        nextDay.setDate(now.getDate() + 1);
         const groupTs = Date.now();
-        const createdIds: string[] = [];
+        const createdItems: any[] = [];
         for (let u = startUnit; u <= endUnit; u++) {
           if (!existingUnits.has(u)) {
             const { ReviewItemEntity } = await import('catalyze-ai');
+            // 初期状態: nextReviewDate = 今日
+            // これにより、作成直後にfindDueToday()で取得でき、
+            // 「今日の復習」セクションに即座に表示される
             const newItem = new ReviewItemEntity({
               id: `review-${planId}-${groupTs}-${u}`,
               userId: session.userId,
               planId,
               unitNumber: u,
               lastReviewDate: now,
-              nextReviewDate: nextDay,
+              nextReviewDate: now,  // 本日に設定
             } as any);
             await reviewItemService.createReviewItem(newItem);
-            createdIds.push(newItem.id);
+            createdItems.push(newItem);
           }
         }
 
-        // If an initial quality was provided, immediately apply SM-2 record to newly created items
-        if (typeof initialQuality === 'number' && createdIds.length > 0) {
+        // If an initial quality was provided, apply SM-2 to calculate review schedule
+        // This updates nextReviewDate to the computed interval, making the review item
+        // appear in "upcoming reviews" sections
+        if (typeof initialQuality === 'number' && createdItems.length > 0) {
           try {
-            for (const id of createdIds) {
-              await reviewItemService.recordReview(id, initialQuality);
+            for (const item of createdItems) {
+              await reviewItemService.recordReview(item.id, initialQuality);
             }
           } catch (e) {
             console.error('Failed to apply initial SM-2 quality to created review items:', e);

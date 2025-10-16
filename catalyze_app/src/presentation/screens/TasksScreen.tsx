@@ -31,7 +31,7 @@ import { StudySessionEntity, ProgressAnalysisService, PlanStatus, DailyTaskEntit
 import { format, isToday, startOfDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { t } from '../../locales';
-import { useDueReviewItems, useRecordReview } from '../hooks/useReviewItems';
+import { useDueReviewItems, useRecordReview, useUserReviewItems } from '../hooks/useReviewItems';
 import { PlansScreen } from './PlansScreen';
 
 const progressAnalysisService = new ProgressAnalysisService();
@@ -404,11 +404,15 @@ export const TodayScreen: React.FC<Props> = () => {
       // 復習アイテム->タスク変換（今日期限のもの）
       ...(function buildReviewTasks() {
         try {
-          // group by planId + date
+          // group by planId + date (filter only today's items)
+          const today = startOfDay(new Date());
           const groups: { [key: string]: { planId: string; date: Date; units: Array<{unit: number; id: string}> } } = {};
           dueReviewItems.forEach((r) => {
-            const key = `${r.planId}_${startOfDay(new Date(r.nextReviewDate)).getTime()}`;
-            groups[key] = groups[key] || { planId: r.planId, date: startOfDay(new Date(r.nextReviewDate)), units: [] };
+            const reviewDate = startOfDay(new Date(r.nextReviewDate));
+            // 今日の復習アイテムのみ処理
+            if (reviewDate.getTime() !== today.getTime()) return;
+            const key = `${r.planId}_${reviewDate.getTime()}`;
+            groups[key] = groups[key] || { planId: r.planId, date: reviewDate, units: [] };
             const n = Number(r.unitNumber);
             if (!Number.isNaN(n)) groups[key].units.push({ unit: n, id: r.id });
           });
@@ -528,7 +532,8 @@ export const TodayScreen: React.FC<Props> = () => {
       // merged tasks (daily + review) for the selected date
       const mergedActiveTasksForDate = activeTasks.filter((it) => {
         const taskObj = (it as any).task || it;
-        return startOfDay(taskObj.date).getTime() === startOfDay(selectedDate).getTime();
+        const taskDate = taskObj.date instanceof Date ? taskObj.date : new Date(taskObj.date);
+        return startOfDay(taskDate).getTime() === startOfDay(selectedDate).getTime();
       });
 
       // load upcoming tasks to compute marked dates for the calendar on tablet
@@ -658,7 +663,57 @@ export const TodayScreen: React.FC<Props> = () => {
             })
           )}
         </View>
+
+        {/* 今後の復習予定セクション */}
+        <UpcomingReviewsSection userId={userId} />
       </ScrollView>
+    );
+  };
+
+  // 今後の復習予定セクション
+  const UpcomingReviewsSection = ({ userId }: { userId: string }) => {
+    const { data: allReviewItems = [] } = useUserReviewItems(userId);
+    const today = startOfDay(new Date());
+
+    // 明日以降の復習を抽出してグループ化
+    const upcomingReviews = React.useMemo(() => {
+      const grouped: { [dateKey: string]: { date: Date; items: any[] } } = {};
+
+      allReviewItems.forEach((reviewItem) => {
+        const reviewDate = startOfDay(new Date(reviewItem.nextReviewDate));
+        // 本日より後の復習のみ
+        if (reviewDate.getTime() <= today.getTime()) return;
+
+        const dateKey = format(reviewDate, 'yyyy-MM-dd');
+        if (!grouped[dateKey]) {
+          grouped[dateKey] = { date: reviewDate, items: [] };
+        }
+        grouped[dateKey].items.push(reviewItem);
+      });
+
+      // 日付でソート
+      return Object.values(grouped)
+        .sort((a, b) => a.date.getTime() - b.date.getTime())
+        .slice(0, 7); // 今後7日分のみ表示
+    }, [allReviewItems]);
+
+    if (upcomingReviews.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={[styles.tasksSection, { marginTop: spacing.lg }]}>
+        <Text style={[styles.dateHeader, { paddingHorizontal: spacing.md, marginBottom: spacing.md }]}>
+          今後の復習予定
+        </Text>
+        {upcomingReviews.map(({ date, items }) => (
+          <View key={format(date, 'yyyy-MM-dd')} style={{ marginBottom: spacing.md }}>
+            <Text style={[textStyles.caption, { color: colors.textSecondary, paddingHorizontal: spacing.md, marginBottom: spacing.sm }]}>
+              {format(date, 'M月d日(E)', { locale: ja })} - {items.length}個の復習
+            </Text>
+          </View>
+        ))}
+      </View>
     );
   };
 
@@ -668,6 +723,113 @@ export const TodayScreen: React.FC<Props> = () => {
 
     const { data: tasksForDate, isLoading: tasksForDateLoading } = useTasksForDate(userId, selectedDate);
     const { data: upcomingTasks = [] } = useUpcomingTasks(userId, 30); // 30日分のタスクを取得
+
+    // 選択日付の復習タスクを構築
+    const reviewTasksForDate = React.useMemo(() => {
+      try {
+        const selectedDateKey = startOfDay(selectedDate).getTime();
+        const result: any[] = [];
+        
+        // group review items by planId + date for selected date only
+        const groups: { [key: string]: { planId: string; date: Date; units: Array<{unit: number; id: string}> } } = {};
+        dueReviewItems.forEach((r) => {
+          const reviewDate = startOfDay(new Date(r.nextReviewDate));
+          // 選択日付の復習アイテムのみ処理
+          if (reviewDate.getTime() !== selectedDateKey) return;
+          const key = `${r.planId}_${reviewDate.getTime()}`;
+          groups[key] = groups[key] || { planId: r.planId, date: reviewDate, units: [] };
+          const n = Number(r.unitNumber);
+          if (!Number.isNaN(n)) groups[key].units.push({ unit: n, id: r.id });
+        });
+
+        const mergeUnitsToRanges = (units: number[]) => {
+          const sorted = Array.from(new Set(units)).sort((a, b) => a - b);
+          const ranges: Array<{ start: number; end: number; units: number }> = [];
+          let curStart: number | null = null;
+          let curEnd: number | null = null;
+          for (const u of sorted) {
+            if (curStart === null) {
+              curStart = u;
+              curEnd = u;
+              continue;
+            }
+            if (u === (curEnd as number) + 1) {
+              curEnd = u;
+            } else {
+              ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+              curStart = u;
+              curEnd = u;
+            }
+          }
+          if (curStart !== null) ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+          return ranges;
+        };
+
+        for (const key of Object.keys(groups)) {
+          const { planId, date, units } = groups[key];
+          const plan = plans.find((p) => p.id === planId);
+          if (!plan) continue;
+          const unitNumbers = units.map((u) => u.unit);
+          const ranges = mergeUnitsToRanges(unitNumbers);
+          const planSessions = sessions.filter((s) => s.planId === planId && startOfDay(s.date).getTime() === selectedDateKey);
+          
+          ranges.forEach((r, idx) => {
+            const reviewTask = {
+              id: `review-${planId}-${date.getTime()}-${r.start}-${r.end}-${idx}`,
+              planId,
+              date,
+              startUnit: r.start,
+              endUnit: r.end,
+              units: r.units,
+              estimatedMinutes: r.units * 5,
+              round: 1,
+              advice: t('today.review.advice') || '復習しましょう！',
+              reviewItemIds: units
+                .filter((u) => u.unit >= r.start && u.unit <= r.end)
+                .map((u) => u.id),
+            } as any;
+
+            const completedReviewRanges: Array<{ start: number; end: number }> = [];
+            planSessions.forEach((s) => {
+              if (s.startUnit !== undefined && s.endUnit !== undefined) {
+                const overlapStart = Math.max(r.start, s.startUnit);
+                const overlapEnd = Math.min(r.end, s.endUnit);
+                if (overlapStart <= overlapEnd) {
+                  completedReviewRanges.push({ start: overlapStart, end: overlapEnd });
+                }
+              }
+            });
+            
+            const mergeReviewRanges = (ranges: Array<{ start: number; end: number }>) => {
+              if (ranges.length === 0) return [];
+              const sorted = ranges.sort((a, b) => a.start - b.start);
+              const merged: Array<{ start: number; end: number }> = [sorted[0]];
+              for (let i = 1; i < sorted.length; i++) {
+                const last = merged[merged.length - 1];
+                if (sorted[i].start <= last.end + 1) {
+                  last.end = Math.max(last.end, sorted[i].end);
+                } else {
+                  merged.push(sorted[i]);
+                }
+              }
+              return merged;
+            };
+            
+            const mergedReviewCompleted = mergeReviewRanges(completedReviewRanges);
+            const completed = mergedReviewCompleted.reduce((sum, rng) => sum + (rng.end - rng.start + 1), 0);
+
+            const taskProgress = Math.min(completed / r.units, 1);
+            const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
+
+            if (taskProgress < 1) result.push({ type: 'review' as const, task: reviewTask, plan, taskProgress, achievability });
+          });
+        }
+
+        return result;
+      } catch (e) {
+        return [];
+      }
+    }, [selectedDate, dueReviewItems, plans, sessions, progressAnalysisService]);
 
     // タスクがある日をマーク
     const markedDates = React.useMemo(() => {
@@ -699,18 +861,35 @@ export const TodayScreen: React.FC<Props> = () => {
               <View style={styles.tasksSection}>
                 {tasksForDateLoading ? (
                   <ActivityIndicator size="large" color={colors.primary} />
-                ) : tasksForDate && tasksForDate.length > 0 ? (
-                  tasksForDate.map((item) => {
-                    const plan = plans.find((p) => p.id === item.planId);
-                    if (!plan) return null;
-                    // simplified task item
-                    const taskSessions = sessions.filter((s) => s.planId === plan.id && s.date >= startOfDay(selectedDate));
-                    const completedUnits = taskSessions.reduce((sum, s) => sum + s.unitsCompleted, 0);
-                    const taskProgress = Math.min(completedUnits / item.units, 1);
-                    return (
-                      <TaskCard key={item.id} task={item} plan={plan} progress={taskProgress} achievability={progressAnalysisService.evaluateAchievability(plan, sessions)} onComplete={() => handleTaskComplete(item)} onStartTimer={() => handleStartTimer(item)} />
-                    );
-                  })
+                ) : (tasksForDate && tasksForDate.length > 0) || reviewTasksForDate.length > 0 ? (
+                  <>
+                    {tasksForDate && tasksForDate.map((item) => {
+                      const plan = plans.find((p) => p.id === item.planId);
+                      if (!plan) return null;
+                      // simplified task item
+                      const taskSessions = sessions.filter((s) => s.planId === plan.id && s.date >= startOfDay(selectedDate));
+                      const completedUnits = taskSessions.reduce((sum, s) => sum + s.unitsCompleted, 0);
+                      const taskProgress = Math.min(completedUnits / item.units, 1);
+                      return (
+                        <TaskCard key={item.id} task={item} plan={plan} progress={taskProgress} achievability={progressAnalysisService.evaluateAchievability(plan, sessions)} onComplete={() => handleTaskComplete(item)} onStartTimer={() => handleStartTimer(item)} />
+                      );
+                    })}
+                    {reviewTasksForDate.map((item) => {
+                      const taskObj = item.task;
+                      const plan = item.plan;
+                      return (
+                        <TaskCard
+                          key={taskObj.id}
+                          task={taskObj}
+                          plan={plan}
+                          progress={item.taskProgress}
+                          achievability={item.achievability}
+                          onComplete={() => handleTaskComplete(item, taskObj)}
+                          onStartTimer={() => handleStartTimer(taskObj)}
+                        />
+                      );
+                    })}
+                  </>
                 ) : (
                   <EmptyState icon="calendar-outline" title="この日のタスクはありません" description="別の日を選択するか、学習計画を追加しましょう" />
                 )}
@@ -742,68 +921,86 @@ export const TodayScreen: React.FC<Props> = () => {
           </Text>
           {tasksForDateLoading ? (
             <ActivityIndicator size="large" color={colors.primary} />
-          ) : tasksForDate && tasksForDate.length > 0 ? (
-            tasksForDate
-              .map((task) => {
-                const plan = plans.find((p) => p.id === task.planId);
-                if (!plan) return null;
+          ) : (tasksForDate && tasksForDate.length > 0) || reviewTasksForDate.length > 0 ? (
+            <>
+              {tasksForDate &&
+                tasksForDate
+                  .map((task) => {
+                    const plan = plans.find((p) => p.id === task.planId);
+                    if (!plan) return null;
 
-                // 進捗と達成可能性を計算（範囲ベース）
-                // ★修正: 選択日付のセッションのみをフィルタリング
-                const planSessions = sessions.filter((s) => s.planId === plan.id && startOfDay(s.date).getTime() === startOfDay(selectedDate).getTime());
-                
-                // 範囲ベースの進捗計算: セッションの完了範囲をマージしてから計算（重複を避ける）
-                const completedRanges: Array<{ start: number; end: number }> = [];
-                planSessions.forEach((session) => {
-                  if (session.startUnit !== undefined && session.endUnit !== undefined) {
-                    const overlapStart = Math.max(task.startUnit, session.startUnit);
-                    const overlapEnd = Math.min(task.endUnit, session.endUnit);
-                    if (overlapStart <= overlapEnd) {
-                      completedRanges.push({ start: overlapStart, end: overlapEnd });
-                    }
-                  }
-                });
-                
-                // 重複を排除するためにマージ
-                const mergedRanges = (ranges: Array<{ start: number; end: number }>) => {
-                  if (ranges.length === 0) return [];
-                  const sorted = ranges.sort((a, b) => a.start - b.start);
-                  const merged: Array<{ start: number; end: number }> = [sorted[0]];
-                  for (let i = 1; i < sorted.length; i++) {
-                    const last = merged[merged.length - 1];
-                    if (sorted[i].start <= last.end + 1) {
-                      last.end = Math.max(last.end, sorted[i].end);
-                    } else {
-                      merged.push(sorted[i]);
-                    }
-                  }
-                  return merged;
-                };
-                
-                const mergedCompleted = mergedRanges(completedRanges);
-                const completedUnitsInTaskRange = mergedCompleted.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
-                
-                const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);
-                // ★修正: 完了したタスク（taskProgress === 1）はフィルタリングで除外するためにnullを返す
-                if (taskProgress === 1) return null;
-                
-                const progress = progressAnalysisService.calculateProgress(plan, planSessions);
-                const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
+                    // 進捗と達成可能性を計算（範囲ベース）
+                    // ★修正: 選択日付のセッションのみをフィルタリング
+                    const planSessions = sessions.filter((s) => s.planId === plan.id && startOfDay(s.date).getTime() === startOfDay(selectedDate).getTime());
+                    
+                    // 範囲ベースの進捗計算: セッションの完了範囲をマージしてから計算（重複を避ける）
+                    const completedRanges: Array<{ start: number; end: number }> = [];
+                    planSessions.forEach((session) => {
+                      if (session.startUnit !== undefined && session.endUnit !== undefined) {
+                        const overlapStart = Math.max(task.startUnit, session.startUnit);
+                        const overlapEnd = Math.min(task.endUnit, session.endUnit);
+                        if (overlapStart <= overlapEnd) {
+                          completedRanges.push({ start: overlapStart, end: overlapEnd });
+                        }
+                      }
+                    });
+                    
+                    // 重複を排除するためにマージ
+                    const mergedRanges = (ranges: Array<{ start: number; end: number }>) => {
+                      if (ranges.length === 0) return [];
+                      const sorted = ranges.sort((a, b) => a.start - b.start);
+                      const merged: Array<{ start: number; end: number }> = [sorted[0]];
+                      for (let i = 1; i < sorted.length; i++) {
+                        const last = merged[merged.length - 1];
+                        if (sorted[i].start <= last.end + 1) {
+                          last.end = Math.max(last.end, sorted[i].end);
+                        } else {
+                          merged.push(sorted[i]);
+                        }
+                      }
+                      return merged;
+                    };
+                    
+                    const mergedCompleted = mergedRanges(completedRanges);
+                    const completedUnitsInTaskRange = mergedCompleted.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
+                    
+                    const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);
+                    // ★修正: 完了したタスク（taskProgress === 1）はフィルタリングで除外するためにnullを返す
+                    if (taskProgress === 1) return null;
+                    
+                    const progress = progressAnalysisService.calculateProgress(plan, planSessions);
+                    const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
 
-                return { task, plan, taskProgress, achievability };
-              })
-              .filter((item) => item !== null)
-              .map((item) => (
-                <TaskCard
-                  key={item!.task.id}
-                  task={item!.task}
-                  plan={item!.plan}
-                  progress={item!.taskProgress}
-                  achievability={item!.achievability}
-                  onComplete={() => handleTaskComplete(item)}
-                  onStartTimer={() => handleStartTimer(item!.task)}
-                />
-              ))
+                    return { task, plan, taskProgress, achievability };
+                  })
+                  .filter((item) => item !== null)
+                  .map((item) => (
+                    <TaskCard
+                      key={item!.task.id}
+                      task={item!.task}
+                      plan={item!.plan}
+                      progress={item!.taskProgress}
+                      achievability={item!.achievability}
+                      onComplete={() => handleTaskComplete(item)}
+                      onStartTimer={() => handleStartTimer(item!.task)}
+                    />
+                  ))}
+              {reviewTasksForDate.map((item) => {
+                const taskObj = item.task;
+                const plan = item.plan;
+                return (
+                  <TaskCard
+                    key={taskObj.id}
+                    task={taskObj}
+                    plan={plan}
+                    progress={item.taskProgress}
+                    achievability={item.achievability}
+                    onComplete={() => handleTaskComplete(item, taskObj)}
+                    onStartTimer={() => handleStartTimer(taskObj)}
+                  />
+                );
+              })}
+            </>
           ) : (
             <EmptyState
               icon="calendar-outline"

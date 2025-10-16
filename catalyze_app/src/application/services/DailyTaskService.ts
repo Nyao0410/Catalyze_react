@@ -353,8 +353,55 @@ export class DailyTaskService {
       }
     }
 
-    // 残りの範囲がない場合はタスクなし
+    // 残りの範囲がない場合、目標周数に達していなければ新しいラウンドを生成
     if (remainingRanges.length === 0) {
+      // 目標周数の確認
+      if (plan.targetRounds && plan.targetRounds > 1) {
+        // 最大ラウンド数を取得（有効な周回数）
+        const maxRound = Math.max(plan.rounds || 0, plan.targetRounds);
+        
+        // 既存セッション最大ラウンドを特定
+        let maxCompletedRound = 1;
+        for (const session of sessions.filter((s) => startOfDay(s.date).getTime() <= yesterday.getTime())) {
+          if (session.round) {
+            maxCompletedRound = Math.max(maxCompletedRound, session.round);
+          }
+        }
+
+        // 次のラウンドがまだ目標に達していなければ、新しいラウンドタスクを生成
+        if (maxCompletedRound < plan.targetRounds) {
+          const nextRound = maxCompletedRound + 1;
+          // 複数ラウンドタスクを再生成してnextRound以降のタスクを取得
+          const generated = this.planner.generateRoundTasks(rangeTotal, plan.targetRounds);
+          const nextRoundTasks = generated.filter((rt) => rt.round === nextRound);
+          
+          if (nextRoundTasks.length > 0) {
+            const firstNextRoundTask = nextRoundTasks[0];
+            // タスク範囲を復帰
+            const adjustedStart = firstNextRoundTask.startUnit + (rangeStart - 1);
+            const adjustedEnd = firstNextRoundTask.endUnit + (rangeStart - 1);
+            
+            const sessionsUpToYesterday = sessions.filter((s) => startOfDay(s.date).getTime() <= yesterday.getTime());
+            const quotaResult = this.quotaCalculator.calculate(plan, sessionsUpToYesterday);
+            const dailyQuota = Math.ceil(quotaResult.recommendedDailyQuota);
+            const unitsToAssign = Math.min(dailyQuota, adjustedEnd - adjustedStart + 1);
+
+            const task = new DailyTaskEntity({
+              id: `${plan.id}-${startOfDay(date).toISOString().slice(0,10)}-r${nextRound}`,
+              planId: plan.id,
+              date: startOfDay(date),
+              startUnit: adjustedStart,
+              endUnit: adjustedStart + unitsToAssign - 1,
+              units: unitsToAssign,
+              estimatedDuration: quotaResult.adjustedTimePerUnitMs * unitsToAssign,
+              round: nextRound,
+              advice: this.generateAdvice(plan, sessionsUpToYesterday),
+            });
+            return task;
+          }
+        }
+      }
+      // 目標周数に達した場合またはtargetRoundsが設定されていない場合はタスクなし
       return null;
     }
 
