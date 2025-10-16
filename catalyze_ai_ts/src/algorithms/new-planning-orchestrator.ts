@@ -58,6 +58,45 @@ export class NewPlanningOrchestrator {
     return [ { round: 1, startUnit: rangeStart, endUnit: rangeEnd, units: rangeTotal } ];
   }
 
+  /**
+   * ★新規追加: セッションがどのラウンドタスク範囲に属するかを判定し、
+   * 各範囲内で完了したユニット数をカウント
+   */
+  private _calculateCompletedByRange(sessions: StudySessionEntity[], roundTasks: RoundTask[]): number {
+    let total = 0;
+    for (const session of sessions) {
+      // セッションに startUnit/endUnit が設定されている場合、その範囲がラウンドタスク内か確認
+      if (typeof session.startUnit === 'number' && typeof session.endUnit === 'number') {
+        const sessionStart = session.startUnit;
+        const sessionEnd = session.endUnit;
+        
+        // このセッションが属するラウンドタスクを探す
+        const matchingRoundTask = roundTasks.find((rt) => {
+          // セッションがこのラウンドタスクの範囲内かつラウンドが一致するかチェック
+          return (
+            session.round === rt.round &&
+            sessionStart >= rt.startUnit &&
+            sessionEnd <= rt.endUnit
+          );
+        });
+
+        // マッチするラウンドタスクがある場合のみカウント
+        if (matchingRoundTask) {
+          total += session.unitsCompleted;
+        }
+        // マッチしない場合は無視（別のラウンドや不正なセッション）
+      } else {
+        // startUnit/endUnit が設定されていない古いセッション
+        // ラウンド番号でフィルタリング：同じラウンドのセッションのみカウント
+        const matchingRound = roundTasks.find((rt) => rt.round === session.round);
+        if (matchingRound) {
+          total += session.unitsCompleted;
+        }
+      }
+    }
+    return total;
+  }
+
   private _allocate(
     plan: StudyPlanEntity,
     sessions: StudySessionEntity[],
@@ -69,7 +108,8 @@ export class NewPlanningOrchestrator {
     const today = startOfDay(new Date());
 
     // build remaining units across roundTasks considering completed sessions
-    const totalCompletedUnits = sessions.reduce((s, v) => s + v.unitsCompleted, 0);
+    // ★修正: ラウンドタスク範囲に基づいてセッションをフィルタリング
+    const totalCompletedUnits = this._calculateCompletedByRange(sessions, roundTasks);
 
     // flatten remaining range list (start,end,round) in order
     const remainingRanges: { round: number; start: number; end: number; units: number }[] = [];

@@ -6,6 +6,7 @@
 import { DailyTaskEntity, StudyPlanEntity, ProgressAnalysisService, DynamicQuotaCalculator } from 'catalyze-ai';
 import { PlanningOrchestrator } from 'catalyze-ai/dist/algorithms/planning-orchestrator';
 import { NewPlanningOrchestrator } from 'catalyze-ai/dist/algorithms/new-planning-orchestrator';
+import { MultiRoundPlanner } from 'catalyze-ai/dist/algorithms/multi-round-planner';
 // Use the shared service instances from src/services so seeded mock data is visible
 import { studyPlanService, studySessionService, reviewItemService } from '../../services';
 import { startOfDay, addDays, format } from 'date-fns';
@@ -16,6 +17,7 @@ import { startOfDay, addDays, format } from 'date-fns';
 export class DailyTaskService {
   private progressAnalysisService = new ProgressAnalysisService();
   private quotaCalculator = new DynamicQuotaCalculator();
+  private planner = new MultiRoundPlanner();
 
   /**
    * 今日のタスクを取得
@@ -268,6 +270,8 @@ export class DailyTaskService {
 
   /**
    * 日次タスクを生成
+   * ★重要: 昨日のセッション累計までを使用して今日のタスクを固定する
+   * 例: 昨日まで1-7完了 → 今日は8-14を固定で返す（今日のセッションが増えても変わらない）
    */
   private async generateDailyTask(
     plan: StudyPlanEntity,
@@ -294,46 +298,88 @@ export class DailyTaskService {
       } catch (e) {}
     }
 
-    // 動的ノルマを計算
-    const quotaResult = this.quotaCalculator.calculate(plan, sessions);
-    const dailyQuota = Math.ceil(quotaResult.recommendedDailyQuota);
-
     // 学習日かチェック
     const weekday = date.getDay() === 0 ? 7 : date.getDay();
     if (!plan.isStudyDay(weekday)) {
       return null;
     }
 
-  // NewPlanningOrchestrator を試験的に使う（より堅牢な割当）
-  const orchestrator = new NewPlanningOrchestrator();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: any = orchestrator.generatePlan(plan, sessions, []);
+    // ラウンドタスクを生成
+    const rangeStart = plan.unitRange?.start ?? 1;
+    const rangeEnd = plan.unitRange?.end ?? plan.totalUnits;
+    const rangeTotal = rangeEnd - rangeStart + 1;
 
-    // 正規化: orchestrator の出力が日付を文字列で返す可能性に備えて Date に変換
-    // かつ DailyTaskEntity のインスタンスを再構築して getter（estimatedMinutes 等）を保持する
-    const normalizedDailyTasks = (result.dailyTasks || []).map((t: any) => {
-      const date = t.date instanceof Date ? t.date : new Date(t.date);
-      return new DailyTaskEntity({
-        id: t.id,
-        planId: t.planId,
-        date,
-        startUnit: t.startUnit,
-        endUnit: t.endUnit,
-        units: t.units,
-        estimatedDuration: t.estimatedDuration,
-        round: t.round,
-        advice: t.advice,
-      });
+    // ★重要: **昨日までの** セッション累計を使用（昨日の終了時点での完了状況）
+    // これにより今日のセッション追加によってタスク範囲が変わらない
+    const yesterday = addDays(startOfDay(date), -1);
+    const firstRoundCompletedYesterday = sessions
+      .filter((s) => s.round === 1 && startOfDay(s.date).getTime() <= yesterday.getTime())
+      .reduce((sum, s) => sum + s.unitsCompleted, 0);
+
+    let roundTasks: { round: number; startUnit: number; endUnit: number; units: number }[] = [];
+    if (firstRoundCompletedYesterday >= rangeTotal && plan.targetRounds > 1) {
+      // 複数ラウンドの場合
+      const generated = this.planner.generateRoundTasks(rangeTotal, plan.targetRounds);
+      roundTasks = generated.map((rt) => ({ ...rt, startUnit: rt.startUnit + (rangeStart - 1), endUnit: rt.endUnit + (rangeStart - 1) }));
+    } else {
+      // 1ラウンドの場合
+      roundTasks = [{ round: 1, startUnit: rangeStart, endUnit: rangeEnd, units: rangeTotal }];
+    }
+
+    // ★重要: **昨日までの** 累計完了数でタスク範囲を計算
+    // これにより、今日のセッションが追加されてもタスク範囲は固定される
+    let totalCompletedUnits = 0;
+    for (const session of sessions.filter((s) => startOfDay(s.date).getTime() <= yesterday.getTime())) {
+      totalCompletedUnits += session.unitsCompleted;
+    }
+
+    // 残りの範囲を計算
+    const remainingRanges: { round: number; start: number; end: number; units: number }[] = [];
+    for (const rt of roundTasks) {
+      remainingRanges.push({ round: rt.round, start: rt.startUnit, end: rt.endUnit, units: rt.endUnit - rt.startUnit + 1 });
+    }
+
+    // 完了したユニットを消費
+    let completed = totalCompletedUnits;
+    while (completed > 0 && remainingRanges.length > 0) {
+      const head = remainingRanges[0];
+      if (completed >= head.units) {
+        completed -= head.units;
+        remainingRanges.shift();
+      } else {
+        head.start += completed;
+        head.units -= completed;
+        completed = 0;
+      }
+    }
+
+    // 残りの範囲がない場合はタスクなし
+    if (remainingRanges.length === 0) {
+      return null;
+    }
+
+    // ★重要: 動的ノルマ計算時も、昨日までのセッションのみを使用
+    const sessionsUpToYesterday = sessions.filter((s) => startOfDay(s.date).getTime() <= yesterday.getTime());
+    const quotaResult = this.quotaCalculator.calculate(plan, sessionsUpToYesterday);
+    const dailyQuota = Math.ceil(quotaResult.recommendedDailyQuota);
+
+    // 今日のタスクを生成（残りの範囲の先頭からdailyQuota分）
+    const headRange = remainingRanges[0];
+    const unitsToAssign = Math.min(dailyQuota, headRange.units);
+
+    const task = new DailyTaskEntity({
+      id: `${plan.id}-${startOfDay(date).toISOString().slice(0,10)}-r${headRange.round}`,
+      planId: plan.id,
+      date: startOfDay(date),
+      startUnit: headRange.start,
+      endUnit: headRange.start + unitsToAssign - 1,
+      units: unitsToAssign,
+      estimatedDuration: quotaResult.adjustedTimePerUnitMs * unitsToAssign,
+      round: headRange.round,
+      advice: this.generateAdvice(plan, sessionsUpToYesterday),
     });
 
-    // 指定日のタスクを取得
-    const targetDate = startOfDay(date);
-    const dailyTask = normalizedDailyTasks.find((t: any) => {
-      const d = startOfDay(t.date);
-      return d.getTime() === targetDate.getTime();
-    });
-
-    return dailyTask || null;
+    return task;
   }
 
   /**

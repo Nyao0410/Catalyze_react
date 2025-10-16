@@ -27,6 +27,7 @@ export const useDueReviewItems = (userId: string) => {
   return useQuery({
     queryKey: [QUERY_KEY, 'due', userId],
     queryFn: () => reviewItemService.getDueReviewItems(userId),
+    staleTime: 1000 * 60 * 5, // 5分
   });
 };
 

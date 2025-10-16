@@ -16,6 +16,7 @@ export const useStudyPlans = (userId: string) => {
   return useQuery({
     queryKey: [QUERY_KEY, userId],
     queryFn: () => studyPlanService.getAllPlans(userId),
+    staleTime: 1000 * 60 * 5, // 5分
   });
 };
 

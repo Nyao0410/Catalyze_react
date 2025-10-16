@@ -27,6 +27,7 @@ export const useUserSessions = (userId: string) => {
   return useQuery({
     queryKey: [QUERY_KEY, 'user', userId],
     queryFn: () => studySessionService.getSessionsByUserId(userId),
+    staleTime: 1000 * 60 * 5, // 5分
   });
 };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Keyboard, TouchableWithoutFeedback, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Slider from '@react-native-community/slider';
@@ -33,12 +33,17 @@ export const RecordSessionScreen: React.FC = () => {
   // 編集モードかどうか
   const isEditMode = !!sessionId;
 
+  // モード: 'quantity' = 単純に量を入力、'range' = 範囲を指定
+  const [inputMode, setInputMode] = useState<'quantity' | 'range'>('quantity');
+
   // 編集モードの場合、既存のセッションを取得
   const existingSessionQuery = useStudySession(sessionId || '');
   const existingSession = existingSessionQuery.data;
 
   const [unitsCompleted, setUnitsCompleted] = useState('');
   const [unitsInput, setUnitsInput] = useState(''); // ユーザーが入力する「やった単元数」
+  const [rangeStartInput, setRangeStartInput] = useState(''); // 範囲モード: 開始単元
+  const [rangeEndInput, setRangeEndInput] = useState(''); // 範囲モード: 終了単元
   const [durationMinutes, setDurationMinutes] = useState('5');
   const [concentration, setConcentration] = useState(0.6);
   const [difficulty, setDifficulty] = useState(3);
@@ -75,6 +80,16 @@ export const RecordSessionScreen: React.FC = () => {
       setConcentration(existingSession.concentration);
       setDifficulty(existingSession.difficulty);
       setRound(existingSession.round);
+      
+      // 編集時は範囲モードを優先
+      if ((existingSession as any).startUnit !== undefined && (existingSession as any).endUnit !== undefined) {
+        setInputMode('range');
+        setRangeStartInput(String((existingSession as any).startUnit));
+        setRangeEndInput(String((existingSession as any).endUnit));
+      } else {
+        setInputMode('quantity');
+        setUnitsInput(String(existingSession.unitsCompleted));
+      }
     } else if (task) {
       // 新規作成の場合、タスクのデフォルト値をセット
       setUnitsCompleted(String(task.units));
@@ -82,12 +97,24 @@ export const RecordSessionScreen: React.FC = () => {
       // タイマーからの経過時間があればそれを使う
       setDurationMinutes(elapsedMinutes ? String(elapsedMinutes) : String(task.estimatedMinutes));
       setRound(task.round);
+      
+      // タスクに範囲情報があれば範囲モードで初期化
+      if (task.startUnit !== undefined && task.endUnit !== undefined) {
+        setInputMode('range');
+        setRangeStartInput(String(task.startUnit));
+        setRangeEndInput(String(task.endUnit));
+      }
     } else if (paramStartUnit !== undefined && paramEndUnit !== undefined) {
       // タイマーから直接来た場合、startUnitとendUnitから完了単元数を計算
       const calculatedUnits = paramEndUnit - paramStartUnit + 1;
       setUnitsCompleted(String(calculatedUnits));
       setUnitsInput(String(calculatedUnits));
       setDurationMinutes(elapsedMinutes ? String(elapsedMinutes) : '25');
+      
+      // タイマーからの場合は範囲モード
+      setInputMode('range');
+      setRangeStartInput(String(paramStartUnit));
+      setRangeEndInput(String(paramEndUnit));
     } else if (elapsedMinutes) {
       // タスクはないがタイマーからの経過時間がある場合
       setDurationMinutes(String(elapsedMinutes));
@@ -127,18 +154,40 @@ export const RecordSessionScreen: React.FC = () => {
     // determine units: for edit keep existing value, for new derive from task/timer/default
     const duration = parseInt(durationMinutes);
     let unitsNumber: number;
+    let startUnit: number | undefined;
+    let endUnit: number | undefined;
+
     if (isEditMode && existingSession) {
       unitsNumber = existingSession.unitsCompleted;
+      startUnit = (existingSession as any).startUnit;
+      endUnit = (existingSession as any).endUnit;
     } else {
-      // 新規時はユーザー入力（unitsInput）を優先、なければ task/timer/default
-      if (unitsInput && !isNaN(parseInt(unitsInput, 10))) {
-        unitsNumber = Math.max(1, parseInt(unitsInput, 10));
-      } else if (task) {
-        unitsNumber = task.units ?? 1;
-      } else if (paramStartUnit !== undefined && paramEndUnit !== undefined) {
-        unitsNumber = paramEndUnit - paramStartUnit + 1;
+      // 入力モードに応じて単元数と範囲を決定
+      if (inputMode === 'range') {
+        // 範囲モード: ユーザーが明示的に指定
+        const start = parseInt(rangeStartInput);
+        const end = parseInt(rangeEndInput);
+        if (isNaN(start) || isNaN(end) || start > end) {
+          Alert.alert(t('common.error'), '開始単元と終了単元を正しく入力してください');
+          return;
+        }
+        startUnit = start;
+        endUnit = end;
+        unitsNumber = end - start + 1;
       } else {
-        unitsNumber = 1;
+        // 量モード: 従来通り、累計から計算
+        if (unitsInput && !isNaN(parseInt(unitsInput, 10))) {
+          unitsNumber = Math.max(1, parseInt(unitsInput, 10));
+        } else if (task) {
+          unitsNumber = task.units ?? 1;
+        } else if (paramStartUnit !== undefined && paramEndUnit !== undefined) {
+          unitsNumber = paramEndUnit - paramStartUnit + 1;
+        } else {
+          unitsNumber = 1;
+        }
+        // 量モードでは startUnit/endUnit は自動計算される
+        startUnit = undefined;
+        endUnit = undefined;
       }
     }
 
@@ -158,25 +207,27 @@ export const RecordSessionScreen: React.FC = () => {
           concentration,
           difficulty,
           round: round ?? existingSession.round,
-        });
+          startUnit: startUnit ?? (existingSession as any).startUnit,
+          endUnit: endUnit ?? (existingSession as any).endUnit,
+        } as any);
 
         await updateSession.mutateAsync(updatedSession);
 
         // --- 自動 SM-2 適用: 編集時にも難易度を反映する ---
         try {
           // determine start/end units for the session
-          let startUnit: number | undefined = (existingSession as any).startUnit ?? paramStartUnit;
-          let endUnit: number | undefined = (existingSession as any).endUnit ?? paramEndUnit;
+          let finalStartUnit: number | undefined = startUnit ?? (existingSession as any).startUnit ?? paramStartUnit;
+          let finalEndUnit: number | undefined = endUnit ?? (existingSession as any).endUnit ?? paramEndUnit;
 
           // fallback: attempt to reconstruct using other sessions if missing
-          if (startUnit === undefined || endUnit === undefined) {
+          if (finalStartUnit === undefined || finalEndUnit === undefined) {
             const otherSessions = Array.isArray(sessions) ? sessions.filter((s) => s.id !== existingSession.id) : [];
             const cumulativeBefore = otherSessions.reduce((s: number, it: any) => s + (it.unitsCompleted || 0), 0);
-            if (startUnit === undefined) startUnit = cumulativeBefore + 1;
-            if (endUnit === undefined) endUnit = startUnit + updatedSession.unitsCompleted - 1;
+            if (finalStartUnit === undefined) finalStartUnit = cumulativeBefore + 1;
+            if (finalEndUnit === undefined) finalEndUnit = finalStartUnit + updatedSession.unitsCompleted - 1;
           }
 
-          if (typeof startUnit === 'number' && typeof endUnit === 'number') {
+          if (typeof finalStartUnit === 'number' && typeof finalEndUnit === 'number') {
             const difficultyValue = typeof difficulty === 'number' ? difficulty : Number(difficulty);
             let quality = Number.isNaN(difficultyValue) ? 4 : 6 - Math.round(difficultyValue);
             quality = Math.max(0, Math.min(5, quality));
@@ -185,7 +236,7 @@ export const RecordSessionScreen: React.FC = () => {
             const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
             const targets = items.filter((it) => {
               const n = Number(it.unitNumber);
-              return !Number.isNaN(n) && n >= startUnit! && n <= endUnit!;
+              return !Number.isNaN(n) && n >= finalStartUnit! && n <= finalEndUnit!;
             });
             if (targets.length > 0) {
               await Promise.all(targets.map((it) => recordReview.mutateAsync({ itemId: it.id, quality })));
@@ -206,11 +257,23 @@ export const RecordSessionScreen: React.FC = () => {
           concentration,
           difficulty,
           round: round ?? task?.round ?? 1,
-        });
-        // startUnit を「これまでに完了した合計 + 1」に自動設定し、endUnit をユーザー入力から計算
-        const cumulativeCompleted = Array.isArray(sessions) ? sessions.reduce((s: number, it: any) => s + (it.unitsCompleted || 0), 0) : 0;
-        const autoStartUnit = cumulativeCompleted + 1;
-        const computedEndUnit = autoStartUnit + unitsNumber - 1;
+          startUnit,
+          endUnit,
+        } as any);
+
+        let autoStartUnit: number;
+        let computedEndUnit: number;
+
+        if (inputMode === 'range' && startUnit !== undefined && endUnit !== undefined) {
+          // 範囲モード: ユーザーが指定した範囲を使用
+          autoStartUnit = startUnit;
+          computedEndUnit = endUnit;
+        } else {
+          // 量モード: 従来通り自動計算
+          const cumulativeCompleted = Array.isArray(sessions) ? sessions.reduce((s: number, it: any) => s + (it.unitsCompleted || 0), 0) : 0;
+          autoStartUnit = cumulativeCompleted + 1;
+          computedEndUnit = autoStartUnit + unitsNumber - 1;
+        }
 
         // compute initialQuality from difficulty (6 - difficulty, clamped 0..5)
         const difficultyValue = typeof difficulty === 'number' ? difficulty : Number(difficulty);
@@ -260,37 +323,92 @@ export const RecordSessionScreen: React.FC = () => {
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
       <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {isEditMode ? '編集' : t('today.sessionRecord.title')}
-        </Text>
-      </View>
-      <View style={styles.content}>
-        {/* ユーザーが入力する「やった単元数」 */}
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+        {/* モード選択 */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>完了した単元数</Text>
-          <View style={styles.sliderContainer}>
-            <Slider
-              style={styles.slider}
-              minimumValue={1}
-              maximumValue={Math.max(1, plan?.totalUnits ?? 100)}
-              step={1}
-              value={parseInt(unitsInput) || 1}
-              onValueChange={(value) => setUnitsInput(String(Math.round(value)))}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={unitsInput}
-              onChangeText={(v) => setUnitsInput(v.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              placeholder="例: 10"
-            />
+          <Text style={styles.label}>入力モード</Text>
+          <View style={styles.modeSelector}>
+            <TouchableOpacity
+              style={[styles.modeButton, inputMode === 'quantity' && styles.modeButtonActive]}
+              onPress={() => setInputMode('quantity')}
+            >
+              <Text style={[styles.modeButtonText, inputMode === 'quantity' && styles.modeButtonTextActive]}>
+                量を入力
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeButton, inputMode === 'range' && styles.modeButtonActive]}
+              onPress={() => setInputMode('range')}
+            >
+              <Text style={[styles.modeButtonText, inputMode === 'range' && styles.modeButtonTextActive]}>
+                範囲を指定
+              </Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.mutedText}>学習範囲: {previewStartUnit} 〜 {previewEndUnit}</Text>
         </View>
+
+        {/* 量モード */}
+        {inputMode === 'quantity' && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>完了した単元数</Text>
+            <View style={styles.sliderContainer}>
+              <Slider
+                style={styles.slider}
+                minimumValue={1}
+                maximumValue={Math.max(1, plan?.totalUnits ?? 100)}
+                step={1}
+                value={parseInt(unitsInput) || 1}
+                onValueChange={(value) => setUnitsInput(String(Math.round(value)))}
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.primary}
+              />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={unitsInput}
+                onChangeText={(v) => setUnitsInput(v.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                placeholder="例: 10"
+              />
+            </View>
+            <Text style={styles.mutedText}>学習範囲: {previewStartUnit} 〜 {previewEndUnit}</Text>
+          </View>
+        )}
+
+        {/* 範囲モード */}
+        {inputMode === 'range' && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>学習範囲</Text>
+            <View style={styles.rangeContainer}>
+              <View style={styles.rangeInputGroup}>
+                <Text style={styles.rangeLabel}>開始単元</Text>
+                <TextInput
+                  style={styles.rangeInput}
+                  value={rangeStartInput}
+                  onChangeText={(v) => setRangeStartInput(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  placeholder="1"
+                />
+              </View>
+              <Text style={styles.rangeSeparator}>〜</Text>
+              <View style={styles.rangeInputGroup}>
+                <Text style={styles.rangeLabel}>終了単元</Text>
+                <TextInput
+                  style={styles.rangeInput}
+                  value={rangeEndInput}
+                  onChangeText={(v) => setRangeEndInput(v.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  placeholder="10"
+                />
+              </View>
+            </View>
+            {rangeStartInput && rangeEndInput && (
+              <Text style={styles.mutedText}>
+                完了単元数: {Math.max(0, parseInt(rangeEndInput) - parseInt(rangeStartInput) + 1)} 個
+              </Text>
+            )}
+          </View>
+        )}
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>{t('today.sessionRecord.duration')}</Text>
@@ -361,7 +479,7 @@ export const RecordSessionScreen: React.FC = () => {
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={createSession.isPending}>
           <Text style={styles.saveButtonText}>{createSession.isPending ? t('today.sessionRecord.saving') : t('today.sessionRecord.save')}</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -371,7 +489,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: defaultColors.background },
   header: { padding: spacing.lg, backgroundColor: defaultColors.white, borderBottomWidth: 1, borderBottomColor: defaultColors.border },
   headerTitle: { ...textStyles.h1, color: defaultColors.text },
-  content: { padding: spacing.lg },
+  content: { flex: 1 },
+  scrollContent: { padding: spacing.lg },
   formGroup: { marginBottom: spacing.lg },
   label: { ...textStyles.body, fontWeight: '600', marginBottom: spacing.sm },
   input: { ...textStyles.body, borderWidth: 1, borderColor: defaultColors.border, borderRadius: 8, padding: spacing.md, backgroundColor: defaultColors.background },
@@ -394,6 +513,18 @@ const styles = StyleSheet.create({
   iconButton: { padding: spacing.sm, borderRadius: 8, marginHorizontal: spacing.xs, backgroundColor: defaultColors.backgroundSecondary },
   iconButtonActive: { backgroundColor: defaultColors.primary },
   starButton: { paddingHorizontal: spacing.sm, marginHorizontal: spacing.xs },
+  // Mode selector styles
+  modeSelector: { flexDirection: 'row', gap: spacing.sm },
+  modeButton: { flex: 1, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, borderRadius: 8, borderWidth: 1, borderColor: defaultColors.border, backgroundColor: defaultColors.backgroundSecondary, alignItems: 'center' },
+  modeButtonActive: { backgroundColor: defaultColors.primary, borderColor: defaultColors.primary },
+  modeButtonText: { ...textStyles.body, fontWeight: '600', color: defaultColors.text },
+  modeButtonTextActive: { color: defaultColors.white },
+  // Range input styles
+  rangeContainer: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  rangeInputGroup: { flex: 1, gap: spacing.sm },
+  rangeLabel: { ...textStyles.bodySmall, fontWeight: '600', color: defaultColors.textSecondary },
+  rangeInput: { ...textStyles.body, borderWidth: 1, borderColor: defaultColors.border, borderRadius: 8, padding: spacing.md, backgroundColor: defaultColors.background, textAlign: 'center' },
+  rangeSeparator: { ...textStyles.body, fontWeight: '700', color: defaultColors.textSecondary, marginBottom: spacing.md },
 });
 
 export default RecordSessionScreen;

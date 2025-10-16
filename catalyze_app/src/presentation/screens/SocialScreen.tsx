@@ -39,6 +39,20 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
     loadUserId();
   }, []);
   
+  // ナビゲーションヘッダーにフレンドボタンを追加
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity 
+          style={styles.headerButton}
+          onPress={() => navigation.navigate('FriendsList')}
+        >
+          <Ionicons name="person-add" size={24} color={colors.primary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, colors.primary]);
+  
   // データ取得
   const { data: friends = [], isLoading: isLoadingFriends } = useFriends(currentUserId);
   const { data: goals = [], isLoading: isLoadingGoals } = useCooperationGoals(currentUserId);
@@ -53,7 +67,6 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
     container: [styles.container, { backgroundColor: colors.background }],
     loginPromptContainer: [styles.loginPromptContainer, { backgroundColor: colors.background }],
     loginButton: [styles.loginButton, { backgroundColor: colors.primary }],
-    header: [styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }],
     tabButton: [styles.tabButton, { borderBottomColor: colors.border }],
     tabButtonActive: [styles.tabButtonActive, { borderBottomColor: colors.primary }],
     tabButtonText: [styles.tabButtonText, { color: colors.textSecondary }],
@@ -237,16 +250,6 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
 
   return (
     <View style={dynamicStyles.container}>
-      <View style={dynamicStyles.header}>
-        <Text style={styles.headerTitle}>ソーシャル</Text>
-        <TouchableOpacity 
-          style={styles.addFriendButton}
-          onPress={() => navigation.navigate('FriendsList')}
-        >
-          <Ionicons name="person-add" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.tabContainer}>
         {renderTabButton('cooperation', '協力モード', 'people')}
         {renderTabButton('ranking', 'ランキング', 'trophy')}
@@ -293,21 +296,7 @@ const styles = StyleSheet.create({
     color: defaultColors.white,
     fontWeight: '600',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: defaultColors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: defaultColors.border,
-  },
-  headerTitle: {
-    ...textStyles.h2,
-    color: defaultColors.text,
-  },
-  addFriendButton: {
+  headerButton: {
     padding: spacing.sm,
   },
   tabContainer: {

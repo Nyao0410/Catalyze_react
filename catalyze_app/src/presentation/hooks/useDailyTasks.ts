@@ -12,13 +12,12 @@ import { startOfDay } from 'date-fns';
  * 今日のタスクを取得するフック
  */
 export const useDailyTasks = (userId: string, date?: Date) => {
-  const keyDate = startOfDay(date || new Date()).toISOString();
+  // dateがundefinedの場合は今日の日付を使用し、毎回同じ値を返すように固定
+  const today = startOfDay(new Date());
+  const keyDate = startOfDay(date || today).toISOString();
   return useQuery<DailyTaskEntity[]>({
     queryKey: ['dailyTasks', userId, keyDate],
-    queryFn: () => {
-      try { console.log('[useDailyTasks] queryFn called', { userId, keyDate }); } catch (e) {}
-      return dailyTaskService.getTodayTasks(userId, date);
-    },
+    queryFn: () => dailyTaskService.getTodayTasks(userId, date),
     staleTime: 1000 * 60 * 5, // 5分
   });
 };

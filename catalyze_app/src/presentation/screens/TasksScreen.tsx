@@ -34,6 +34,8 @@ import { t } from '../../locales';
 import { useDueReviewItems, useRecordReview } from '../hooks/useReviewItems';
 import { PlansScreen } from './PlansScreen';
 
+const progressAnalysisService = new ProgressAnalysisService();
+
 type Props = MainTabScreenProps<'Tasks'>;
 
 // パフォーマンス係数に基づいて色を返す関数
@@ -138,8 +140,6 @@ export const TodayScreen: React.FC<Props> = () => {
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
-
-  const progressAnalysisService = new ProgressAnalysisService();
 
   // リフレッシュ処理
   const onRefresh = React.useCallback(async () => {
@@ -349,7 +349,7 @@ export const TodayScreen: React.FC<Props> = () => {
   // 今日のタスクコンポーネント
   const TodayTab = () => {
     // 完了していないタスクと今日の復習タスクをマージして表示
-    const activeTasks = [
+    const activeTasks = React.useMemo(() => [
       // 日次タスク（今日用）
       ...todayTasks
         .map((task) => {
@@ -357,32 +357,50 @@ export const TodayScreen: React.FC<Props> = () => {
           if (!plan) return null;
 
           // 進捗と達成可能性を計算
-          const planSessions = sessions.filter((s) => s.planId === plan.id);
-          const taskSessions = planSessions.filter((s) => task.round === undefined || s.round === task.round);
+          // ★修正: 今日のセッションのみをフィルタリング
+          const planSessions = sessions.filter((s) => s.planId === plan.id && isToday(s.date));
           
-          // 範囲ベースの進捗計算: タスクの範囲とセッションの範囲の重複を計算
-          let completedUnitsInTaskRange = 0;
-          taskSessions.forEach((session) => {
-            // セッションに範囲情報がある場合は範囲ベースで計算
+          // 範囲ベースの進捗計算: セッションの完了範囲をマージしてから計算（重複を避ける）
+          const completedRanges: Array<{ start: number; end: number }> = [];
+          planSessions.forEach((session) => {
             if (session.startUnit !== undefined && session.endUnit !== undefined) {
               const overlapStart = Math.max(task.startUnit, session.startUnit);
               const overlapEnd = Math.min(task.endUnit, session.endUnit);
               if (overlapStart <= overlapEnd) {
-                completedUnitsInTaskRange += (overlapEnd - overlapStart + 1);
+                completedRanges.push({ start: overlapStart, end: overlapEnd });
               }
-            } else {
-              // 範囲情報がない場合は従来通り unitsCompleted を使用（後方互換性）
-              completedUnitsInTaskRange += session.unitsCompleted;
             }
           });
           
+          // 重複を排除するためにマージ
+          const mergedRanges = (ranges: Array<{ start: number; end: number }>) => {
+            if (ranges.length === 0) return [];
+            const sorted = ranges.sort((a, b) => a.start - b.start);
+            const merged: Array<{ start: number; end: number }> = [sorted[0]];
+            for (let i = 1; i < sorted.length; i++) {
+              const last = merged[merged.length - 1];
+              if (sorted[i].start <= last.end + 1) {
+                last.end = Math.max(last.end, sorted[i].end);
+              } else {
+                merged.push(sorted[i]);
+              }
+            }
+            return merged;
+          };
+          
+          const mergedCompleted = mergedRanges(completedRanges);
+          const completedUnitsInTaskRange = mergedCompleted.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
+          
           const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);
+          // ★修正: 完了したタスク（taskProgress === 1）はフィルタリングで除外するためにnullを返す
+          if (taskProgress === 1) return null;
+          
           const progress = progressAnalysisService.calculateProgress(plan, planSessions);
           const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
 
           return { type: 'daily' as const, task, plan, taskProgress, achievability };
         })
-        .filter((item) => item !== null && item.taskProgress < 1),
+        .filter((item) => item !== null),
       // 復習アイテム->タスク変換（今日期限のもの）
       ...(function buildReviewTasks() {
         try {
@@ -445,16 +463,37 @@ export const TodayScreen: React.FC<Props> = () => {
               } as any;
 
               // progress: check sessions covering the whole range
-              let completed = 0;
+              const completedReviewRanges: Array<{ start: number; end: number }> = [];
               planSessions.forEach((s) => {
                 if (s.startUnit !== undefined && s.endUnit !== undefined) {
                   const overlapStart = Math.max(r.start, s.startUnit);
                   const overlapEnd = Math.min(r.end, s.endUnit);
-                  if (overlapStart <= overlapEnd) completed += (overlapEnd - overlapStart + 1);
+                  if (overlapStart <= overlapEnd) {
+                    completedReviewRanges.push({ start: overlapStart, end: overlapEnd });
+                  }
                 } else if (isToday(s.date)) {
-                  completed += s.unitsCompleted;
+                  completedReviewRanges.push({ start: r.start, end: Math.min(r.start + s.unitsCompleted - 1, r.end) });
                 }
               });
+              
+              // マージして重複を排除
+              const mergeReviewRanges = (ranges: Array<{ start: number; end: number }>) => {
+                if (ranges.length === 0) return [];
+                const sorted = ranges.sort((a, b) => a.start - b.start);
+                const merged: Array<{ start: number; end: number }> = [sorted[0]];
+                for (let i = 1; i < sorted.length; i++) {
+                  const last = merged[merged.length - 1];
+                  if (sorted[i].start <= last.end + 1) {
+                    last.end = Math.max(last.end, sorted[i].end);
+                  } else {
+                    merged.push(sorted[i]);
+                  }
+                }
+                return merged;
+              };
+              
+              const mergedReviewCompleted = mergeReviewRanges(completedReviewRanges);
+              const completed = mergedReviewCompleted.reduce((sum, rng) => sum + (rng.end - rng.start + 1), 0);
 
               const taskProgress = Math.min(completed / r.units, 1);
               const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
@@ -468,7 +507,7 @@ export const TodayScreen: React.FC<Props> = () => {
           return []; // on error fallback to no review tasks
         }
       })(),
-    ];
+    ], [todayTasks, plans, sessions, dueReviewItems, progressAnalysisService]);
 
     // 統計サマリーを計算
     const totalUnits = activeTasks.reduce((sum, item) => sum + item!.task.units, 0);
@@ -710,24 +749,44 @@ export const TodayScreen: React.FC<Props> = () => {
                 if (!plan) return null;
 
                 // 進捗と達成可能性を計算（範囲ベース）
-                const planSessions = sessions.filter((s) => s.planId === plan.id);
-                const taskSessions = planSessions.filter((s) => task.round === undefined || s.round === task.round);
+                // ★修正: 選択日付のセッションのみをフィルタリング
+                const planSessions = sessions.filter((s) => s.planId === plan.id && startOfDay(s.date).getTime() === startOfDay(selectedDate).getTime());
                 
-                // 範囲ベースの進捗計算
-                let completedUnitsInTaskRange = 0;
-                taskSessions.forEach((session) => {
+                // 範囲ベースの進捗計算: セッションの完了範囲をマージしてから計算（重複を避ける）
+                const completedRanges: Array<{ start: number; end: number }> = [];
+                planSessions.forEach((session) => {
                   if (session.startUnit !== undefined && session.endUnit !== undefined) {
                     const overlapStart = Math.max(task.startUnit, session.startUnit);
                     const overlapEnd = Math.min(task.endUnit, session.endUnit);
                     if (overlapStart <= overlapEnd) {
-                      completedUnitsInTaskRange += (overlapEnd - overlapStart + 1);
+                      completedRanges.push({ start: overlapStart, end: overlapEnd });
                     }
-                  } else {
-                    completedUnitsInTaskRange += session.unitsCompleted;
                   }
                 });
                 
+                // 重複を排除するためにマージ
+                const mergedRanges = (ranges: Array<{ start: number; end: number }>) => {
+                  if (ranges.length === 0) return [];
+                  const sorted = ranges.sort((a, b) => a.start - b.start);
+                  const merged: Array<{ start: number; end: number }> = [sorted[0]];
+                  for (let i = 1; i < sorted.length; i++) {
+                    const last = merged[merged.length - 1];
+                    if (sorted[i].start <= last.end + 1) {
+                      last.end = Math.max(last.end, sorted[i].end);
+                    } else {
+                      merged.push(sorted[i]);
+                    }
+                  }
+                  return merged;
+                };
+                
+                const mergedCompleted = mergedRanges(completedRanges);
+                const completedUnitsInTaskRange = mergedCompleted.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
+                
                 const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);
+                // ★修正: 完了したタスク（taskProgress === 1）はフィルタリングで除外するためにnullを返す
+                if (taskProgress === 1) return null;
+                
                 const progress = progressAnalysisService.calculateProgress(plan, planSessions);
                 const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
 
