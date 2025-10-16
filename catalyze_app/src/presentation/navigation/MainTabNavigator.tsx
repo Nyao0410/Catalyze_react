@@ -12,7 +12,7 @@ import { TodayScreen } from '../screens/TasksScreen';
 // import { ReviewScreen } from '../screens/ReviewScreen';
 import { StatsScreen } from '../screens/StatsScreen';
 import { SocialScreen, AccountScreen } from '../screens';
-import { colors } from '../theme';
+import { colors as defaultColors } from '../theme';
 import type { MainTabParamList } from './types';
 import { t } from '../../locales';
 import { useTheme } from '../theme/ThemeProvider';
@@ -55,7 +55,7 @@ const screenConfigs = [
 ];
 
 export const MainTabNavigator: React.FC = () => {
-  const { isTablet } = useTheme();
+  const { isTablet, colors } = useTheme();
 
   // タブレット時は左側Drawerを使用
   if (isTablet) {

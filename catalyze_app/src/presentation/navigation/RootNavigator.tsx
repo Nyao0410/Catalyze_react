@@ -21,6 +21,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
 import { AuthScreen } from '../screens/AuthScreen';
 import type { RootStackParamList } from './types';
+import { useTheme } from '../theme/ThemeProvider';
 
 const Stack = createNativeStackNavigator<RootStackParamList>() as any;
 
@@ -29,6 +30,8 @@ interface RootNavigatorProps {
 }
 
 export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Login' }) => {
+  const { colors } = useTheme();
+
   return (
     <Stack.Navigator initialRouteName={initialRoute}>
       <Stack.Screen 
@@ -60,6 +63,13 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
         options={{ 
           title: '計画詳細',
           headerBackTitle: '戻る',
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Stack.Screen
@@ -68,6 +78,13 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
         options={{
           title: '新規計画作成',
           presentation: 'modal',
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Stack.Screen
@@ -76,6 +93,13 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
         options={{
           title: '計画を編集',
           presentation: 'modal',
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Stack.Screen
@@ -85,6 +109,13 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
           title: '学習タイマー',
           gestureEnabled: false,
           headerBackVisible: false,
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Stack.Screen
@@ -92,6 +123,13 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
         component={RecordSessionScreen}
         options={{
           title: '学習記録',
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Stack.Screen
@@ -99,6 +137,13 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
         component={ReviewEvaluationScreen}
         options={{
           title: '復習の評価',
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+          },
         }}
       />
       <Stack.Screen

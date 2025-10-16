@@ -6,11 +6,11 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RootNavigator } from './src/presentation/navigation';
 import { seedMockData } from './src/infrastructure/mockData';
-import { ThemeProvider } from './src/presentation/theme/ThemeProvider';
+import { ThemeProvider, useTheme } from './src/presentation/theme/ThemeProvider';
 import { TopToastProvider } from './src/presentation/hooks/useTopToast';
 import './src/locales'; // i18nの初期化
 import { t } from './src/locales';
@@ -36,6 +36,7 @@ const queryClient = new QueryClient({
 function AppContent() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [initialRoute, setInitialRoute] = useState<'Login' | 'MainTabs'>('MainTabs');
+  const { mode } = useTheme();
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -138,9 +139,9 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={mode === 'dark' ? DarkTheme : DefaultTheme}>
       <RootNavigator initialRoute={initialRoute} />
-      <StatusBar style="auto" />
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
     </NavigationContainer>
   );
 }

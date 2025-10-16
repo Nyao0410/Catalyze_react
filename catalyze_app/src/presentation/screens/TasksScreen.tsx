@@ -733,15 +733,7 @@ export const TodayScreen: React.FC<Props> = () => {
 
                 return { task, plan, taskProgress, achievability };
               })
-              .filter((item) => {
-                if (!item) return false;
-                // 今日以前の完了(taskProgress >= 1)は除外するが、将来日の完了は残す
-                const today = startOfDay(new Date()).getTime();
-                const taskDate = startOfDay(item.task.date).getTime();
-                const isFuture = taskDate > today;
-                if (isFuture) return true; // 将来日は常に表示
-                return item.taskProgress < 1; // 今日または過去は未完のみ表示
-              })
+              .filter((item) => item !== null)
               .map((item) => (
                 <TaskCard
                   key={item!.task.id}

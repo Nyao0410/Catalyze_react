@@ -49,6 +49,93 @@ export class DailyTaskService {
       }
     }
 
+    // 追加: 今日の復習アイテムを日別タスクリストに含める（ユニットをまとめて範囲化）
+    try {
+      const allReviewItems = await reviewItemService.getReviewItemsByUserId(userId);
+      const reviewsForDate = allReviewItems.filter((item) => startOfDay(item.nextReviewDate).getTime() === targetDate.getTime());
+
+      // グルーピング: planId ごとに unitNumber を集める
+      const groups: { [key: string]: number[] } = {};
+      reviewsForDate.forEach((r) => {
+        const key = `${r.planId}_${format(startOfDay(r.nextReviewDate), 'yyyy-MM-dd')}`;
+        groups[key] = groups[key] || [];
+        const n = Number(r.unitNumber);
+        if (!Number.isNaN(n)) groups[key].push(n);
+      });
+
+      const mergeUnitsToRanges = (units: number[]) => {
+        const sorted = Array.from(new Set(units)).sort((a, b) => a - b);
+        const ranges: Array<{ start: number; end: number; units: number }> = [];
+        let curStart: number | null = null;
+        let curEnd: number | null = null;
+        for (const u of sorted) {
+          if (curStart === null) {
+            curStart = u;
+            curEnd = u;
+            continue;
+          }
+          if (u === (curEnd as number) + 1) {
+            curEnd = u;
+          } else {
+            ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+            curStart = u;
+            curEnd = u;
+          }
+        }
+        if (curStart !== null) ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
+        return ranges;
+      };
+
+      for (const key of Object.keys(groups)) {
+        const [planId, ...rest] = key.split('_');
+        const dateKey = rest.join('_');
+        const units = groups[key];
+        const ranges = mergeUnitsToRanges(units);
+        for (let idx = 0; idx < ranges.length; idx++) {
+          const r = ranges[idx];
+          // try to get plan's per-unit estimate; fallback to 5 minutes per unit
+          let planObj = null;
+          try {
+            planObj = await studyPlanService.getPlanById(planId);
+          } catch (e) {
+            planObj = null;
+          }
+          // If plan exists, skip creating a review task for this date when it's not a study day
+          if (planObj) {
+            try {
+              const reviewDate = startOfDay(new Date(dateKey));
+              const weekday = reviewDate.getDay() === 0 ? 7 : reviewDate.getDay();
+              if (!planObj.isStudyDay(weekday)) {
+                // skip creating review task for non-study days
+                continue;
+              }
+            } catch (e) {
+              // if any error occurs determining study day, fall back to including the task
+            }
+          }
+          const perUnitMs = planObj?.estimatedTimePerUnit ?? 5 * 60 * 1000;
+          try {
+            // eslint-disable-next-line no-console
+            console.log('[DailyTaskService] getTodayTasks: review perUnitMs', { planId, dateKey, perUnitMs, planEstimated: planObj?.estimatedTimePerUnit });
+          } catch (e) {}
+          const reviewTask = new DailyTaskEntity({
+            id: `review-${planId}-${dateKey}-${r.start}-${r.end}-${idx}`,
+            planId,
+            date: new Date(dateKey),
+            startUnit: r.start,
+            endUnit: r.end,
+            units: r.units,
+            estimatedDuration: r.units * perUnitMs,
+            round: 1,
+            advice: '復習しましょう！',
+          });
+          tasks.push(reviewTask);
+        }
+      }
+    } catch (e) {
+      try { console.warn('[DailyTaskService] failed to fetch/merge review items for getTodayTasks', e); } catch (er) {}
+    }
+
     // dedupe by id to avoid duplicates
     const deduped = Array.from(new Map(tasks.map((t) => [t.id, t])).values());
     return deduped;
