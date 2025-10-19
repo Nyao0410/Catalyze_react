@@ -616,9 +616,20 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
         )}
       </View>
 
-      {/* セッション履歴 */}
+      {/* セッション履歴（直近3件のみ表示） */}
       <View style={dynamicStyles.section}>
-        <Text style={[textStyles.h3, { color: colors.text }]}>学習履歴</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[textStyles.h3, { color: colors.text }]}>学習履歴</Text>
+          {sessions.length > 3 && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SessionHistory', { planId: plan.id })}
+            >
+              <Text style={[textStyles.caption, { color: colors.primary, fontWeight: '600' }]}>
+                すべて見る →
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {sessions.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={48} color={colors.textTertiary} />
@@ -628,94 +639,95 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
           <View style={styles.sessionsContainer}>
             {Object.entries(groupSessionsByDate(sessions))
               .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
-              .map(([date, daySessions]: [string, StudySessionEntity[]]) => (
-                <View key={date} style={styles.dateGroup}>
-                  <Text style={dynamicStyles.dateHeader}>
-                    {format(new Date(date), 'yyyy年MM月dd日 (E)', { locale: ja })}
-                  </Text>
-                  {daySessions.map((session) => (
-                    <View key={session.id} style={dynamicStyles.sessionCard}>
-                      <View style={styles.sessionHeader}>
-                        <View style={styles.sessionTime}>
-                          <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                          <Text style={styles.sessionTimeText}>
-                            {format(session.date, 'HH:mm', { locale: ja })}
-                          </Text>
-                        </View>
-                        <InlineMenu
-                          items={[
-                            {
-                              key: 'edit-session',
-                              label: '編集',
-                              icon: <Ionicons name="pencil" size={16} color={colors.primary} />,
-                              onPress: () => navigation.navigate('RecordSession', { planId: plan.id, sessionId: session.id }),
-                            },
-                            {
-                              key: 'delete-session',
-                              label: '削除',
-                              icon: <Ionicons name="trash" size={16} color={colors.error} />,
-                              color: defaultColors.error,
-                              onPress: () => {
-                                Alert.alert('確認', 'このセッションを削除しますか？', [
-                                  { text: 'キャンセル', style: 'cancel' },
-                                  {
-                                    text: '削除',
-                                    style: 'destructive',
-                                    onPress: () => {
-                                      deleteSession.mutate(session.id, {
-                                        onSuccess: () => {
-                                          // invalidate plan-specific sessions so PlanDetail refreshes
-                                          try {
-                                            queryClient.invalidateQueries({ queryKey: ['studySessions', plan.id] });
-                                          } catch (e) {}
-                                        },
-                                      });
+              .flatMap(([date, daySessions]: [string, StudySessionEntity[]]) =>
+                daySessions.map((session) => ({ date, session }))
+              )
+              .slice(0, 3)
+              .map(({ date, session }) => (
+                <View key={`${date}-${session.id}`} style={dynamicStyles.sessionCard}>
+                  <View style={styles.sessionHeader}>
+                    <View style={styles.sessionTimeGroup}>
+                      <Text style={[textStyles.caption, { color: colors.textSecondary }]}>
+                        {format(new Date(date), 'MM/dd', { locale: ja })}
+                      </Text>
+                      <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+                      <Text style={[styles.sessionTimeText, { color: colors.textSecondary }]}>
+                        {format(session.date, 'HH:mm', { locale: ja })}
+                      </Text>
+                    </View>
+                    <InlineMenu
+                      items={[
+                        {
+                          key: 'edit-session',
+                          label: '編集',
+                          icon: <Ionicons name="pencil" size={16} color={colors.primary} />,
+                          onPress: () => navigation.navigate('RecordSession', { planId: plan.id, sessionId: session.id }),
+                        },
+                        {
+                          key: 'delete-session',
+                          label: '削除',
+                          icon: <Ionicons name="trash" size={16} color={colors.error} />,
+                          color: defaultColors.error,
+                          onPress: () => {
+                            Alert.alert('確認', 'このセッションを削除しますか？', [
+                              { text: 'キャンセル', style: 'cancel' },
+                              {
+                                text: '削除',
+                                style: 'destructive',
+                                onPress: () => {
+                                  deleteSession.mutate(session.id, {
+                                    onSuccess: () => {
+                                      try {
+                                        queryClient.invalidateQueries({ queryKey: ['studySessions', plan.id] });
+                                      } catch (e) {}
                                     },
-                                  },
-                                ]);
+                                  });
+                                },
                               },
-                            },
+                            ]);
+                          },
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.sessionContent}>
+                    <View style={styles.sessionStats}>
+                      <View style={styles.sessionStat}>
+                        <Ionicons name="book-outline" size={14} color={colors.primary} />
+                        <Text style={[styles.sessionStatText, { color: colors.text }]}>
+                          {session.unitsCompleted} {plan.unit}
+                        </Text>
+                      </View>
+                      <View style={styles.sessionStat}>
+                        <Ionicons name="timer-outline" size={14} color={colors.primary} />
+                        <Text style={[styles.sessionStatText, { color: colors.text }]}>
+                          {session.durationMinutes}分
+                        </Text>
+                      </View>
+                      <View style={styles.sessionStat}>
+                        <Ionicons name="speedometer-outline" size={14} color={colors.primary} />
+                        <Text style={[styles.sessionStatText, { color: colors.text }]}>
+                          難易度 {session.difficulty}/5
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.sessionQuality}>
+                      <Text style={[styles.sessionQualityLabel, { color: colors.textSecondary }]}>
+                        集中度
+                      </Text>
+                      <View style={[styles.concentrationBar, { backgroundColor: colors.background }]}>
+                        <View
+                          style={[
+                            styles.concentrationFill,
+                            { width: `${session.concentration * 100}%` },
                           ]}
                         />
                       </View>
-                      <View style={styles.sessionContent}>
-                        <View style={styles.sessionStats}>
-                          <View style={styles.sessionStat}>
-                            <Ionicons name="book-outline" size={16} color={colors.primary} />
-                            <Text style={styles.sessionStatText}>
-                              {session.unitsCompleted} {plan.unit}
-                            </Text>
-                          </View>
-                          <View style={styles.sessionStat}>
-                            <Ionicons name="timer-outline" size={16} color={colors.primary} />
-                            <Text style={styles.sessionStatText}>
-                              {session.durationMinutes}分
-                            </Text>
-                          </View>
-                          <View style={styles.sessionStat}>
-                            <Ionicons name="speedometer-outline" size={16} color={colors.primary} />
-                            <Text style={styles.sessionStatText}>
-                              難易度 {session.difficulty}/5
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.sessionQuality}>
-                          <Text style={styles.sessionQualityLabel}>集中度</Text>
-                          <View style={styles.concentrationBar}>
-                            <View
-                              style={[
-                                styles.concentrationFill,
-                                { width: `${session.concentration * 100}%` },
-                              ]}
-                            />
-                          </View>
-                          <Text style={styles.concentrationText}>
-                            {Math.round(session.concentration * 100)}%
-                          </Text>
-                        </View>
-                      </View>
+                      <Text style={[styles.concentrationText, { color: colors.textSecondary }]}>
+                        {Math.round(session.concentration * 100)}%
+                      </Text>
                     </View>
-                  ))}
+                  </View>
                 </View>
               ))}
           </View>
@@ -1069,5 +1081,16 @@ const styles = StyleSheet.create({
   achievabilityCard: {
     minWidth: '100%',
     marginTop: spacing.sm,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sessionTimeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
 });

@@ -10,6 +10,7 @@ import { PlanDetailScreen, CreatePlanScreen } from '../screens';
 import { TimerScreen } from '../screens/TimerScreen';
 import { RecordSessionScreen } from '../screens/RecordSessionScreen';
 import { ReviewEvaluationScreen } from '../screens/ReviewEvaluationScreen';
+import { SessionHistoryScreen } from '../screens/SessionHistoryScreen';
 import { FriendsListScreen } from '../screens/FriendsListScreen';
 import { AddFriendScreen } from '../screens/AddFriendScreen';
 import { CreateCooperationGoalScreen } from '../screens/CreateCooperationGoalScreen';
@@ -137,6 +138,20 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
         component={ReviewEvaluationScreen}
         options={{
           title: '復習の評価',
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="SessionHistory"
+        component={SessionHistoryScreen}
+        options={{
+          title: '学習履歴',
           headerStyle: {
             backgroundColor: colors.background,
           },

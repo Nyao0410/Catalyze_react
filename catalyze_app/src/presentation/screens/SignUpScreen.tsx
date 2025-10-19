@@ -27,7 +27,7 @@ type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const SignUpScreen: React.FC = () => {
   const navigation = useNavigation<SignUpScreenNavigationProp>();
-  const { colors: colors } = useTheme();
+  const { colors } = useTheme();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -142,7 +142,7 @@ export const SignUpScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: defaultColors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -153,12 +153,8 @@ export const SignUpScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={[styles.title, { color: defaultColors.text }]}>
-              アカウント作成
-            </Text>
-            <Text style={[styles.subtitle, { color: defaultColors.textSecondary }]}>
-              StudyNextへようこそ
-            </Text>
+            <Text style={[styles.title, { color: colors.text }]}>アカウント作成</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>StudyNextへようこそ</Text>
           </View>
 
           <View style={styles.form}>
@@ -234,13 +230,9 @@ export const SignUpScreen: React.FC = () => {
             />
 
             <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: defaultColors.textSecondary }]}>
-                すでにアカウントをお持ちですか？
-              </Text>
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>すでにアカウントをお持ちですか？</Text>
               <TouchableOpacity onPress={handleGoToLogin} disabled={loading}>
-                <Text style={[styles.linkText, { color: defaultColors.primary }]}>
-                  ログイン
-                </Text>
+                <Text style={[styles.linkText, { color: colors.primary }]}>ログイン</Text>
               </TouchableOpacity>
             </View>
           </View>
