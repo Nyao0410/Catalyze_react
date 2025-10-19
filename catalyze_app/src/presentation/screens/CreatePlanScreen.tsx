@@ -20,9 +20,10 @@ import { t } from '../../locales';
 import { useCreatePlan, useStudyPlan, useUpdatePlan } from '../hooks/useStudyPlans';
 import { useTopToast } from '../hooks/useTopToast';
 import { PlanDifficulty, PlanStatus, StudyPlanEntity } from 'catalyze-ai';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
+import { format } from 'date-fns';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
+import { CalendarView } from '../components/CalendarView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreatePlan' | 'EditPlan'>;
 
@@ -39,7 +40,6 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
   const [endUnit, setEndUnit] = useState('1');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [difficulty, setDifficulty] = useState<PlanDifficulty>(PlanDifficulty.NORMAL);
   const [studyDays, setStudyDays] = useState<number[]>([1,2,3,4,5]);
   // advanced settings
@@ -276,34 +276,15 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
         <Modal visible={calendarVisible} animationType="slide" transparent={true}>
           <View style={styles.calendarOverlay}>
             <View style={styles.calendarContainer}>
-              <View style={styles.calendarHeader}>
-                <TouchableOpacity onPress={() => setCalendarMonth(subMonths(calendarMonth, 1))}>
-                  <Text style={styles.calendarNav}>{'<'}</Text>
-                </TouchableOpacity>
-                <Text style={styles.calendarTitle}>{format(calendarMonth, 'yyyy年M月')}</Text>
-                <TouchableOpacity onPress={() => setCalendarMonth(addMonths(calendarMonth, 1))}>
-                  <Text style={styles.calendarNav}>{'>'}</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.calendarGrid}>
-                {(() => {
-                  const start = startOfMonth(calendarMonth);
-                  const end = endOfMonth(calendarMonth);
-                  const days = eachDayOfInterval({ start, end });
-                  return days.map((d) => (
-                    <TouchableOpacity
-                      key={d.toISOString()}
-                      style={[styles.calendarDay, selectedDate && d.toDateString() === selectedDate.toDateString() && styles.calendarDaySelected]}
-                      onPress={() => {
-                        setSelectedDate(d);
-                        setCalendarVisible(false);
-                      }}
-                    >
-                      <Text style={styles.calendarDayText}>{format(d, 'd')}</Text>
-                    </TouchableOpacity>
-                  ));
-                })()}
-              </View>
+              <CalendarView
+                selectedDate={selectedDate || new Date()}
+                onDayPress={(day) => {
+                  const selected = new Date(day.dateString);
+                  setSelectedDate(selected);
+                  setCalendarVisible(false);
+                }}
+                markedDates={selectedDate ? { [format(selectedDate, 'yyyy-MM-dd')]: { selected: true } } : {}}
+              />
               <TouchableOpacity style={styles.calendarClose} onPress={() => setCalendarVisible(false)}>
                 <Text style={styles.calendarCloseText}>閉じる</Text>
               </TouchableOpacity>
@@ -594,42 +575,7 @@ const styles = StyleSheet.create({
     backgroundColor: defaultColors.background,
     borderRadius: 12,
     padding: spacing.md,
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  calendarNav: {
-    ...textStyles.body,
-    color: defaultColors.primary,
-    paddingHorizontal: spacing.sm,
-  },
-  calendarTitle: {
-    ...textStyles.body,
-    color: defaultColors.text,
-    fontWeight: '600',
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-  },
-  calendarDay: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 4,
-    borderRadius: 6,
-  },
-  calendarDaySelected: {
-    backgroundColor: defaultColors.primary,
-  },
-  calendarDayText: {
-    ...textStyles.body,
-    color: defaultColors.text,
+    maxHeight: '85%',
   },
   calendarClose: {
     marginTop: spacing.md,
