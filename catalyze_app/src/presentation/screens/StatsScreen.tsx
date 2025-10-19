@@ -81,6 +81,8 @@ export const StatsScreen: React.FC<Props> = () => {
     container: [styles.container, { backgroundColor: colors.background }],
     centerContainer: [styles.centerContainer, { backgroundColor: colors.background }],
     header: [styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }],
+    headerTitle: [styles.headerTitle, { color: colors.text }],
+    headerSubtitle: [styles.headerSubtitle, { color: colors.textSecondary }],
   };
 
   if (isLoading) {
@@ -104,8 +106,8 @@ export const StatsScreen: React.FC<Props> = () => {
     >
       {/* ヘッダー */}
       <View style={dynamicStyles.header}>
-        <Text style={styles.headerTitle}>学習統計</Text>
-        <Text style={styles.headerSubtitle}>あなたの学習パターンを可視化</Text>
+        <Text style={dynamicStyles.headerTitle}>学習統計</Text>
+        <Text style={dynamicStyles.headerSubtitle}>あなたの学習パターンを可視化</Text>
       </View>
 
       {/* 学習時間グラフ */}
@@ -152,6 +154,10 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: defaultColors.card,
+    borderRadius: 12,
   },
   headerTitle: {
     ...textStyles.h1,

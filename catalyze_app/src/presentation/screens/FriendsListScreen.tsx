@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useFriends, useAddFriend, useInitializeSocialMockData, useRemoveFriend } from '../hooks';
 import { useTopToast } from '../hooks/useTopToast';
@@ -35,6 +36,17 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
   const [friendId, setFriendId] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const insets = useSafeAreaInsets();
+  const { colors: themeColors } = useTheme();
+  
+  // 動的スタイル（テーマ対応）
+  const dynamicStyles = {
+    container: [styles.container, { backgroundColor: themeColors.background }],
+    centerContent: [styles.centerContent, { backgroundColor: themeColors.background }],
+    header: [styles.header, { backgroundColor: themeColors.card, borderBottomColor: themeColors.border }],
+    friendCard: [styles.friendCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }],
+    modalContent: [styles.modalContent, { backgroundColor: themeColors.card }],
+    modalHeader: [styles.modalHeader, { borderBottomColor: themeColors.border }],
+  };
   
   useEffect(() => {
     const loadUserId = async () => {
@@ -98,25 +110,25 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={dynamicStyles.centerContent}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={dynamicStyles.container}>
       {/* ヘッダー */}
-      <View style={[styles.header, { paddingTop: insets.top }]}> 
+      <View style={[dynamicStyles.header, { paddingTop: insets.top }]}> 
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={20} color={colors.text} />
+          <Ionicons name="arrow-back" size={20} color={themeColors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitleSmall}>フレンド</Text>
+        <Text style={[styles.headerTitleSmall, { color: themeColors.text }]}>フレンド</Text>
         <TouchableOpacity 
           onPress={() => (navigation as any).navigate('AddFriend')} 
           style={styles.addButton}
         >
-          <Ionicons name="person-add" size={24} color={colors.primary} />
+          <Ionicons name="person-add" size={24} color={themeColors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -124,24 +136,24 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>フレンド一覧</Text>
-            <Text style={styles.friendCount}>{friends.length}人</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.text }]}>フレンド一覧</Text>
+            <Text style={[styles.friendCount, { color: themeColors.textSecondary }]}>{friends.length}人</Text>
           </View>
 
           {friends.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={64} color={colors.textSecondary} />
-              <Text style={styles.emptyStateText}>まだフレンドがいません</Text>
+              <Ionicons name="people-outline" size={64} color={themeColors.textSecondary} />
+              <Text style={[styles.emptyStateText, { color: themeColors.textSecondary }]}>まだフレンドがいません</Text>
               <TouchableOpacity 
-                style={styles.mockDataButton}
+                style={[styles.mockDataButton, { backgroundColor: themeColors.primaryLight }]}
                 onPress={handleInitMockData}
               >
-                <Text style={styles.mockDataButtonText}>モックデータを読み込む</Text>
+                <Text style={[styles.mockDataButtonText, { color: themeColors.primary }]}>モックデータを読み込む</Text>
               </TouchableOpacity>
             </View>
           ) : (
             friends.map((friend) => (
-              <View key={friend.id} style={styles.friendCard}>
+              <View key={friend.id} style={dynamicStyles.friendCard}>
                 <View style={styles.friendLeft}>
                   <View style={styles.avatarContainer}>
                     <Text style={styles.avatar}>{friend.avatar}</Text>
@@ -151,15 +163,15 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
                   </View>
                   
                   <View style={styles.friendInfo}>
-                    <Text style={styles.friendName}>{friend.name}</Text>
+                    <Text style={[styles.friendName, { color: themeColors.text }]}>{friend.name}</Text>
                     <View style={styles.statsRow}>
                       <View style={styles.stat}>
-                        <Ionicons name="star" size={14} color={colors.warning} />
-                        <Text style={styles.statText}>Lv.{friend.level}</Text>
+                        <Ionicons name="star" size={14} color={themeColors.warning} />
+                        <Text style={[styles.statText, { color: themeColors.textSecondary }]}>Lv.{friend.level}</Text>
                       </View>
                       <View style={styles.stat}>
-                        <Ionicons name="trophy" size={14} color={colors.primary} />
-                        <Text style={styles.statText}>{friend.points}pt</Text>
+                        <Ionicons name="trophy" size={14} color={themeColors.primary} />
+                        <Text style={[styles.statText, { color: themeColors.textSecondary }]}>{friend.points}pt</Text>
                       </View>
                     </View>
                   </View>
@@ -167,7 +179,7 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
 
                 <View style={styles.friendActions}>
                   <TouchableOpacity style={styles.actionButton}>
-                    <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
+                    <Ionicons name="chatbubble-outline" size={20} color={themeColors.primary} />
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.actionButton}
@@ -197,7 +209,7 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
                       );
                     }}
                   >
-                    <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+                    <Ionicons name="ellipsis-horizontal" size={20} color={themeColors.textSecondary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -214,51 +226,53 @@ export const FriendsListScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navi
         onRequestClose={() => setShowAddModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>フレンドを追加</Text>
+        <View style={dynamicStyles.modalContent}>
+            <View style={dynamicStyles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: themeColors.text }]}>フレンドを追加</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={24} color={themeColors.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.modalBody}>
-              <Text style={styles.inputLabel}>フレンドの名前</Text>
+              <Text style={[styles.inputLabel, { color: themeColors.text }]}>フレンドの名前</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }]}
                 placeholder="例: 田中太郎"
+                placeholderTextColor={themeColors.textSecondary}
                 value={friendName}
                 onChangeText={setFriendName}
                 autoFocus
               />
 
-              <Text style={styles.inputLabel}>フレンドID（オプション）</Text>
+              <Text style={[styles.inputLabel, { color: themeColors.text }]}>フレンドID（オプション）</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }]}
                 placeholder="例: user-002"
+                placeholderTextColor={themeColors.textSecondary}
                 value={friendId}
                 onChangeText={setFriendId}
               />
 
-              <Text style={styles.inputHint}>
+              <Text style={[styles.inputHint, { color: themeColors.textSecondary }]}>
                 IDを入力しない場合は自動生成されます
               </Text>
             </View>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.modalButton, styles.cancelButton, { borderColor: themeColors.border }]}
                 onPress={() => setShowAddModal(false)}
               >
-                <Text style={styles.cancelButtonText}>キャンセル</Text>
+                <Text style={[styles.cancelButtonText, { color: themeColors.text }]}>キャンセル</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.modalButton, styles.addButtonModal]}
+                style={[styles.modalButton, styles.addButtonModal, { backgroundColor: themeColors.primary }]}
                 onPress={handleAddFriend}
                 disabled={addFriendMutation.isPending}
               >
                 {addFriendMutation.isPending ? (
-                  <ActivityIndicator color={colors.white} />
+                  <ActivityIndicator color={themeColors.white} />
                 ) : (
                   <Text style={styles.addButtonText}>追加</Text>
                 )}

@@ -182,22 +182,13 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
           style: 'destructive',
           onPress: async () => {
             try {
-              // Firebase認証とAccountServiceの実装を動的にインポート
+              // Firebase認証を動的にインポート
               const { signOut } = await import('../../infrastructure/auth');
-              const { AccountService } = await import('../../application/services/AccountService');
               
               // ログアウト処理
               await signOut();
               
-              // ローカルデータをクリア
-              await AccountService.clearAll();
-              
-              // ログイン画面に戻る
-              (navigation.getParent() as any)?.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
-              
+              // ローカルデータは保持して、非ログイン状態でアカウント画面に留まる
               toast.show('ログアウトしました');
             } catch (error: any) {
               console.error('Logout error:', error);
@@ -276,43 +267,44 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
           </View>
         </View>
       )}
-      <View style={styles.profileHeader}>
+      <View style={[styles.profileHeader, { backgroundColor: themeColors.card }]}>
         <View style={styles.avatarContainer}>
           <Text style={styles.avatarLarge}>{isEditing ? selectedAvatar : profile.avatar}</Text>
-          <View style={styles.levelBadge}>
-            <Ionicons name="star" size={12} color={colors.white} />
+          <View style={[styles.levelBadge, { backgroundColor: themeColors.primary }]}>
+            <Ionicons name="star" size={12} color={themeColors.white} />
             <Text style={styles.levelText}>{profile.level}</Text>
           </View>
         </View>
         
         <View style={styles.profileInfo}>
-          <Text style={styles.totalHoursLabel}>総学習時間</Text>
-          <Text style={styles.totalHours}>{profile.totalStudyHours}時間</Text>
+          <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary }]}>総学習時間</Text>
+          <Text style={[styles.totalHours, { color: themeColors.primary }]}>{profile.totalStudyHours}時間</Text>
         </View>
       </View>
 
       {isEditing ? (
         <View style={styles.editContainer}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>表示名</Text>
+            <Text style={[styles.inputLabel, { color: themeColors.text }]}>表示名</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }]}
               value={tempDisplayName}
               onChangeText={setTempDisplayName}
               placeholder="表示名を入力"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={themeColors.textSecondary}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>アバター選択</Text>
+            <Text style={[styles.inputLabel, { color: themeColors.text }]}>アバター選択</Text>
             <View style={styles.avatarGrid}>
               {avatarOptions.map((avatar) => (
                 <TouchableOpacity
                   key={avatar}
                   style={[
                     styles.avatarOption,
-                    selectedAvatar === avatar && styles.avatarOptionSelected,
+                    selectedAvatar === avatar && [styles.avatarOptionSelected, { backgroundColor: themeColors.primaryLight, borderColor: themeColors.primary }],
+                    { backgroundColor: themeColors.background, borderColor: themeColors.border },
                   ]}
                   onPress={() => setSelectedAvatar(avatar)}
                 >
@@ -323,38 +315,38 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
           </View>
 
           <View style={styles.editButtons}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEdit}>
-              <Text style={styles.cancelButtonText}>キャンセル</Text>
+            <TouchableOpacity style={[styles.cancelButton, { backgroundColor: themeColors.background, borderColor: themeColors.border }]} onPress={handleCancelEdit}>
+              <Text style={[styles.cancelButtonText, { color: themeColors.text }]}>キャンセル</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
+            <TouchableOpacity style={[styles.saveButton, { backgroundColor: themeColors.primary }]} onPress={handleSaveProfile}>
               <Text style={styles.saveButtonText}>保存</Text>
             </TouchableOpacity>
           </View>
         </View>
       ) : (
-        <View style={styles.profileDetails}>
-          <View style={styles.profileRow}>
-            <Text style={styles.profileLabel}>表示名</Text>
-            <Text style={styles.profileValue}>{profile.displayName}</Text>
+        <View style={[styles.profileDetails, { backgroundColor: themeColors.card }]}>
+          <View style={[styles.profileRow, { borderBottomColor: themeColors.border }]}>
+            <Text style={[styles.profileLabel, { color: themeColors.textSecondary }]}>表示名</Text>
+            <Text style={[styles.profileValue, { color: themeColors.text }]}>{profile.displayName}</Text>
           </View>
           {isAuthenticated && currentUserEmail && (
-            <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>メール</Text>
-              <Text style={styles.profileValue}>{currentUserEmail}</Text>
+            <View style={[styles.profileRow, { borderBottomColor: themeColors.border }]}>
+              <Text style={[styles.profileLabel, { color: themeColors.textSecondary }]}>メール</Text>
+              <Text style={[styles.profileValue, { color: themeColors.text }]}>{currentUserEmail}</Text>
             </View>
           )}
           
           <TouchableOpacity style={styles.editProfileButton} onPress={() => setIsEditing(true)}>
-            <Ionicons name="create-outline" size={20} color={colors.primary} />
-            <Text style={styles.editProfileButtonText}>プロフィールを編集</Text>
+            <Ionicons name="create-outline" size={20} color={themeColors.primary} />
+            <Text style={[styles.editProfileButtonText, { color: themeColors.primary }]}>プロフィールを編集</Text>
           </TouchableOpacity>
           
           {!isAuthenticated && (
             <TouchableOpacity 
-              style={styles.createAccountButton} 
+              style={[styles.createAccountButton, { backgroundColor: themeColors.primary }]} 
               onPress={() => navigation.navigate('SignUp')}
             >
-              <Ionicons name="person-add-outline" size={20} color={colors.white} />
+              <Ionicons name="person-add-outline" size={20} color={themeColors.white} />
               <Text style={styles.createAccountButtonText}>アカウントを作成</Text>
             </TouchableOpacity>
           )}
@@ -367,12 +359,12 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>設定</Text>
       
-      <View style={styles.settingCard}>
+      <View style={[styles.settingCard, { backgroundColor: themeColors.card }]}>
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <Ionicons name="notifications-outline" size={24} color={colors.text} />
+            <Ionicons name="notifications-outline" size={24} color={themeColors.text} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>通知</Text>
+              <Text style={[styles.settingTitle, { color: themeColors.text }]}>通知</Text>
               <Text style={styles.settingDescription}>プッシュ通知を受け取る</Text>
             </View>
           </View>
@@ -386,10 +378,10 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <Ionicons name="moon-outline" size={24} color={colors.text} />
+            <Ionicons name="moon-outline" size={24} color={themeColors.text} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>ダークモード</Text>
-              <Text style={styles.settingDescription}>外観を暗くする</Text>
+              <Text style={[styles.settingTitle, { color: themeColors.text }]}>ダークモード</Text>
+              <Text style={[styles.settingDescription, { color: themeColors.textSecondary }]}>外観を暗くする</Text>
             </View>
           </View>
           <Switch
@@ -402,10 +394,10 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <Ionicons name="volume-high-outline" size={24} color={colors.text} />
+            <Ionicons name="volume-high-outline" size={24} color={themeColors.text} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>効果音</Text>
-              <Text style={styles.settingDescription}>音声フィードバック</Text>
+              <Text style={[styles.settingTitle, { color: themeColors.text }]}>効果音</Text>
+              <Text style={[styles.settingDescription, { color: themeColors.textSecondary }]}>音声フィードバック</Text>
             </View>
           </View>
           <Switch
@@ -418,10 +410,10 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <Ionicons name="alarm-outline" size={24} color={colors.text} />
+            <Ionicons name="alarm-outline" size={24} color={themeColors.text} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>毎日のリマインダー</Text>
-              <Text style={styles.settingDescription}>学習時間を通知</Text>
+              <Text style={[styles.settingTitle, { color: themeColors.text }]}>毎日のリマインダー</Text>
+              <Text style={[styles.settingDescription, { color: themeColors.textSecondary }]}>学習時間を通知</Text>
             </View>
           </View>
           <Switch
@@ -434,10 +426,10 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <Ionicons name="timer-outline" size={24} color={colors.text} />
+            <Ionicons name="timer-outline" size={24} color={themeColors.text} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>ポモドーロ作業時間</Text>
-              <Text style={styles.settingDescription}>集中する時間（分）</Text>
+              <Text style={[styles.settingTitle, { color: themeColors.text }]}>ポモドーロ作業時間</Text>
+              <Text style={[styles.settingDescription, { color: themeColors.textSecondary }]}>集中する時間（分）</Text>
             </View>
           </View>
           <TextInput
@@ -456,10 +448,10 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <Ionicons name="cafe-outline" size={24} color={colors.text} />
+            <Ionicons name="cafe-outline" size={24} color={themeColors.text} />
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>ポモドーロ休憩時間</Text>
-              <Text style={styles.settingDescription}>休憩する時間（分）</Text>
+              <Text style={[styles.settingTitle, { color: themeColors.text }]}>ポモドーロ休憩時間</Text>
+              <Text style={[styles.settingDescription, { color: themeColors.textSecondary }]}>休憩する時間（分）</Text>
             </View>
           </View>
           <TextInput
@@ -481,46 +473,46 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
 
   const renderOtherSection = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>その他</Text>
+      <Text style={[styles.sectionTitle, { color: themeColors.text }]}>その他</Text>
       
-      <View style={styles.menuCard}>
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Help')}>
+      <View style={[styles.menuCard, { backgroundColor: themeColors.card }]}>
+        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: themeColors.border }]} onPress={() => navigation.navigate('Help')}>
           <View style={styles.menuLeft}>
-            <Ionicons name="help-circle-outline" size={24} color={colors.text} />
-            <Text style={styles.menuTitle}>ヘルプ・サポート</Text>
+            <Ionicons name="help-circle-outline" size={24} color={themeColors.text} />
+            <Text style={[styles.menuTitle, { color: themeColors.text }]}>ヘルプ・サポート</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={24} color={themeColors.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Terms')}>
+        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: themeColors.border }]} onPress={() => navigation.navigate('Terms')}>
           <View style={styles.menuLeft}>
-            <Ionicons name="document-text-outline" size={24} color={colors.text} />
-            <Text style={styles.menuTitle}>利用規約</Text>
+            <Ionicons name="document-text-outline" size={24} color={themeColors.text} />
+            <Text style={[styles.menuTitle, { color: themeColors.text }]}>利用規約</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={24} color={themeColors.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PrivacyPolicy')}>
+        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: themeColors.border }]} onPress={() => navigation.navigate('PrivacyPolicy')}>
           <View style={styles.menuLeft}>
-            <Ionicons name="shield-checkmark-outline" size={24} color={colors.text} />
-            <Text style={styles.menuTitle}>プライバシーポリシー</Text>
+            <Ionicons name="shield-checkmark-outline" size={24} color={themeColors.text} />
+            <Text style={[styles.menuTitle, { color: themeColors.text }]}>プライバシーポリシー</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={24} color={themeColors.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('About')}>
           <View style={styles.menuLeft}>
-            <Ionicons name="information-circle-outline" size={24} color={colors.text} />
-            <Text style={styles.menuTitle}>アプリについて</Text>
+            <Ionicons name="information-circle-outline" size={24} color={themeColors.text} />
+            <Text style={[styles.menuTitle, { color: themeColors.text }]}>アプリについて</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={24} color={themeColors.textSecondary} />
         </TouchableOpacity>
       </View>
 
       {isAuthenticated && (
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color={colors.error} />
-          <Text style={styles.logoutButtonText}>ログアウト</Text>
+        <TouchableOpacity style={[styles.logoutButton, { backgroundColor: themeColors.card }]} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={24} color={themeColors.error} />
+          <Text style={[styles.logoutButtonText, { color: themeColors.error }]}>ログアウト</Text>
         </TouchableOpacity>
       )}
     </View>

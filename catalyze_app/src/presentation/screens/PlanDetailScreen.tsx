@@ -255,12 +255,21 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
     : completedUnits;
   const remainingUnits = Math.max(plan.totalUnits - completedInCurrentRound, 0);
 
+  // 動的スタイル（テーマ対応）
+  const dynamicStyles = {
+    container: [styles.container, { backgroundColor: colors.background }],
+    header: [styles.header, { backgroundColor: colors.card }],
+    section: [styles.section, {}],
+    dateHeader: [styles.dateHeader, { color: colors.text }],
+    sessionCard: [styles.sessionCard, { backgroundColor: colors.card, borderColor: colors.border }],
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={dynamicStyles.container}>
       {/* ヘッダーセクション */}
-      <View style={styles.header}>
+      <View style={dynamicStyles.header}>
         <View style={styles.titleRow}>
-          <Text style={textStyles.h1}>{plan.title}</Text>
+          <Text style={[textStyles.h1, { color: colors.text }]}>{plan.title}</Text>
           <View style={styles.titleActions}>
             <InlineMenu
               items={[
@@ -306,12 +315,12 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
       </View>
 
       {/* 進捗セクション */}
-      <View style={styles.section}>
-        <Text style={textStyles.h3}>進捗状況</Text>
+      <View style={dynamicStyles.section}>
+        <Text style={[textStyles.h3, { color: colors.text }]}>進捗状況</Text>
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
             {/* 現在の周の進捗を表示（例: 185/200 問）。unitRange があれば絶対単元で表示 */}
-            <Text style={textStyles.h2}>
+            <Text style={[textStyles.h2, { color: colors.text }]}>
               {(() => {
                 const range = (plan.unitRange as { start: number; end: number } | undefined);
                 if (range && typeof range.start === 'number' && typeof range.end === 'number') {
@@ -324,7 +333,7 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
               })()}
             </Text>
             {/* 全体の進捗（累計 / 総数）をパーセンテージで表示（例: 193%） */}
-            <Text style={textStyles.h2}>
+            <Text style={[textStyles.h2, { color: colors.primary }]}>
               {Math.round(progressPercentage * 100)}%
             </Text>
           </View>
@@ -338,8 +347,8 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
       </View>
 
       {/* 統計セクション */}
-      <View style={styles.section}>
-        <Text style={textStyles.h3}>統計情報</Text>
+      <View style={dynamicStyles.section}>
+        <Text style={[textStyles.h3, { color: colors.text }]}>統計情報</Text>
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             {/* 表示を PlanCard に合わせて 0 始まりに揃える */}
@@ -608,8 +617,8 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
       </View>
 
       {/* セッション履歴 */}
-      <View style={styles.section}>
-        <Text style={textStyles.h3}>学習履歴</Text>
+      <View style={dynamicStyles.section}>
+        <Text style={[textStyles.h3, { color: colors.text }]}>学習履歴</Text>
         {sessions.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={48} color={colors.textTertiary} />
@@ -621,11 +630,11 @@ export const PlanDetailScreen: React.FC<Props> = ({ route }) => {
               .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
               .map(([date, daySessions]: [string, StudySessionEntity[]]) => (
                 <View key={date} style={styles.dateGroup}>
-                  <Text style={styles.dateHeader}>
+                  <Text style={dynamicStyles.dateHeader}>
                     {format(new Date(date), 'yyyy年MM月dd日 (E)', { locale: ja })}
                   </Text>
                   {daySessions.map((session) => (
-                    <View key={session.id} style={styles.sessionCard}>
+                    <View key={session.id} style={dynamicStyles.sessionCard}>
                       <View style={styles.sessionHeader}>
                         <View style={styles.sessionTime}>
                           <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
@@ -907,11 +916,11 @@ const styles = StyleSheet.create({
   },
   dateHeader: {
     ...textStyles.h4,
-    color: defaultColors.primary,
+    color: defaultColors.text,
     marginBottom: spacing.xs,
   },
   sessionCard: {
-    backgroundColor: defaultColors.backgroundSecondary,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     padding: spacing.md,
     borderWidth: 1,

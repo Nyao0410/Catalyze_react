@@ -67,8 +67,9 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
     container: [styles.container, { backgroundColor: colors.background }],
     loginPromptContainer: [styles.loginPromptContainer, { backgroundColor: colors.background }],
     loginButton: [styles.loginButton, { backgroundColor: colors.primary }],
-    tabButton: [styles.tabButton, { borderBottomColor: colors.border }],
-    tabButtonActive: [styles.tabButtonActive, { borderBottomColor: colors.primary }],
+    tabContainer: [styles.tabContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }],
+    tabButton: [styles.tabButton, { backgroundColor: colors.background }],
+    tabButtonActive: [styles.tabButtonActive, { backgroundColor: colors.primaryLight }],
     tabButtonText: [styles.tabButtonText, { color: colors.textSecondary }],
     tabButtonTextActive: [styles.tabButtonTextActive, { color: colors.primary }],
   };
@@ -250,7 +251,7 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
 
   return (
     <View style={dynamicStyles.container}>
-      <View style={styles.tabContainer}>
+      <View style={dynamicStyles.tabContainer}>
         {renderTabButton('cooperation', '協力モード', 'people')}
         {renderTabButton('ranking', 'ランキング', 'trophy')}
       </View>
@@ -305,6 +306,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     gap: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: defaultColors.border,
   },
   tabButton: {
     flex: 1,

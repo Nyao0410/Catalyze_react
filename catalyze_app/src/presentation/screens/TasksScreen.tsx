@@ -902,7 +902,7 @@ export const TodayScreen: React.FC<Props> = () => {
 
     return (
       <ScrollView
-        style={styles.container}
+        style={[dynamicStyles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={{ paddingBottom: spacing.xl * 2 }}
       >
         {/* カレンダー */}
@@ -916,7 +916,7 @@ export const TodayScreen: React.FC<Props> = () => {
 
         {/* 選択された日のタスク */}
         <View style={styles.tasksSection}>
-          <Text style={styles.dateHeader}>
+          <Text style={[styles.dateHeader, { color: colors.text }]}>
             {format(selectedDate, 'M月d日(E)', { locale: ja })}のタスク
           </Text>
           {tasksForDateLoading ? (
@@ -1029,9 +1029,9 @@ export const TodayScreen: React.FC<Props> = () => {
   const renderTabBar = (props: any) => (
     <TabBar
       {...props}
-      indicatorStyle={{ backgroundColor: defaultColors.primary }}
-      style={{ backgroundColor: defaultColors.card }}
-      labelStyle={{ color: defaultColors.text }}
+      indicatorStyle={{ backgroundColor: colors.primary }}
+      style={{ backgroundColor: colors.card }}
+      labelStyle={{ color: colors.text }}
       activeColor={colors.primary}
       inactiveColor={colors.textSecondary}
     />
@@ -1042,29 +1042,29 @@ export const TodayScreen: React.FC<Props> = () => {
 
   // 動的スタイル（テーマ対応）
   const dynamicStyles = {
-    container: [styles.container, { backgroundColor: defaultColors.background }],
-    centerContainer: [styles.centerContainer, { backgroundColor: defaultColors.background }],
-    header: [styles.header, { backgroundColor: defaultColors.card, borderBottomColor: defaultColors.border }],
-    dateText: [styles.dateText, { color: defaultColors.textSecondary }],
-    summaryCard: [styles.summaryCard, { backgroundColor: defaultColors.card }],
-    summaryValue: [styles.summaryValue, { color: defaultColors.primary }],
-    summaryLabel: [styles.summaryLabel, { color: defaultColors.textSecondary }],
-    dateHeader: [styles.dateHeader, { color: defaultColors.primary }],
-    sessionCard: [styles.sessionCard, { backgroundColor: defaultColors.backgroundSecondary, borderColor: defaultColors.border }],
-    planTitle: [styles.planTitle, { color: defaultColors.primary }],
-    sessionTimeText: [styles.sessionTimeText, { color: defaultColors.textSecondary }],
-    performanceText: [styles.performanceText, { color: defaultColors.textSecondary }],
-    sessionStatText: [styles.sessionStatText, { color: defaultColors.text }],
-    sessionQualityLabel: [styles.sessionQualityLabel, { color: defaultColors.textSecondary }],
-    concentrationBar: [styles.concentrationBar, { backgroundColor: defaultColors.background }],
-    concentrationFill: [styles.concentrationFill, { backgroundColor: defaultColors.primary }],
-    concentrationText: [styles.concentrationText, { color: defaultColors.textSecondary }],
-    menuModal: [styles.menuModal, { backgroundColor: defaultColors.card }],
-    menuItemText: [styles.menuItemText, { color: defaultColors.text }],
-    menuDivider: [styles.menuDivider, { backgroundColor: defaultColors.border }],
-    splitContainer: [styles.splitContainer, { backgroundColor: defaultColors.background }],
-    leftPaneCalendar: [styles.leftPaneCalendar, { borderRightColor: defaultColors.border, backgroundColor: defaultColors.card }],
-    rightPaneTasks: [styles.rightPaneTasks, { backgroundColor: defaultColors.background }],
+    container: [styles.container, { backgroundColor: colors.background }],
+    centerContainer: [styles.centerContainer, { backgroundColor: colors.background }],
+    header: [styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }],
+    dateText: [styles.dateText, { color: colors.textSecondary }],
+    summaryCard: [styles.summaryCard, { backgroundColor: colors.card }],
+    summaryValue: [styles.summaryValue, { color: colors.primary }],
+    summaryLabel: [styles.summaryLabel, { color: colors.textSecondary }],
+    dateHeader: [styles.dateHeader, { color: colors.text }],
+    sessionCard: [styles.sessionCard, { backgroundColor: colors.card, borderColor: colors.border }],
+    planTitle: [styles.planTitle, { color: colors.text }],
+    sessionTimeText: [styles.sessionTimeText, { color: colors.textSecondary }],
+    performanceText: [styles.performanceText, { color: colors.textSecondary }],
+    sessionStatText: [styles.sessionStatText, { color: colors.text }],
+    sessionQualityLabel: [styles.sessionQualityLabel, { color: colors.textSecondary }],
+    concentrationBar: [styles.concentrationBar, { backgroundColor: colors.background }],
+    concentrationFill: [styles.concentrationFill, { backgroundColor: colors.primary }],
+    concentrationText: [styles.concentrationText, { color: colors.textSecondary }],
+    menuModal: [styles.menuModal, { backgroundColor: colors.card }],
+    menuItemText: [styles.menuItemText, { color: colors.text }],
+    menuDivider: [styles.menuDivider, { backgroundColor: colors.border }],
+    splitContainer: [styles.splitContainer, { backgroundColor: colors.background }],
+    leftPaneCalendar: [styles.leftPaneCalendar, { borderRightColor: colors.border, backgroundColor: colors.card }],
+    rightPaneTasks: [styles.rightPaneTasks, { backgroundColor: colors.background }],
   };
 
   return (
@@ -1166,7 +1166,7 @@ const styles = StyleSheet.create({
   },
   dateHeader: {
     ...textStyles.h4,
-    color: defaultColors.primary,
+    color: defaultColors.text,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.md,
@@ -1316,7 +1316,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sessionCard: {
-    backgroundColor: defaultColors.backgroundSecondary,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     padding: spacing.md,
     borderWidth: 1,
@@ -1331,7 +1331,7 @@ const styles = StyleSheet.create({
   },
   planTitle: {
     ...textStyles.h4,
-    color: defaultColors.primary,
+    color: defaultColors.text,
     flex: 1,
     marginRight: spacing.sm,
   },

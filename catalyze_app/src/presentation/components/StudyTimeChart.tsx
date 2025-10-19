@@ -67,9 +67,9 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
       ];
 
   const chartConfig = {
-    backgroundColor: defaultColors.background,
-    backgroundGradientFrom: defaultColors.backgroundSecondary,
-    backgroundGradientTo: defaultColors.backgroundSecondary,
+    backgroundColor: colors.background,
+    backgroundGradientFrom: colors.card,
+    backgroundGradientTo: colors.card,
     decimalPlaces: 1,
     color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`, // primary color
     labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`, // text secondary
@@ -139,7 +139,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
 
   return (
     <View
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.card }]}
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width;
         // reserve small horizontal margin inside the card
@@ -148,29 +148,31 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
     >
       {/* ヘッダー */}
       <View style={styles.header}>
-        <Text style={styles.title}>学習時間</Text>
-        <View style={styles.periodToggle}>
+        <Text style={[styles.title, { color: colors.text }]}>学習時間</Text>
+        <View style={[styles.periodToggle, { backgroundColor: colors.background }]}>
           <TouchableOpacity
-            style={[styles.periodButton, period === 'weekly' && styles.periodButtonActive]}
+            style={[styles.periodButton, period === 'weekly' && [styles.periodButtonActive, { backgroundColor: colors.primary }]]}
             onPress={() => setPeriod('weekly')}
           >
             <Text
               style={[
                 styles.periodButtonText,
                 period === 'weekly' && styles.periodButtonTextActive,
+                { color: period === 'weekly' ? defaultColors.white : colors.textSecondary },
               ]}
             >
               週間
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.periodButton, period === 'monthly' && styles.periodButtonActive]}
+            style={[styles.periodButton, period === 'monthly' && [styles.periodButtonActive, { backgroundColor: colors.primary }]]}
             onPress={() => setPeriod('monthly')}
           >
             <Text
               style={[
                 styles.periodButtonText,
                 period === 'monthly' && styles.periodButtonTextActive,
+                { color: period === 'monthly' ? defaultColors.white : colors.textSecondary },
               ]}
             >
               月間
@@ -202,7 +204,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
                         x={leftYAxisWidth - 6}
                         y={y + 4} // small vertical offset to better align with bars
                         fontSize={11}
-                        fill="#6B7280"
+                        fill={colors.textSecondary}
                         textAnchor="end"
                       >
                         {formatHourLabel(t)}

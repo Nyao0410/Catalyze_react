@@ -58,7 +58,11 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       effectivePlan = plan as unknown as StudyPlanEntity;
     }
   }
-  // ...existing code...
+  
+  // 動的スタイル（テーマ対応）
+  const dynamicStyles = {
+    title: [styles.title, { color: colors.text }],
+  };
   // 進捗率の計算
   // 表示用の調整: completedUnits が totalUnits を超える場合は周回数を繰り上げて
   // カードには「現在の周回内での完了単元数」を表示する。
@@ -139,7 +143,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
         {/* ヘッダー */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.title} numberOfLines={1}>
+            <Text style={dynamicStyles.title} numberOfLines={1}>
               {plan.title}
             </Text>
             <View style={styles.badges}>
