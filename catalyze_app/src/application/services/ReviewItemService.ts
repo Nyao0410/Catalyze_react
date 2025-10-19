@@ -52,6 +52,15 @@ export class ReviewItemService {
     if (!item) {
       throw new Error(`Review item not found: ${reviewId}`);
     }
+    
+    if (typeof (item as any).recordReview !== 'function') {
+      // Try to instantiate as ReviewItemEntity if it's not already
+      const entity = new ReviewItemEntity(item as any);
+      const updatedItem = entity.recordReview(quality);
+      await this.repository.update(updatedItem);
+      return updatedItem;
+    }
+    
     const updatedItem = item.recordReview(quality);
     await this.repository.update(updatedItem);
     return updatedItem;

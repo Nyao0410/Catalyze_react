@@ -6,7 +6,7 @@ import Slider from '@react-native-community/slider';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { spacing, colors as defaultColors, textStyles } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
-import { addDays } from 'date-fns';
+import { addDays, isToday, startOfDay } from 'date-fns';
 import type { RootStackScreenProps } from '../navigation/types';
 import { useCreateSession, useDailyTasksByPlan, useUpdateSession, useStudySession } from '../hooks';
 import { useRecordReview } from '../hooks/useReviewItems';
@@ -33,8 +33,12 @@ export const RecordSessionScreen: React.FC = () => {
   // 編集モードかどうか
   const isEditMode = !!sessionId;
 
+  // 復習タスク完了かどうか（paramStartUnitとparamEndUnitがあれば復習タスク完了）
+  const isReviewCompletion = paramStartUnit !== undefined && paramEndUnit !== undefined && !taskId;
+
   // モード: 'quantity' = 単純に量を入力、'range' = 範囲を指定
-  const [inputMode, setInputMode] = useState<'quantity' | 'range'>('quantity');
+  // ★修正: 復習タスク完了時は常に範囲モード
+  const [inputMode, setInputMode] = useState<'quantity' | 'range'>(isReviewCompletion ? 'range' : 'quantity');
 
   // 編集モードの場合、既存のセッションを取得
   const existingSessionQuery = useStudySession(sessionId || '');
@@ -157,6 +161,16 @@ export const RecordSessionScreen: React.FC = () => {
     let startUnit: number | undefined;
     let endUnit: number | undefined;
 
+    if (__DEV__) {
+      console.log('[RecordSession] handleSave started:', {
+        isReviewCompletion,
+        inputMode,
+        paramStartUnit,
+        paramEndUnit,
+        isEditMode,
+      });
+    }
+
     if (isEditMode && existingSession) {
       unitsNumber = existingSession.unitsCompleted;
       startUnit = (existingSession as any).startUnit;
@@ -185,9 +199,16 @@ export const RecordSessionScreen: React.FC = () => {
         } else {
           unitsNumber = 1;
         }
-        // 量モードでは startUnit/endUnit は自動計算される
-        startUnit = undefined;
-        endUnit = undefined;
+        
+        // ★修正: 復習タスク完了時はparamStartUnit/paramEndUnitをそのまま使用
+        if (paramStartUnit !== undefined && paramEndUnit !== undefined) {
+          startUnit = paramStartUnit;
+          endUnit = paramEndUnit;
+        } else {
+          // 量モードでは startUnit/endUnit は自動計算される
+          startUnit = undefined;
+          endUnit = undefined;
+        }
       }
     }
 
@@ -213,40 +234,45 @@ export const RecordSessionScreen: React.FC = () => {
 
         await updateSession.mutateAsync(updatedSession);
 
-        // --- 自動 SM-2 適用: 編集時にも難易度を反映する ---
-        try {
-          // determine start/end units for the session
-          let finalStartUnit: number | undefined = startUnit ?? (existingSession as any).startUnit ?? paramStartUnit;
-          let finalEndUnit: number | undefined = endUnit ?? (existingSession as any).endUnit ?? paramEndUnit;
+        // --- 編集時の自動 SM-2 適用: 復習完了時のみ難易度を反映 ---
+        if (isReviewCompletion) {
+          // 復習タスク完了の編集時: SM-2を適用
+          try {
+            let finalStartUnit: number | undefined = startUnit ?? (existingSession as any).startUnit;
+            let finalEndUnit: number | undefined = endUnit ?? (existingSession as any).endUnit;
 
-          // fallback: attempt to reconstruct using other sessions if missing
-          if (finalStartUnit === undefined || finalEndUnit === undefined) {
-            const otherSessions = Array.isArray(sessions) ? sessions.filter((s) => s.id !== existingSession.id) : [];
-            const cumulativeBefore = otherSessions.reduce((s: number, it: any) => s + (it.unitsCompleted || 0), 0);
-            if (finalStartUnit === undefined) finalStartUnit = cumulativeBefore + 1;
-            if (finalEndUnit === undefined) finalEndUnit = finalStartUnit + updatedSession.unitsCompleted - 1;
-          }
+            if (typeof finalStartUnit === 'number' && typeof finalEndUnit === 'number') {
+              const difficultyValue = typeof difficulty === 'number' ? difficulty : Number(difficulty);
+              let quality = Number.isNaN(difficultyValue) ? 4 : 6 - Math.round(difficultyValue);
+              quality = Math.max(0, Math.min(5, quality));
 
-          if (typeof finalStartUnit === 'number' && typeof finalEndUnit === 'number') {
-            const difficultyValue = typeof difficulty === 'number' ? difficulty : Number(difficulty);
-            let quality = Number.isNaN(difficultyValue) ? 4 : 6 - Math.round(difficultyValue);
-            quality = Math.max(0, Math.min(5, quality));
+              if (__DEV__) {
+                console.log('[RecordSession] Edit mode - applying SM-2 for review completion with quality=' + quality);
+              }
 
-            const { reviewItemService } = await import('../../services');
-            const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
-            const targets = items.filter((it) => {
-              const n = Number(it.unitNumber);
-              return !Number.isNaN(n) && n >= finalStartUnit! && n <= finalEndUnit!;
-            });
-            if (targets.length > 0) {
-              await Promise.all(targets.map((it) => recordReview.mutateAsync({ itemId: it.id, quality })));
+              const { reviewItemService } = await import('../../services');
+              const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
+              const targets = items.filter((it) => {
+                const n = Number(it.unitNumber);
+                return !Number.isNaN(n) && n >= finalStartUnit! && n <= finalEndUnit!;
+              });
+              if (targets.length > 0) {
+                await Promise.all(targets.map((it) => recordReview.mutateAsync({ itemId: it.id, quality })));
+              }
+            }
+          } catch (e) {
+            if (__DEV__) {
+              console.warn('[RecordSession] Failed to auto-apply SM-2 on edit (review):', e);
             }
           }
-        } catch (e) {
-          console.warn('Failed to auto-apply SM-2 on edit:', e);
+        } else {
+          // 通常学習の編集時: SM-2は適用しない（新規復習アイテムは生成されない）
+          if (__DEV__) {
+            console.log('[RecordSession] Edit mode - normal learning (no SM-2 applied)');
+          }
         }
       } else {
-        // 新規作成はサービスの統合メソッドに委譲
+        // 新規作成はロジック分離
         const session = new StudySessionEntity({
           id: `session-${Date.now()}`,
           userId,
@@ -275,25 +301,130 @@ export const RecordSessionScreen: React.FC = () => {
           computedEndUnit = autoStartUnit + unitsNumber - 1;
         }
 
+        if (__DEV__) {
+          console.log('[RecordSession] Session creation params:', {
+            isReviewCompletion,
+            inputMode,
+            startUnit,
+            endUnit,
+            autoStartUnit,
+            computedEndUnit,
+            unitsNumber,
+            difficulty,
+          });
+        }
+
         // compute initialQuality from difficulty (6 - difficulty, clamped 0..5)
+        // SM-2アルゴリズム用の品質値に変換: 難易度1(簡単) → quality 5(最良)、難易度5(難) → quality 1(困難)
         const difficultyValue = typeof difficulty === 'number' ? difficulty : Number(difficulty);
         let initialQuality = Number.isNaN(difficultyValue) ? 4 : 6 - Math.round(difficultyValue);
         initialQuality = Math.max(0, Math.min(5, initialQuality));
 
-        await (await import('../../services')).studySessionService.recordSessionWithReviewItems(
-          session,
-          planId,
-          autoStartUnit,
-          computedEndUnit,
-          initialQuality
-        );
+        // ★修正: 復習タスク完了と通常学習を区別
+        if (isReviewCompletion) {
+          // ===== 復習タスク完了ロジック =====
+          // 既存の復習アイテムに対してSM-2を適用して次回復習日をスケジュール
+          if (__DEV__) {
+            console.log('[RecordSession] Review completion flow - applying SM-2 to existing review items');
+          }
+          
+          // セッションを記録（復習アイテムの生成は行わない）
+          const newSession = new StudySessionEntity({
+            id: `session-${Date.now()}`,
+            userId,
+            planId,
+            date: new Date(),
+            unitsCompleted: unitsNumber,
+            durationMinutes: duration,
+            concentration,
+            difficulty,
+            round: round ?? 1,
+            startUnit: autoStartUnit,
+            endUnit: computedEndUnit,
+          } as any);
+          
+          await createSession.mutateAsync(newSession);
+          
+          // 既存の復習アイテムに対してSM-2を適用
+          try {
+            const { reviewItemService } = await import('../../services');
+            const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
+            if (__DEV__) {
+              console.log(`[RecordSession] Found ${items.length} review items for plan ${planId}`);
+              console.log(`[RecordSession] Looking for units between ${autoStartUnit} and ${computedEndUnit}`);
+            }
+            
+            const targets = items.filter((it) => {
+              const n = Number(it.unitNumber);
+              return !Number.isNaN(n) && n >= autoStartUnit && n <= computedEndUnit;
+            });
+            
+            if (__DEV__) {
+              console.log(`[RecordSession] Found ${targets.length} matching review items to update`);
+              if (targets.length > 0) {
+                console.log(`[RecordSession] Target units: ${targets.map((t: any) => t.unitNumber).join(', ')}`);
+              }
+            }
+            
+            // 復習済みアイテムに対してSM-2を適用（次回復習日を計算）
+            if (targets.length > 0) {
+              if (__DEV__) {
+                console.log(`[RecordSession] Applying SM-2 quality=${initialQuality} to ${targets.length} review items`);
+              }
+              await Promise.all(targets.map((it) => recordReview.mutateAsync({ itemId: it.id, quality: initialQuality })));
+            } else {
+              if (__DEV__) {
+                console.log(`[RecordSession] No matching review items found for range ${autoStartUnit}-${computedEndUnit}`);
+              }
+            }
+          } catch (e) {
+            if (__DEV__) {
+              console.warn('[RecordSession] Failed to apply SM-2 for review tasks:', e);
+            }
+          }
+        } else {
+          // ===== 通常学習ロジック =====
+          // 新規セッションを記録し、新しい復習アイテムを自動生成
+          if (__DEV__) {
+            console.log('[RecordSession] Normal learning flow - creating session with review items');
+          }
+          
+          const session = new StudySessionEntity({
+            id: `session-${Date.now()}`,
+            userId,
+            planId,
+            date: new Date(),
+            unitsCompleted: unitsNumber,
+            durationMinutes: duration,
+            concentration,
+            difficulty,
+            round: round ?? task?.round ?? 1,
+            startUnit: autoStartUnit,
+            endUnit: computedEndUnit,
+          } as any);
+
+          // サービスの統合メソッドで新規セッション + 復習アイテム生成
+          await (await import('../../services')).studySessionService.recordSessionWithReviewItems(
+            session,
+            planId,
+            autoStartUnit,
+            computedEndUnit,
+            initialQuality
+          );
+        }
+        
+        // セッション作成後の復習タスク自動作成処理は削除
+        // 代わりに TasksScreen で今日のタスク完了時に自動作成するように変更
+        
         // 新規セッション作成経路は service を直接呼んでいるため React Query のキャッシュ更新が行われない。
         // 保存後に関連クエリを無効化して TasksScreen / Review リストが最新化されるようにする。
         try {
+          console.log('Invalidating queries...');
           queryClient.invalidateQueries({ queryKey: ['dailyTasks', userId] });
           queryClient.invalidateQueries({ queryKey: ['upcomingTasks', userId] });
           queryClient.invalidateQueries({ queryKey: ['tasksForDate', userId] });
           queryClient.invalidateQueries({ queryKey: ['reviewItems', 'due', userId] });
+          queryClient.invalidateQueries({ queryKey: ['reviewItems', 'user', userId] });
           queryClient.invalidateQueries({ queryKey: ['studySessions', 'user', userId] });
           // PlanDetail uses the ['studySessions', planId] key; invalidate it so the detail view refreshes
           queryClient.invalidateQueries({ queryKey: ['studySessions', planId] });
@@ -314,6 +445,7 @@ export const RecordSessionScreen: React.FC = () => {
           return;
         }
       } catch (e) {}
+      
       navigation.goBack();
     } catch (error) {
       Alert.alert(t('common.error'), isEditMode ? 'セッションの更新に失敗しました' : t('today.sessionRecord.error'));
@@ -325,27 +457,29 @@ export const RecordSessionScreen: React.FC = () => {
       <View style={styles.container}>
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         {/* モード選択 */}
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>入力モード</Text>
-          <View style={styles.modeSelector}>
-            <TouchableOpacity
-              style={[styles.modeButton, inputMode === 'quantity' && styles.modeButtonActive]}
-              onPress={() => setInputMode('quantity')}
-            >
-              <Text style={[styles.modeButtonText, inputMode === 'quantity' && styles.modeButtonTextActive]}>
-                量を入力
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeButton, inputMode === 'range' && styles.modeButtonActive]}
-              onPress={() => setInputMode('range')}
-            >
-              <Text style={[styles.modeButtonText, inputMode === 'range' && styles.modeButtonTextActive]}>
-                範囲を指定
-              </Text>
-            </TouchableOpacity>
+        {!isReviewCompletion && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>入力モード</Text>
+            <View style={styles.modeSelector}>
+              <TouchableOpacity
+                style={[styles.modeButton, inputMode === 'quantity' && styles.modeButtonActive]}
+                onPress={() => setInputMode('quantity')}
+              >
+                <Text style={[styles.modeButtonText, inputMode === 'quantity' && styles.modeButtonTextActive]}>
+                  量を入力
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeButton, inputMode === 'range' && styles.modeButtonActive]}
+                onPress={() => setInputMode('range')}
+              >
+                <Text style={[styles.modeButtonText, inputMode === 'range' && styles.modeButtonTextActive]}>
+                  範囲を指定
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* 量モード */}
         {inputMode === 'quantity' && (

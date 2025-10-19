@@ -6,6 +6,7 @@ export * from './useStudyPlans';
 export * from './useStudySessions';
 export * from './useDailyTasks';
 export * from './useReviewItems';
+export * from './useCreateDailyReviewTasks';
 export * from './useStats';
 export * from './useAccount';
 export * from './useSocial';

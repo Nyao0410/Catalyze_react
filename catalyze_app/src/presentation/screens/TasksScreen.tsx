@@ -26,6 +26,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import type { MainTabScreenProps } from '../navigation/types';
 import { useDailyTasks, useStudyPlans, useUserSessions, useCreateSession, useTasksForDate, useUpcomingTasks } from '../hooks';
 import { useUpdateSession, useDeleteSession } from '../hooks/useStudySessions';
+import { useCreateDailyReviewTasks } from '../hooks/useCreateDailyReviewTasks';
 import { TaskCard, EmptyState } from '../components';
 import { StudySessionEntity, ProgressAnalysisService, PlanStatus, DailyTaskEntity } from 'catalyze-ai';
 import { format, isToday, startOfDay } from 'date-fns';
@@ -348,6 +349,9 @@ export const TodayScreen: React.FC<Props> = () => {
 
   // 今日のタスクコンポーネント
   const TodayTab = () => {
+    // 復習タスク自動作成フック呼び出し
+    useCreateDailyReviewTasks(userId, todayTasks, sessions, plans);
+    
     // 完了していないタスクと今日の復習タスクをマージして表示
     const activeTasks = React.useMemo(() => [
       // 日次タスク（今日用）
@@ -771,6 +775,8 @@ export const TodayScreen: React.FC<Props> = () => {
           if (!plan) continue;
           const unitNumbers = units.map((u) => u.unit);
           const ranges = mergeUnitsToRanges(unitNumbers);
+          // ★修正: 復習タスク完了判定用に、選択日付のセッションを取得
+          // ただしセッションは同じ日に記録されるとは限らないため、全セッションから該当範囲のものを抽出
           const planSessions = sessions.filter((s) => s.planId === planId && startOfDay(s.date).getTime() === selectedDateKey);
           
           ranges.forEach((r, idx) => {
