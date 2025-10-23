@@ -17,7 +17,7 @@ interface StudyStreakProps {
 export const StudyStreak: React.FC<StudyStreakProps> = ({ data }) => {
   const { colors } = useTheme();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.card }]}>
       <View style={styles.header}>
         <Ionicons name="flame" size={24} color={colors.warning} />
         <Text style={[styles.title, { color: colors.text }]}>学習ストリーク</Text>
@@ -25,14 +25,14 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({ data }) => {
 
       <View style={styles.content}>
         {/* 現在のストリーク */}
-        <View style={styles.streakCard}>
-          <Text style={styles.streakLabel}>現在の連続日数</Text>
+        <View style={[styles.streakCard, { backgroundColor: colors.backgroundSecondary }]}>
+          <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>現在の連続日数</Text>
           <View style={styles.streakValueContainer}>
             <Text style={styles.streakValue}>{data.currentStreak}</Text>
             <Text style={styles.streakUnit}>日</Text>
           </View>
           {data.currentStreak > 0 && (
-            <Text style={styles.encouragement}>
+            <Text style={[styles.encouragement, { color: colors.text }]}>
               {data.currentStreak >= 7
                 ? '素晴らしい継続力です！'
                 : data.currentStreak >= 3
@@ -44,13 +44,13 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({ data }) => {
 
         {/* 統計情報 */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>最長記録</Text>
-            <Text style={styles.statValue}>{data.longestStreak} 日</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>最長記録</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{data.longestStreak} 日</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>総学習日数</Text>
-            <Text style={styles.statValue}>{data.totalStudyDays} 日</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>総学習日数</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{data.totalStudyDays} 日</Text>
           </View>
         </View>
       </View>

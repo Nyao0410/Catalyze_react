@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 8,
     top: 56,
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     paddingVertical: spacing.xs,
     minWidth: 160,

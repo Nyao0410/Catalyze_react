@@ -1132,7 +1132,7 @@ const styles = StyleSheet.create({
   header: {
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderBottomWidth: 1,
     borderBottomColor: defaultColors.border,
   },
@@ -1144,7 +1144,7 @@ const styles = StyleSheet.create({
   summaryCard: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     marginVertical: spacing.xs,
@@ -1182,7 +1182,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   modalContent: {
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: spacing.lg,
@@ -1284,7 +1284,7 @@ const styles = StyleSheet.create({
     color: defaultColors.white,
   },
   planCard: {
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     padding: spacing.md,
     marginHorizontal: spacing.md,
     marginVertical: spacing.xs,
@@ -1435,7 +1435,7 @@ const styles = StyleSheet.create({
     // 背景を暗くしない
   },
   menuModal: {
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     padding: spacing.sm,
     minWidth: 200,
@@ -1471,7 +1471,7 @@ const styles = StyleSheet.create({
     width: '36%',
     borderRightWidth: 1,
     borderRightColor: defaultColors.border,
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
   },
   rightPaneTasks: {
     flex: 1,

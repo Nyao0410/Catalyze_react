@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, textStyles } from '../theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { signInWithEmail, signUpWithEmail } from '../../infrastructure/auth';
 
 type AuthMode = 'login' | 'signup';
@@ -28,6 +29,7 @@ interface AuthScreenProps {
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onSkip }) => {
+  const { colors: themeColors } = useTheme();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,13 +86,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onSkip })
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.logo}>📚 StudyNext</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.subtitle, { color: themeColors.text }]}>
             {mode === 'login' ? 'ログイン' : '新規登録'}
           </Text>
         </View>
@@ -98,10 +100,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onSkip })
         <View style={styles.form}>
           {mode === 'signup' && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>表示名</Text>
+              <Text style={[styles.label, { color: themeColors.text }]}>表示名</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: themeColors.text, backgroundColor: themeColors.card, borderColor: themeColors.border }]}
                 placeholder="山田太郎"
+                placeholderTextColor={themeColors.textTertiary}
                 value={displayName}
                 onChangeText={setDisplayName}
                 autoCapitalize="none"
@@ -110,10 +113,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onSkip })
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>メールアドレス</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>メールアドレス</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: themeColors.text, backgroundColor: themeColors.card, borderColor: themeColors.border }]}
               placeholder="example@email.com"
+              placeholderTextColor={themeColors.textTertiary}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -123,11 +127,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onSkip })
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>パスワード</Text>
-            <View style={styles.passwordContainer}>
+            <Text style={[styles.label, { color: themeColors.text }]}>パスワード</Text>
+            <View style={[styles.passwordContainer, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: themeColors.text }]}
                 placeholder="6文字以上"
+                placeholderTextColor={themeColors.textTertiary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -141,19 +146,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onSkip })
                 <Ionicons
                   name={showPassword ? 'eye-off' : 'eye'}
                   size={24}
-                  color={colors.textSecondary}
+                  color={themeColors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
           </View>
 
           <TouchableOpacity
-            style={styles.authButton}
+            style={[styles.authButton, { backgroundColor: themeColors.primary }]}
             onPress={handleAuth}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color={themeColors.white} />
             ) : (
               <Text style={styles.authButtonText}>
                 {mode === 'login' ? 'ログイン' : '新規登録'}
@@ -165,7 +170,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onSkip })
             style={styles.switchButton}
             onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
           >
-            <Text style={styles.switchButtonText}>
+            <Text style={[styles.switchButtonText, { color: themeColors.primary }]}>
               {mode === 'login'
                 ? 'アカウントをお持ちでない方はこちら'
                 : '既にアカウントをお持ちの方はこちら'}
@@ -174,13 +179,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onSkip })
 
           {onSkip && (
             <TouchableOpacity style={styles.skipButton} onPress={onSkip}>
-              <Text style={styles.skipButtonText}>後でログインする</Text>
+              <Text style={[styles.skipButtonText, { color: themeColors.textSecondary }]}>後でログインする</Text>
             </TouchableOpacity>
           )}
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>
             ログインすると、複数デバイスでデータを同期できます
           </Text>
         </View>

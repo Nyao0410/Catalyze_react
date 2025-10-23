@@ -755,7 +755,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: spacing.lg,
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderBottomWidth: 1,
     borderBottomColor: defaultColors.border,
   },
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: spacing.lg,
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     marginTop: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: defaultColors.border,

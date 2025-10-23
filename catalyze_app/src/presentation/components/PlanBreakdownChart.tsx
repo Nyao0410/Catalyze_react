@@ -46,7 +46,7 @@ export const PlanBreakdownChart: React.FC<PlanBreakdownChartProps> = ({
   const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.card }]}>
       {/* ヘッダー */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>学習項目の内訳</Text>

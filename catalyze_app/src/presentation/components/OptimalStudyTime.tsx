@@ -21,10 +21,10 @@ export const OptimalStudyTime: React.FC<OptimalStudyTimeProps> = ({ data }) => {
   // データがない場合
   if (data.every((d) => d.totalMinutes === 0)) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>最適学習時間帯</Text>
+      <View style={[styles.container, { backgroundColor: colors.card }]}>
+        <Text style={[styles.title, { color: colors.text }]}>最適学習時間帯</Text>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>学習記録がまだありません</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>学習記録がまだありません</Text>
         </View>
       </View>
     );
@@ -85,7 +85,7 @@ export const OptimalStudyTime: React.FC<OptimalStudyTimeProps> = ({ data }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.card }]}>
       <Text style={[styles.title, { color: colors.text }]}>最適学習時間帯</Text>
 
       {/* グラフ */}

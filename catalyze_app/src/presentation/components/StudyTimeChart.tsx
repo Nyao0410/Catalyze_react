@@ -268,7 +268,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
                         x={x}
                         y={y}
                         fontSize={10}
-                        fill="#6B7280"
+                        fill={colors.textSecondary}
                         textAnchor="middle"
                       >
                         {lbl}
@@ -291,7 +291,7 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
               return (
                 <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, marginBottom: 6 }}>
                   <View style={{ width: 12, height: 12, backgroundColor: getColorForPlan(pid), marginRight: 6, borderRadius: 2 }} />
-                  <Text style={{ ...textStyles.bodySmall, color: defaultColors.textSecondary }}>{short}</Text>
+                  <Text style={{ ...textStyles.bodySmall, color: colors.textSecondary }}>{short}</Text>
                 </View>
               );
             })}
@@ -300,11 +300,11 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
       </View>
 
       {/* 合計表示 */}
-      <View style={styles.summary}>
-        <Text style={styles.summaryLabel}>
+      <View style={[styles.summary, { borderTopColor: colors.border }]}>
+        <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
           {period === 'weekly' ? '今週の合計' : '今月の合計'}
         </Text>
-        <Text style={styles.summaryValue}>
+        <Text style={[styles.summaryValue, { color: colors.primary }]}>
           {(() => {
             const totalMinutes: number = currentData.reduce((sum, d) => sum + d.minutes, 0);
             const totalHours = Math.round((totalMinutes / 60) * 10) / 10;

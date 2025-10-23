@@ -128,7 +128,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: defaultColors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -139,10 +139,10 @@ export const LoginScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={[styles.title, { color: defaultColors.text }]}>
+            <Text style={[styles.title, { color: colors.text }]}>
               ログイン
             </Text>
-            <Text style={[styles.subtitle, { color: defaultColors.textSecondary }]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               アカウントにログイン
             </Text>
           </View>
@@ -185,7 +185,7 @@ export const LoginScreen: React.FC = () => {
               style={styles.forgotPassword}
               disabled={loading}
             >
-              <Text style={[styles.forgotPasswordText, { color: defaultColors.primary }]}>
+              <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
                 パスワードを忘れた場合
               </Text>
             </TouchableOpacity>
@@ -200,11 +200,11 @@ export const LoginScreen: React.FC = () => {
             />
 
             <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: defaultColors.textSecondary }]}>
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
                 アカウントをお持ちでない方は
               </Text>
               <TouchableOpacity onPress={handleGoToSignUp} disabled={loading}>
-                <Text style={[styles.linkText, { color: defaultColors.primary }]}>
+                <Text style={[styles.linkText, { color: colors.primary }]}>
                   新規登録
                 </Text>
               </TouchableOpacity>

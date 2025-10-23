@@ -81,9 +81,9 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
   const subtitleLabel = `${format(rangeStartMonth, 'yyyy年M月', { locale: ja })} 〜 ${format(rangeEndMonth, 'yyyy年M月', { locale: ja })}`;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.card }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={styles.title}>学習ヒートマップ</Text>
+        <Text style={[styles.title, { color: colors.text }]}>学習ヒートマップ</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity onPress={goPrevQuarter} style={styles.navButton}>
             <Text style={styles.navButtonText}>{'◀'}</Text>
@@ -93,7 +93,7 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
           </TouchableOpacity>
         </View>
       </View>
-      <Text style={styles.subtitle}>{subtitleLabel} の学習記録</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitleLabel} の学習記録</Text>
 
       <ScrollView
         horizontal
@@ -104,7 +104,7 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
           {/* 曜日ラベル */}
           <View style={styles.dayLabels}>
             {weekDays.map((day, index) => (
-              <Text key={index} style={styles.dayLabel}>
+              <Text key={index} style={[styles.dayLabel, { color: colors.textSecondary }]}>
                 {day}
               </Text>
             ))}
@@ -119,7 +119,7 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
                     key={dayIndex}
                     style={[
                       styles.cell,
-                      { backgroundColor: getLevelColor(day.level) },
+                      { backgroundColor: getLevelColor(day.level), borderColor: colors.border },
                     ]}
                   />
                 ))}
@@ -131,16 +131,16 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({ data }) => {
 
       {/* 凡例 */}
       <View style={styles.legend}>
-        <Text style={styles.legendLabel}>少ない</Text>
+        <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>少ない</Text>
         <View style={styles.legendColors}>
           {[0, 1, 2, 3, 4].map((level) => (
             <View
               key={level}
-              style={[styles.legendCell, { backgroundColor: getLevelColor(level) }]}
+              style={[styles.legendCell, { backgroundColor: getLevelColor(level), borderColor: colors.border }]}
             />
           ))}
         </View>
-        <Text style={styles.legendLabel}>多い</Text>
+        <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>多い</Text>
       </View>
     </View>
   );

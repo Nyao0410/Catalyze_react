@@ -94,20 +94,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
       {/* ヘッダー */}
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
             {plan.title}
           </Text>
           <View style={styles.rightBadges}>
             {String(task.id).startsWith('review-') && (
-              <View style={styles.reviewLabel}>
-                <Text style={styles.reviewLabelText}>復習</Text>
+              <View style={[styles.reviewLabel, { borderColor: colors.primary }]}>
+                <Text style={[styles.reviewLabelText, { color: colors.primary }]}>復習</Text>
               </View>
             )}
             <View style={[styles.badge, { backgroundColor: achievabilityColor }]}>
@@ -116,7 +116,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </View>
         </View>
         {task.round && task.round > 1 && (
-          <Text style={styles.roundText}>{t('today.task.round')} {task.round}</Text>
+          <Text style={[styles.roundText, { color: colors.textSecondary }]}>{t('today.task.round')} {task.round}</Text>
         )}
       </View>
 
@@ -124,13 +124,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       <View style={styles.details}>
         <View style={styles.detailRow}>
           <Ionicons name="book-outline" size={16} color={colors.primary} />
-          <Text style={styles.detailText}>
+          <Text style={[styles.detailText, { color: colors.text }]}>
             {task.startUnit} - {task.endUnit} ({task.units} {plan.unit})
           </Text>
         </View>
         <View style={styles.detailRow}>
           <Ionicons name="time-outline" size={16} color={colors.primary} />
-          <Text style={styles.detailText}>
+          <Text style={[styles.detailText, { color: colors.text }]}>
             {t('today.task.about')} {formatDuration(task.estimatedMinutes)}
           </Text>
         </View>
@@ -139,8 +139,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       {/* 進捗バー */}
       <View style={styles.progressSection}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>{t('today.task.progress')}</Text>
-          <Text style={styles.progressValue}>
+          <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>{t('today.task.progress')}</Text>
+          <Text style={[styles.progressValue, { color: colors.primary }]}>
             {Math.round(progress * 100)}%
           </Text>
         </View>
@@ -149,9 +149,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
       {/* アドバイス */}
       {task.advice && (
-        <View style={styles.adviceSection}>
+        <View style={[styles.adviceSection, { backgroundColor: colors.backgroundSecondary }]}>
           <Ionicons name="bulb-outline" size={16} color={colors.warning} />
-          <Text style={styles.adviceText}>{task.advice}</Text>
+          <Text style={[styles.adviceText, { color: colors.text }]}>{task.advice}</Text>
         </View>
       )}
 
@@ -160,7 +160,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <View style={styles.actionButtons}>
           {onStartTimer && (
             <TouchableOpacity
-              style={[styles.actionButton, styles.timerButton]}
+              style={[styles.actionButton, { backgroundColor: colors.warning }]}
               onPress={(e) => {
                 e.stopPropagation();
                 onStartTimer();
@@ -172,7 +172,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           )}
           {onComplete && (
             <TouchableOpacity
-              style={[styles.actionButton, styles.completeButton]}
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
               onPress={(e) => {
                 e.stopPropagation();
                 onComplete();
@@ -190,7 +190,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -311,12 +311,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     padding: spacing.sm,
     borderRadius: 8,
-  },
-  timerButton: {
-    backgroundColor: defaultColors.warning,
-  },
-  completeButton: {
-    backgroundColor: defaultColors.primary,
   },
   actionButtonText: {
     ...textStyles.button,

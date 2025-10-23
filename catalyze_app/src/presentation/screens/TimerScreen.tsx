@@ -89,15 +89,15 @@ export const TimerScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* ヘッダー */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="close" size={28} color={colors.text} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle} numberOfLines={1}>{rangeLabel}</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{rangeLabel}</Text>
           </View>
           <View style={{ width: 28 }} />
         </View>
@@ -115,12 +115,12 @@ export const TimerScreen: React.FC = () => {
 
 
         {/* ヒント */}
-        <View style={styles.tipsCard}>
+        <View style={[styles.tipsCard, { backgroundColor: colors.card }]}>
           <View style={styles.tipsHeader}>
             <Ionicons name="bulb-outline" size={20} color={colors.warning} />
-            <Text style={styles.tipsTitle}>学習のコツ</Text>
+            <Text style={[styles.tipsTitle, { color: colors.text }]}>学習のコツ</Text>
           </View>
-          <Text style={styles.tipsText}>
+          <Text style={[styles.tipsText, { color: colors.textSecondary }]}>
             {timerMode === 'stopwatch'
               ? '集中して学習に取り組みましょう。適度に休憩を取ることも大切です。'
               : 'ポモドーロテクニック：25分集中、5分休憩を繰り返すと効果的です。'}
@@ -130,7 +130,7 @@ export const TimerScreen: React.FC = () => {
 
       {/* 下部ボタン */}
       <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.recordButton} onPress={handleManualRecord}>
+        <TouchableOpacity style={[styles.recordButton, { backgroundColor: colors.primary }]} onPress={handleManualRecord}>
           <Ionicons name="create-outline" size={20} color={colors.white} />
           <Text style={styles.recordButtonText}>記録する</Text>
         </TouchableOpacity>
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderBottomWidth: 1,
     borderBottomColor: defaultColors.border,
   },
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   infoCard: {
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     marginHorizontal: spacing.lg,
     marginTop: spacing.lg,
     padding: spacing.md,
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderTopWidth: 1,
     borderTopColor: defaultColors.border,
     padding: spacing.lg,

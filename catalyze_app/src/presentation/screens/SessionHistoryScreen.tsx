@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   headerCard: {
     padding: spacing.lg,
-    backgroundColor: defaultColors.white,
+    backgroundColor: defaultColors.card,
     borderBottomWidth: 1,
     borderBottomColor: defaultColors.border,
   },

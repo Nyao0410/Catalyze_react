@@ -454,15 +454,15 @@ export const RecordSessionScreen: React.FC = () => {
 
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
-      <View style={styles.container}>
-      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView style={[styles.content, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
         {/* モード選択 */}
         {!isReviewCompletion && (
           <View style={styles.formGroup}>
-            <Text style={styles.label}>入力モード</Text>
+            <Text style={[styles.label, { color: colors.text }]}>入力モード</Text>
             <View style={styles.modeSelector}>
               <TouchableOpacity
-                style={[styles.modeButton, inputMode === 'quantity' && styles.modeButtonActive]}
+                style={[styles.modeButton, inputMode === 'quantity' && [styles.modeButtonActive, { backgroundColor: colors.primary }]]}
                 onPress={() => setInputMode('quantity')}
               >
                 <Text style={[styles.modeButtonText, inputMode === 'quantity' && styles.modeButtonTextActive]}>
@@ -470,7 +470,7 @@ export const RecordSessionScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modeButton, inputMode === 'range' && styles.modeButtonActive]}
+                style={[styles.modeButton, inputMode === 'range' && [styles.modeButtonActive, { backgroundColor: colors.primary }]]}
                 onPress={() => setInputMode('range')}
               >
                 <Text style={[styles.modeButtonText, inputMode === 'range' && styles.modeButtonTextActive]}>
@@ -484,7 +484,7 @@ export const RecordSessionScreen: React.FC = () => {
         {/* 量モード */}
         {inputMode === 'quantity' && (
           <View style={styles.formGroup}>
-            <Text style={styles.label}>完了した単元数</Text>
+            <Text style={[styles.label, { color: colors.text }]}>完了した単元数</Text>
             <View style={styles.sliderContainer}>
               <Slider
                 style={styles.slider}
@@ -498,46 +498,49 @@ export const RecordSessionScreen: React.FC = () => {
                 thumbTintColor={colors.primary}
               />
               <TextInput
-                style={[styles.input, { flex: 1 }]}
+                style={[styles.input, { flex: 1, color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
                 value={unitsInput}
                 onChangeText={(v) => setUnitsInput(v.replace(/[^0-9]/g, ''))}
                 keyboardType="number-pad"
                 placeholder="例: 10"
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
-            <Text style={styles.mutedText}>学習範囲: {previewStartUnit} 〜 {previewEndUnit}</Text>
+            <Text style={[styles.mutedText, { color: colors.textSecondary }]}>学習範囲: {previewStartUnit} 〜 {previewEndUnit}</Text>
           </View>
         )}
 
         {/* 範囲モード */}
         {inputMode === 'range' && (
           <View style={styles.formGroup}>
-            <Text style={styles.label}>学習範囲</Text>
+            <Text style={[styles.label, { color: colors.text }]}>学習範囲</Text>
             <View style={styles.rangeContainer}>
               <View style={styles.rangeInputGroup}>
-                <Text style={styles.rangeLabel}>開始単元</Text>
+                <Text style={[styles.rangeLabel, { color: colors.textSecondary }]}>開始単元</Text>
                 <TextInput
-                  style={styles.rangeInput}
+                  style={[styles.rangeInput, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
                   value={rangeStartInput}
                   onChangeText={(v) => setRangeStartInput(v.replace(/[^0-9]/g, ''))}
                   keyboardType="number-pad"
                   placeholder="1"
+                  placeholderTextColor={colors.textTertiary}
                 />
               </View>
-              <Text style={styles.rangeSeparator}>〜</Text>
+              <Text style={[styles.rangeSeparator, { color: colors.text }]}>〜</Text>
               <View style={styles.rangeInputGroup}>
-                <Text style={styles.rangeLabel}>終了単元</Text>
+                <Text style={[styles.rangeLabel, { color: colors.textSecondary }]}>終了単元</Text>
                 <TextInput
-                  style={styles.rangeInput}
+                  style={[styles.rangeInput, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
                   value={rangeEndInput}
                   onChangeText={(v) => setRangeEndInput(v.replace(/[^0-9]/g, ''))}
                   keyboardType="number-pad"
                   placeholder="10"
+                  placeholderTextColor={colors.textTertiary}
                 />
               </View>
             </View>
             {rangeStartInput && rangeEndInput && (
-              <Text style={styles.mutedText}>
+              <Text style={[styles.mutedText, { color: colors.textSecondary }]}>
                 完了単元数: {Math.max(0, parseInt(rangeEndInput) - parseInt(rangeStartInput) + 1)} 個
               </Text>
             )}
@@ -545,7 +548,7 @@ export const RecordSessionScreen: React.FC = () => {
         )}
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{t('today.sessionRecord.duration')}</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('today.sessionRecord.duration')}</Text>
           <View style={styles.sliderContainer}>
             <Slider
               style={styles.slider}
@@ -559,24 +562,25 @@ export const RecordSessionScreen: React.FC = () => {
               thumbTintColor={colors.primary}
             />
             <TextInput
-              style={[styles.input, { flex: 1 }]}
+              style={[styles.input, { flex: 1, color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               value={durationMinutes}
               onChangeText={setDurationMinutes}
               keyboardType="number-pad"
               placeholder="60"
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
         </View>
 
         <View style={[styles.formGroup, styles.centerAlignedGroup]}>
-          <Text style={styles.label}>{t('today.sessionRecord.concentration')}</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('today.sessionRecord.concentration')}</Text>
           <View style={styles.centeredRow}>
             {[0.2, 0.4, 0.6, 0.8, 1.0].map((value) => (
               <TouchableOpacity
                 key={String(value)}
                 style={[
                   styles.iconButton,
-                  concentration === value && styles.iconButtonActive,
+                  concentration === value && [styles.iconButtonActive, { backgroundColor: colors.primary }],
                 ]}
                 onPress={() => setConcentration(value)}
               >
@@ -589,7 +593,7 @@ export const RecordSessionScreen: React.FC = () => {
         </View>
 
         <View style={[styles.formGroup, styles.centerAlignedGroup]}>
-          <Text style={styles.label}>{t('today.sessionRecord.difficulty')}</Text>
+          <Text style={[styles.label, { color: colors.text }]}>{t('today.sessionRecord.difficulty')}</Text>
           <View style={styles.centeredRow}>
             {[1, 2, 3, 4, 5].map((value) => (
               <TouchableOpacity
@@ -597,7 +601,7 @@ export const RecordSessionScreen: React.FC = () => {
                 onPress={() => setDifficulty(value)}
                 style={styles.starButton}
               >
-                <Ionicons name={value <= difficulty ? 'star' : 'star-outline'} size={28} color={value <= difficulty ? colors.primary : defaultColors.border} />
+                <Ionicons name={value <= difficulty ? 'star' : 'star-outline'} size={28} color={value <= difficulty ? colors.primary : colors.border} />
               </TouchableOpacity>
             ))}
           </View>
@@ -605,12 +609,12 @@ export const RecordSessionScreen: React.FC = () => {
 
         {typeof round !== 'undefined' && (
           <View style={styles.formGroup}>
-            <Text style={styles.label}>{t('today.sessionRecord.round')}</Text>
-            <Text style={styles.roundText}>R{round}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('today.sessionRecord.round')}</Text>
+            <Text style={[styles.roundText, { color: colors.textSecondary }]}>R{round}</Text>
           </View>
         )}
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={createSession.isPending}>
+        <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave} disabled={createSession.isPending}>
           <Text style={styles.saveButtonText}>{createSession.isPending ? t('today.sessionRecord.saving') : t('today.sessionRecord.save')}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -621,7 +625,7 @@ export const RecordSessionScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: defaultColors.background },
-  header: { padding: spacing.lg, backgroundColor: defaultColors.white, borderBottomWidth: 1, borderBottomColor: defaultColors.border },
+  header: { padding: spacing.lg, backgroundColor: defaultColors.card, borderBottomWidth: 1, borderBottomColor: defaultColors.border },
   headerTitle: { ...textStyles.h1, color: defaultColors.text },
   content: { flex: 1 },
   scrollContent: { padding: spacing.lg },

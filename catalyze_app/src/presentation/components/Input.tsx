@@ -36,12 +36,13 @@ export const Input: React.FC<InputProps> = ({
   
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputContainer, error && styles.inputContainerError]}>
+      {label && <Text style={[styles.label, { color: colors.text }]}>{label}</Text>}
+      <View style={[styles.inputContainer, { backgroundColor: colors.backgroundSecondary, borderColor: error ? colors.error : colors.border }, error && styles.inputContainerError]}>
         {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
         <TextInput
           style={[
             styles.input,
+            { color: colors.text },
             leftIcon ? styles.inputWithLeftIcon : undefined,
             rightIcon ? styles.inputWithRightIcon : undefined,
             style,
@@ -51,7 +52,7 @@ export const Input: React.FC<InputProps> = ({
         />
         {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
       </View>
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={[styles.error, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 };
