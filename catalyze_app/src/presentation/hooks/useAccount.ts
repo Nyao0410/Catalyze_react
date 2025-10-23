@@ -10,12 +10,12 @@ import type { UserProfile, UserSettings } from '../../types';
 /**
  * プロフィール取得
  */
-export function useProfile() {
+export function useProfile(userId?: string) {
   return useQuery({
-    queryKey: ['profile'],
+    queryKey: userId ? ['account', 'profile', userId] : ['account', 'profile'],
     queryFn: () => AccountService.getProfile(),
-    staleTime: 5 * 60 * 1000, // 5分
-    gcTime: 10 * 60 * 1000, // 10分
+    staleTime: 1 * 60 * 1000, // 1分（ポイント・レベル更新のため短縮）
+    gcTime: 5 * 60 * 1000, // 5分
   });
 }
 
@@ -29,7 +29,7 @@ export function useUpdateProfile() {
     mutationFn: (updates: Partial<Pick<UserProfile, 'displayName' | 'avatar'>>) =>
       AccountService.updateProfile(updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['account', 'profile'] });
     },
   });
 }
@@ -70,7 +70,9 @@ export function useAddStudyHours() {
   return useMutation({
     mutationFn: (hours: number) => AccountService.addStudyHours(hours),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      // すべての profile キャッシュを無効化（userId-specific と generic 両方）
+      queryClient.invalidateQueries({ queryKey: ['account', 'profile'] });
+      queryClient.invalidateQueries({ queryKey: ['userStats'] });
     },
   });
 }
@@ -86,7 +88,7 @@ export function useInitializeProfile() {
       AccountService.initializeDefaultProfile(userId, email, displayName),
     onSuccess: (data) => {
       console.log('[useInitializeProfile] Success:', data);
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['account', 'profile', data.userId] });
     },
     onError: (error) => {
       console.error('[useInitializeProfile] Error:', error);
@@ -109,5 +111,33 @@ export function useInitializeSettings() {
     onError: (error) => {
       console.error('[useInitializeSettings] Error:', error);
     },
+  });
+}
+
+/**
+ * ユーザーポイント更新
+ */
+export function useUpdateUserPoints() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ pointsEarned, reason }: { pointsEarned: number; reason: string }) =>
+      AccountService.addUserPoints(pointsEarned, reason),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['account', 'profile', data.userId] });
+      queryClient.invalidateQueries({ queryKey: ['userStats'] });
+    },
+  });
+}
+
+/**
+ * ユーザー統計情報取得
+ */
+export function useUserStats() {
+  return useQuery({
+    queryKey: ['userStats'],
+    queryFn: () => AccountService.getUserStats(),
+    staleTime: 1 * 60 * 1000, // 1分
+    gcTime: 5 * 60 * 1000, // 5分
   });
 }

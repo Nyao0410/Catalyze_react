@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { UserProfile, UserSettings } from '../../types';
+import { UserLevelService } from './UserLevelService';
 
 const PROFILE_KEY = '@studynext:profile';
 const SETTINGS_KEY = '@studynext:settings';
@@ -15,20 +16,36 @@ export class AccountService {
    */
   static async getProfile(): Promise<UserProfile | null> {
     try {
-      console.log('[AccountService] getProfile called');
       const data = await AsyncStorage.getItem(PROFILE_KEY);
       if (!data) {
-        console.log('[AccountService] getProfile: no data found');
         return null;
       }
       
       const profile = JSON.parse(data);
-      console.log('[AccountService] getProfile: data found', { userId: profile.userId });
-      return {
+      
+      // 古いプロフィールに新しいフィールドが無い場合はデフォルト値を追加
+      const updatedProfile: UserProfile = {
         ...profile,
+        // ポイント・レベルシステムのデフォルト値
+        totalPoints: profile.totalPoints ?? 0,
+        currentPoints: profile.currentPoints ?? 0,
+        pointsToNextLevel: profile.pointsToNextLevel ?? 100,
+        levelUpProgress: profile.levelUpProgress ?? 0,
+        level: profile.level ?? 1,
+        totalStudyHours: profile.totalStudyHours ?? 0,
         createdAt: new Date(profile.createdAt),
         updatedAt: new Date(profile.updatedAt),
       };
+      
+      // 新しいフィールドが追加された場合は保存し直す
+      if (updatedProfile.totalPoints !== profile.totalPoints ||
+          updatedProfile.currentPoints !== profile.currentPoints ||
+          updatedProfile.pointsToNextLevel !== profile.pointsToNextLevel ||
+          updatedProfile.levelUpProgress !== profile.levelUpProgress) {
+        await this.saveProfile(updatedProfile);
+      }
+      
+      return updatedProfile;
     } catch (error) {
       console.error('[AccountService] getProfile error:', error);
       return null;
@@ -170,6 +187,11 @@ export class AccountService {
       email,
       level: 1,
       totalStudyHours: 0,
+      // ポイント・レベルシステム
+      totalPoints: 0,
+      currentPoints: 0,
+      pointsToNextLevel: 100,
+      levelUpProgress: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -219,4 +241,76 @@ export class AccountService {
       throw error;
     }
   }
+
+  /**
+   * ユーザーポイントを追加
+   */
+  static async addUserPoints(pointsEarned: number, reason: string = ''): Promise<UserProfile & { leveledUp?: boolean; newLevel?: number }> {
+    const profile = await this.getProfile();
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    // 新しい総ポイントを計算
+    const newTotalPoints = profile.totalPoints + pointsEarned;
+
+    // レベルアップをチェック
+    const levelUpInfo = UserLevelService.checkLevelUp(profile.totalPoints, newTotalPoints);
+
+    // レベルアップボーナスを追加
+    let finalTotalPoints = newTotalPoints;
+    if (levelUpInfo.leveledUp) {
+      finalTotalPoints += levelUpInfo.bonusPoints;
+    }
+
+    // 新しいレベル情報を計算
+    const levelInfo = UserLevelService.calculateLevelFromPoints(finalTotalPoints);
+
+    // プロフィール更新
+    const updated: UserProfile = {
+      ...profile,
+      totalPoints: finalTotalPoints,
+      level: levelInfo.level,
+      currentPoints: levelInfo.currentPoints,
+      pointsToNextLevel: levelInfo.pointsToNextLevel,
+      levelUpProgress: levelInfo.progress,
+      updatedAt: new Date(),
+    };
+
+    await this.saveProfile(updated);
+    console.log('[AccountService] addUserPoints success', {
+      userId: profile.userId,
+      pointsEarned,
+      reason,
+      newLevel: levelInfo.level,
+      leveledUp: levelUpInfo.leveledUp,
+    });
+
+    // レベルアップ情報を追加して返す
+    return {
+      ...updated,
+      leveledUp: levelUpInfo.leveledUp,
+      newLevel: levelUpInfo.newLevel,
+    };
+  }
+
+  /**
+   * ユーザー統計情報を取得
+   */
+  static async getUserStats() {
+    const profile = await this.getProfile();
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    return {
+      level: profile.level,
+      totalPoints: profile.totalPoints,
+      currentPoints: profile.currentPoints,
+      pointsToNextLevel: profile.pointsToNextLevel,
+      levelUpProgress: profile.levelUpProgress,
+      totalStudyHours: profile.totalStudyHours,
+    };
+  }
 }
+

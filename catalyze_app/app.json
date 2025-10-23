@@ -4,7 +4,7 @@
     "slug": "studynext_app",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./icon/Apple/iPhone/AppIcon.appiconset",
+    "icon": "./assets/icon.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {

@@ -4,8 +4,8 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { SocialService } from '../../application/services';
-import type { Friend, CooperationGoal, UserPoints } from '../../types';
+import { SocialService, AICompetitionService } from '../../application/services';
+import type { Friend, CooperationGoal, UserPoints, AICompetitor, AICompetitionMatch, CompetitionMatchType } from '../../types';
 
 /**
  * フレンドリスト取得
@@ -148,3 +148,122 @@ export function useRemoveFriend() {
     },
   });
 }
+
+/**
+ * =============================================
+ * AI 競争機能のフック
+ * =============================================
+ */
+
+/**
+ * 利用可能なAIキャラクターを取得
+ */
+export function useAvailableAICompetitors() {
+  return useQuery({
+    queryKey: ['availableAICompetitors'],
+    queryFn: () => AICompetitionService.getAvailableAICompetitors(),
+  });
+}
+
+/**
+ * 特定のAIキャラクターの詳細を取得
+ */
+export function useAICompetitorDetail(aiId: string) {
+  return useQuery({
+    queryKey: ['aiCompetitor', aiId],
+    queryFn: () => AICompetitionService.getAICompetitorDetail(aiId),
+    enabled: !!aiId && aiId.trim() !== '',
+  });
+}
+
+/**
+ * AI競争を開始
+ */
+export function useStartAICompetition() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({
+      userId,
+      aiId,
+      matchType,
+      duration,
+    }: {
+      userId: string;
+      aiId: string;
+      matchType: CompetitionMatchType;
+      duration: number;
+    }) => AICompetitionService.startCompetition(userId, aiId, matchType, duration),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['activeAIMatches', variables.userId] });
+    },
+  });
+}
+
+/**
+ * ユーザーのアクティブなAI競争を取得
+ */
+export function useActiveAIMatches(userId: string) {
+  return useQuery({
+    queryKey: ['activeAIMatches', userId],
+    queryFn: () => AICompetitionService.getActiveMatches(userId),
+    enabled: !!userId && userId.trim() !== '',
+  });
+}
+
+/**
+ * ユーザーの完了済みAI競争を取得
+ */
+export function useCompletedAIMatches(userId: string) {
+  return useQuery({
+    queryKey: ['completedAIMatches', userId],
+    queryFn: () => AICompetitionService.getCompletedMatches(userId),
+    enabled: !!userId && userId.trim() !== '',
+  });
+}
+
+/**
+ * 特定のマッチを取得
+ */
+export function useAIMatch(matchId: string) {
+  return useQuery({
+    queryKey: ['aiMatch', matchId],
+    queryFn: () => AICompetitionService.getMatch(matchId),
+    enabled: !!matchId && matchId.trim() !== '',
+    refetchInterval: 5000, // 5秒ごとに自動更新
+  });
+}
+
+/**
+ * ユーザー進捗を更新
+ */
+export function useUpdateAIMatchProgress() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ matchId, progress }: { matchId: string; progress: number }) =>
+      AICompetitionService.updateUserProgress(matchId, progress),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['aiMatch', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['activeAIMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['completedAIMatches'] });
+    },
+  });
+}
+
+/**
+ * マッチをキャンセル
+ */
+export function useCancelAIMatch() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (matchId: string) => AICompetitionService.cancelMatch(matchId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activeAIMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['completedAIMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['aiMatch'] });
+    },
+  });
+}
+

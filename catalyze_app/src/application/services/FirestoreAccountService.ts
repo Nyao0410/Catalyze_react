@@ -27,6 +27,10 @@ export class FirestoreAccountService {
         email: data.email,
         level: data.level ?? 1,
         totalStudyHours: data.totalStudyHours ?? 0,
+        totalPoints: data.totalPoints ?? 0,
+        currentPoints: data.currentPoints ?? 0,
+        pointsToNextLevel: data.pointsToNextLevel ?? 100,
+        levelUpProgress: data.levelUpProgress ?? 0,
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
         updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : new Date()),
       };
@@ -46,6 +50,10 @@ export class FirestoreAccountService {
       email: profile.email,
       level: profile.level,
       totalStudyHours: profile.totalStudyHours,
+      totalPoints: profile.totalPoints,
+      currentPoints: profile.currentPoints,
+      pointsToNextLevel: profile.pointsToNextLevel,
+      levelUpProgress: profile.levelUpProgress,
       createdAt: profile.createdAt,
       updatedAt: profile.updatedAt,
     }, { merge: true });
@@ -147,6 +155,10 @@ export class FirestoreAccountService {
       email,
       level: 1,
       totalStudyHours: 0,
+      totalPoints: 0,
+      currentPoints: 0,
+      pointsToNextLevel: 100,
+      levelUpProgress: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

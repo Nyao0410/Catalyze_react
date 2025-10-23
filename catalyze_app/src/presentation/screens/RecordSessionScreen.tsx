@@ -10,10 +10,13 @@ import { addDays, isToday, startOfDay } from 'date-fns';
 import type { RootStackScreenProps } from '../navigation/types';
 import { useCreateSession, useDailyTasksByPlan, useUpdateSession, useStudySession } from '../hooks';
 import { useRecordReview } from '../hooks/useReviewItems';
+import { useUpdateUserPoints, useAddStudyHours } from '../hooks/useAccount';
+import { LevelUpModal } from '../components/LevelUpModal';
 import { StudySessionEntity, ProgressAnalysisService } from 'catalyze-ai';
 import { studyPlanService, studySessionService } from '../../services';
 import { t } from '../../locales';
 import { useTopToast } from '../hooks/useTopToast';
+import { getCurrentUserId } from '../../infrastructure/auth';
 
 type RouteProps = RootStackScreenProps<'RecordSession'>;
 
@@ -23,12 +26,24 @@ export const RecordSessionScreen: React.FC = () => {
   const { planId, taskId, sessionId, elapsedMinutes, startUnit: paramStartUnit, endUnit: paramEndUnit, fromTimer } = route.params as any;
   const { colors } = useTheme();
 
-  const userId = 'user-001';
+  const [userId, setUserId] = React.useState<string>('user-001');
+  
+  // ユーザーIDを初期化
+  React.useEffect(() => {
+    const initUserId = async () => {
+      const id = await getCurrentUserId();
+      setUserId(id);
+    };
+    initUserId();
+  }, []);
+
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
   const recordReview = useRecordReview();
   const queryClient = useQueryClient();
   const toast = useTopToast();
+  const updateUserPoints = useUpdateUserPoints();
+  const addStudyHours = useAddStudyHours();
 
   // 編集モードかどうか
   const isEditMode = !!sessionId;
@@ -52,6 +67,10 @@ export const RecordSessionScreen: React.FC = () => {
   const [concentration, setConcentration] = useState(0.6);
   const [difficulty, setDifficulty] = useState(3);
   const [round, setRound] = useState<number | undefined>(undefined);
+
+  // レベルアップモーダル用
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+  const [newLevel, setNewLevel] = useState<number | null>(null);
 
   // タスクが渡されていればデフォルト値を取得
   const tasksQuery = useDailyTasksByPlan(planId);
@@ -160,6 +179,7 @@ export const RecordSessionScreen: React.FC = () => {
     let unitsNumber: number;
     let startUnit: number | undefined;
     let endUnit: number | undefined;
+    let pointsMessage = ''; // ポイント通知用メッセージ
 
     if (__DEV__) {
       console.log('[RecordSession] handleSave started:', {
@@ -411,6 +431,14 @@ export const RecordSessionScreen: React.FC = () => {
             computedEndUnit,
             initialQuality
           );
+          
+          if (__DEV__) {
+            console.log('[RecordSession] Session created successfully:', {
+              sessionId: session.id,
+              unitsCompleted: unitsNumber,
+              duration,
+            });
+          }
         }
         
         // セッション作成後の復習タスク自動作成処理は削除
@@ -432,30 +460,69 @@ export const RecordSessionScreen: React.FC = () => {
         } catch (e) {
           // ignore
         }
+
+        // ポイント付与処理: 新規セッションのみ（編集時は付与しない）
+        if (!isEditMode) {
+          try {
+            // 総学習時間を更新（時間単位に変換）
+            const studyHours = duration / 60;
+            await addStudyHours.mutateAsync(studyHours);
+            
+            const isContinuous = duration >= 60; // 1時間以上で継続ボーナス
+            const pointsEarned = Math.round(duration * 0.017 * (isContinuous ? 1.2 : 1));
+            const result = await updateUserPoints.mutateAsync({
+              pointsEarned,
+              reason: `学習セッション完了: ${duration}分`,
+            });
+            console.log(`[RecordSession] Points awarded: ${pointsEarned}pt, Study hours: ${studyHours}h`);
+            
+            // レベルアップ検出
+            if (result && (result as any).leveledUp) {
+              pointsMessage = `✨ +${pointsEarned}pt | Lv.${(result as any).newLevel}にレベルアップ!`;
+              // レベルアップモーダルを表示
+              setNewLevel((result as any).newLevel);
+              setShowLevelUpModal(true);
+            } else if (pointsEarned > 0) {
+              pointsMessage = `+ ${pointsEarned}pt`;
+            }
+            
+            // アカウント関連のキャッシュを無効化してアカウント画面を更新
+            queryClient.invalidateQueries({ queryKey: ['account', 'profile', userId] });
+            queryClient.invalidateQueries({ queryKey: ['userStats', userId] });
+          } catch (e) {
+            console.warn('[RecordSession] Failed to award points:', e);
+          }
+        }
       }
       // 成功時はトーストを表示して戻る
       try {
-        toast.show(isEditMode ? 'セッションが更新されました' : t('today.sessionRecord.success'));
+        const baseMessage = isEditMode ? 'セッションが更新されました' : t('today.sessionRecord.success');
+        const toastMessage = pointsMessage ? `${baseMessage} ${pointsMessage}` : baseMessage;
+        toast.show(toastMessage);
       } catch (e) {}
-      // If opened from Timer, close both RecordSession and Timer by popping two screens.
-      try {
-        if (fromTimer) {
-          // pop two (RecordSession + TimerScreen)
-          (navigation as any).pop?.(2);
-          return;
-        }
-      } catch (e) {}
-      
-      navigation.goBack();
+      // レベルアップモーダルが表示されていない場合のみナビゲート
+      if (!showLevelUpModal) {
+        // If opened from Timer, close both RecordSession and Timer by popping two screens.
+        try {
+          if (fromTimer) {
+            // pop two (RecordSession + TimerScreen)
+            (navigation as any).pop?.(2);
+            return;
+          }
+        } catch (e) {}
+        
+        navigation.goBack();
+      }
     } catch (error) {
       Alert.alert(t('common.error'), isEditMode ? 'セッションの更新に失敗しました' : t('today.sessionRecord.error'));
     }
   };
 
   return (
-    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView style={[styles.content, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
+    <>
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          <ScrollView style={[styles.content, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
         {/* モード選択 */}
         {!isReviewCompletion && (
           <View style={styles.formGroup}>
@@ -618,9 +685,28 @@ export const RecordSessionScreen: React.FC = () => {
           <Text style={styles.saveButtonText}>{createSession.isPending ? t('today.sessionRecord.saving') : t('today.sessionRecord.save')}</Text>
         </TouchableOpacity>
       </ScrollView>
-      </View>
-    </TouchableWithoutFeedback>
-  );
+    </View>
+  </TouchableWithoutFeedback>
+
+  {/* レベルアップモーダル */}
+  {newLevel !== null && (
+    <LevelUpModal
+      visible={showLevelUpModal}
+      level={newLevel}
+      onDismiss={() => {
+        setShowLevelUpModal(false);
+        // モーダル閉鎖後にナビゲート
+        try {
+          if (fromTimer) {
+            (navigation as any).pop?.(2);
+          } else {
+            navigation.goBack();
+          }
+        } catch (e) {}
+      }}
+    />
+  )}
+</>);
 };
 
 const styles = StyleSheet.create({

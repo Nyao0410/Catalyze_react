@@ -208,6 +208,10 @@ export class FirebaseAccountService {
       email,
       level: 1,
       totalStudyHours: 0,
+      totalPoints: 0,
+      currentPoints: 0,
+      pointsToNextLevel: 100,
+      levelUpProgress: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

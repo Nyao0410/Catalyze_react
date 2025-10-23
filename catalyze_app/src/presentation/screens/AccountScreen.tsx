@@ -36,8 +36,14 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   const [isEditing, setIsEditing] = useState(false);
   const { mode: themeMode, setMode: setThemeMode, colors: themeColors } = useTheme();
   
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>('user-001');
+  const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [initializationTimeout, setInitializationTimeout] = useState<NodeJS.Timeout | null>(null);
+  
   // データ取得
-  const { data: profile, isLoading: isLoadingProfile } = useProfile();
+  const { data: profile, isLoading: isLoadingProfile } = useProfile(currentUserId);
   const { data: settings, isLoading: isLoadingSettings } = useSettings();
   
   // ミューテーション
@@ -45,12 +51,6 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   const { mutate: updateSettings, isPending: isUpdatingSettings } = useUpdateSettings();
   const { mutate: initializeProfile } = useInitializeProfile();
   const { mutate: initializeSettings } = useInitializeSettings();
-  
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string>('user-001');
-  const [initializationError, setInitializationError] = useState<string | null>(null);
-  const [initializationTimeout, setInitializationTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // 初期化タイムアウトを設定
   useEffect(() => {
@@ -277,8 +277,63 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
         </View>
         
         <View style={styles.profileInfo}>
-          <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary }]}>総学習時間</Text>
-          <Text style={[styles.totalHours, { color: themeColors.primary }]}>{profile.totalStudyHours}時間</Text>
+          <View style={styles.statRow}>
+            <View style={styles.statItem}>
+              <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary }]}>総学習時間</Text>
+              <Text style={[styles.totalHours, { color: themeColors.primary }]}>{profile.totalStudyHours}時間</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary }]}>経験値</Text>
+              <Text style={[styles.totalHours, { color: themeColors.primary }]}>{profile.currentPoints}/{profile.pointsToNextLevel}pt</Text>
+            </View>
+          </View>
+          <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary, marginTop: 8 }]}>総ポイント</Text>
+          <Text style={[styles.totalHours, { color: themeColors.warning }]}>{profile.totalPoints}pt</Text>
+        </View>
+      </View>
+
+      {/* ポイント・レベル表示 */}
+      <View style={[styles.pointsCard, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}>
+        <View style={styles.pointsHeader}>
+          <View>
+            <Text style={[styles.pointsLabel, { color: themeColors.textSecondary }]}>次のレベルまで</Text>
+            <View style={styles.pointsDisplay}>
+              <Text style={[styles.currentPoints, { color: themeColors.primary }]}>
+                {profile.currentPoints}
+              </Text>
+              <Text style={[styles.maxPoints, { color: themeColors.textSecondary }]}>
+                / {profile.pointsToNextLevel}pt
+              </Text>
+            </View>
+          </View>
+          <View style={styles.totalPointsContainer}>
+            <Ionicons name="star" size={24} color={themeColors.warning} />
+            <Text style={[styles.totalPointsText, { color: themeColors.text }]}>
+              Lv.{profile.level}
+            </Text>
+          </View>
+        </View>
+
+        {/* プログレスバー */}
+        <View style={[styles.progressBarContainer, { backgroundColor: themeColors.border }]}>
+          <View 
+            style={[
+              styles.progressBarFill, 
+              { 
+                width: `${profile.levelUpProgress}%`,
+                backgroundColor: themeColors.primary
+              }
+            ]} 
+          />
+        </View>
+
+        <View style={styles.progressText}>
+          <Text style={[styles.progressPercent, { color: themeColors.text }]}>
+            {profile.levelUpProgress}%
+          </Text>
+          <Text style={[styles.levelText, { color: themeColors.textSecondary }]}>
+            次のレベルまで {profile.pointsToNextLevel} pt
+          </Text>
         </View>
       </View>
 
@@ -617,6 +672,14 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
   },
+  statRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  statItem: {
+    flex: 1,
+  },
   totalHoursLabel: {
     ...textStyles.bodySmall,
     color: colors.textSecondary,
@@ -879,5 +942,67 @@ const styles = StyleSheet.create({
   guestSubtext: {
     ...textStyles.caption,
     color: colors.primary,
+  },
+  pointsCard: {
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+  },
+  pointsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  pointsLabel: {
+    ...textStyles.caption,
+    fontWeight: '600',
+    marginBottom: spacing.xs / 2,
+  },
+  pointsDisplay: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.xs,
+  },
+  currentPoints: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  maxPoints: {
+    ...textStyles.body,
+  },
+  totalPointsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+  },
+  totalPointsText: {
+    ...textStyles.body,
+    fontWeight: '600',
+  },
+  progressBarContainer: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressText: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressPercent: {
+    ...textStyles.caption,
+    fontWeight: '600',
   },
 });

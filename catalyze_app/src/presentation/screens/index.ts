@@ -12,7 +12,10 @@ export { SocialScreen } from './SocialScreen';
 export { AccountScreen } from './AccountScreen';
 export { FriendsListScreen } from './FriendsListScreen';
 export { CreateCooperationGoalScreen } from './CreateCooperationGoalScreen';
+export { AICompetitionDetailScreen } from './AICompetitionDetailScreen';
+export { SelectAICompetitorScreen } from './SelectAICompetitorScreen';
 export { LoginScreen } from './LoginScreen';
 export { SignUpScreen } from './SignUpScreen';
 export { AuthScreen } from './AuthScreen';
 export { SessionHistoryScreen } from './SessionHistoryScreen';
+

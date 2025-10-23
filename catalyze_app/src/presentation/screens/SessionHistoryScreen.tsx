@@ -69,6 +69,18 @@ export const SessionHistoryScreen: React.FC<Props> = ({ route }) => {
   const { data: plan, isLoading: planLoading } = useStudyPlan(planId);
   const { data: sessions = [], isLoading: sessionsLoading } = useStudySessions(planId);
 
+  React.useEffect(() => {
+    console.log('[SessionHistoryScreen] Rendered with sessions:', {
+      planId,
+      sessionCount: sessions.length,
+      sessions: sessions.slice(0, 3).map((s: any) => ({
+        id: s.id,
+        date: s.date,
+        unitsCompleted: s.unitsCompleted,
+      })),
+    });
+  }, [sessions, planId]);
+
   // フィルタリングとソート用のステート
   const [filterDateRange, setFilterDateRange] = useState<'all' | 'week' | 'month'>('all');
   const [searchText, setSearchText] = useState('');
@@ -244,8 +256,8 @@ export const SessionHistoryScreen: React.FC<Props> = ({ route }) => {
               <Text style={[styles.dateHeader, { color: colors.text }]}>
                 {format(new Date(item.date), 'yyyy年MM月dd日 (E)', { locale: ja })}
               </Text>
-              {item.sessions.map((session, index) => (
-                <View key={`${item.date}-${session.id}-${index}`} style={dynamicStyles.sessionCard}>
+              {item.sessions.map((session) => (
+                <View key={session.id} style={dynamicStyles.sessionCard}>
                   <View style={styles.sessionHeader}>
                     <View style={styles.sessionTime}>
                       <Ionicons name="time-outline" size={16} color={colors.textSecondary} />

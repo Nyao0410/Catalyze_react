@@ -10,3 +10,7 @@ export { StatisticsService, statisticsService } from './StatisticsService';
 export { AccountService, SocialService } from './chooser';
 export { FirestoreAccountService } from './FirestoreAccountService';
 export { FirestoreSocialService } from './FirestoreSocialService';
+export { AICompetitionService } from './AICompetitionService';
+export { AIProgressSimulator } from './AIProgressSimulator';
+export { UserLevelService } from './UserLevelService';
+

@@ -14,6 +14,8 @@ import { SessionHistoryScreen } from '../screens/SessionHistoryScreen';
 import { FriendsListScreen } from '../screens/FriendsListScreen';
 import { AddFriendScreen } from '../screens/AddFriendScreen';
 import { CreateCooperationGoalScreen } from '../screens/CreateCooperationGoalScreen';
+import { AICompetitionDetailScreen } from '../screens/AICompetitionDetailScreen';
+import { SelectAICompetitorScreen } from '../screens/SelectAICompetitorScreen';
 import { HelpScreen } from '../screens/HelpScreen';
 import { TermsScreen } from '../screens/TermsScreen';
 import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
@@ -179,6 +181,29 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ initialRoute = 'Lo
         name="CreateCooperationGoal"
         component={CreateCooperationGoalScreen}
         options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="AICompetitionDetail"
+        component={AICompetitionDetailScreen}
+        options={{
+          title: 'AI競争',
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            color: colors.text,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="SelectAICompetitor"
+        component={SelectAICompetitorScreen}
+        options={{
+          title: 'AI競争を開始',
           headerShown: false,
           presentation: 'modal',
         }}
