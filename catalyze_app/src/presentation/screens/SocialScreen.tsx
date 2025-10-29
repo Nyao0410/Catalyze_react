@@ -272,24 +272,32 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
               return (
                 <View key={match.id} style={styles.aiMatchCard}>
                   <View style={styles.aiMatchHeader}>
-                    <Text style={styles.aiMatchTitle}>{competitor?.avatar} {competitor?.name}</Text>
                     <Text style={styles.matchTypeLabel}>{match.matchType === 'studyHours' ? '勉強時間' : match.matchType === 'points' ? 'ポイント' : 'ストリーク'}</Text>
                   </View>
 
                   <View style={styles.competitionContainer}>
                     {/* ユーザーの進捗 */}
                     <View style={styles.playerRow}>
-                      <Text style={styles.playerLabel}>あなた</Text>
-                      <View style={styles.progressContainer}>
-                        <View style={styles.progressBar}>
+                      <View style={styles.playerInfo}>
+                        <Text style={[styles.playerLabel, { color: colors.text }]}>あなた</Text>
+                        <Text style={[styles.playerStats, { color: colors.textSecondary }]}>
+                          {Math.round(match.userProgress)} / {match.targetProgress}
+                          {match.matchType === 'studyHours' ? '時間' : match.matchType === 'points' ? 'pt' : '日'}
+                        </Text>
+                      </View>
+                      <View style={styles.progressSection}>
+                        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
                           <View 
                             style={[
                               styles.progressFill, 
-                              { width: `${Math.min(userProgress, 100)}%` }
+                              { 
+                                width: `${Math.min(userProgress, 100)}%`,
+                                backgroundColor: colors.primary,
+                              }
                             ]} 
                           />
                         </View>
-                        <Text style={styles.progressText}>
+                        <Text style={[styles.progressPercent, { color: colors.text }]}>
                           {Math.round(userProgress)}%
                         </Text>
                       </View>
@@ -297,21 +305,44 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
 
                     {/* AIの進捗 */}
                     <View style={styles.playerRow}>
-                      <Text style={styles.playerLabel}>{competitor?.avatar}</Text>
-                      <View style={styles.progressContainer}>
-                        <View style={styles.progressBar}>
+                      <View style={styles.playerInfo}>
+                        <Text style={[styles.playerLabel, { color: colors.text }]}>{competitor?.avatar} {competitor?.name}</Text>
+                        <Text style={[styles.playerStats, { color: colors.textSecondary }]}>
+                          {Math.round(match.aiProgress)} / {match.targetProgress}
+                          {match.matchType === 'studyHours' ? '時間' : match.matchType === 'points' ? 'pt' : '日'}
+                        </Text>
+                      </View>
+                      <View style={styles.progressSection}>
+                        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
                           <View 
                             style={[
                               styles.progressFill,
-                              { width: `${Math.min(aiProgress, 100)}%`, backgroundColor: colors.warning }
+                              { 
+                                width: `${Math.min(aiProgress, 100)}%`,
+                                backgroundColor: colors.warning,
+                              }
                             ]} 
                           />
                         </View>
-                        <Text style={styles.progressText}>
+                        <Text style={[styles.progressPercent, { color: colors.text }]}>
                           {Math.round(aiProgress)}%
                         </Text>
                       </View>
                     </View>
+
+                    {/* 勝者予想 */}
+                    {userProgress !== aiProgress && (
+                      <View style={[styles.winnerPredictor, { backgroundColor: userProgress > aiProgress ? colors.success : colors.warning }]}>
+                        <Ionicons 
+                          name={userProgress > aiProgress ? "trophy" : "alert-circle"} 
+                          size={16} 
+                          color={colors.white} 
+                        />
+                        <Text style={[styles.winnerPredictorText, { color: colors.white }]}>
+                          {userProgress > aiProgress ? 'あなたがリード中!' : 'AIに追い上げられています'}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   <View style={styles.matchFooter}>
@@ -354,7 +385,7 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
         {renderTabButton('ai-competition', 'AI競争', 'sparkles')}
       </View>
 
-      {!loggedIn ? renderLoginPrompt() : activeTab === 'cooperation' ? renderCooperationMode() : activeTab === 'ranking' ? renderRankingMode() : renderAICompetitionMode()}
+      {!loggedIn && activeTab !== 'ai-competition' ? renderLoginPrompt() : activeTab === 'cooperation' ? renderCooperationMode() : activeTab === 'ranking' ? renderRankingMode() : renderAICompetitionMode()}
     </View>
   );
 };
@@ -478,9 +509,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   progressBar: {
-    height: 8,
+    height: 12,
     backgroundColor: defaultColors.border,
-    borderRadius: 4,
+    borderRadius: 6,
     overflow: 'hidden',
     marginBottom: spacing.xs,
   },
@@ -702,11 +733,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+  playerInfo: {
+    width: '35%',
+    paddingRight: spacing.sm,
+  },
   playerLabel: {
     ...textStyles.body,
     color: defaultColors.text,
     fontWeight: '600',
-    width: 40,
+    marginBottom: spacing.xs,
+  },
+  playerStats: {
+    ...textStyles.caption,
+    color: defaultColors.textSecondary,
+  },
+  progressSection: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  progressPercent: {
+    ...textStyles.caption,
+    color: defaultColors.text,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  winnerPredictor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 8,
+  },
+  winnerPredictorText: {
+    ...textStyles.body,
+    color: defaultColors.white,
+    fontWeight: '600',
   },
   matchFooter: {
     flexDirection: 'row',

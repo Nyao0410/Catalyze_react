@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, textStyles, colors as defaultColors } from '../theme';
@@ -40,13 +41,32 @@ const MATCH_TYPES: { value: CompetitionMatchType; label: string; description: st
   },
 ];
 
-const DURATIONS: { value: number; label: string }[] = [
+const QUICK_DURATIONS: { value: number; label: string }[] = [
   { value: 1, label: '1日' },
   { value: 3, label: '3日' },
   { value: 7, label: '1週間' },
   { value: 14, label: '2週間' },
   { value: 30, label: '1ヶ月' },
 ];
+
+// シンプルなカレンダー用の日付生成関数
+const generateCalendarDays = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  const startingDayOfWeek = firstDay.getDay();
+
+  const days: (number | null)[] = [];
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    days.push(null);
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push(i);
+  }
+  return days;
+};
 
 export const SelectAICompetitorScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
@@ -56,8 +76,25 @@ export const SelectAICompetitorScreen: React.FC<Props> = ({ navigation }) => {
 
   const [selectedAI, setSelectedAI] = useState<AICompetitor | null>(null);
   const [selectedMatchType, setSelectedMatchType] = useState<CompetitionMatchType>('studyHours');
-  const [selectedDuration, setSelectedDuration] = useState(7);
+  
+  // 終了日選択関連のState
+  const today = new Date();
+  const defaultEndDate = new Date(today);
+  defaultEndDate.setDate(defaultEndDate.getDate() + 7); // デフォルトは7日後
+  
+  const [selectedEndDate, setSelectedEndDate] = useState<Date>(defaultEndDate);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarDate, setCalendarDate] = useState<Date>(new Date(today));
   const [isStarting, setIsStarting] = useState(false);
+
+  // 選択日数を計算
+  const calculateDuration = (endDate: Date): number => {
+    const diffTime = Math.abs(endDate.getTime() - today.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(1, diffDays); // 最小1日
+  };
+
+  const selectedDuration = calculateDuration(selectedEndDate);
 
   const handleStartCompetition = async () => {
     if (!selectedAI || !userId) {
@@ -85,6 +122,13 @@ export const SelectAICompetitorScreen: React.FC<Props> = ({ navigation }) => {
     } finally {
       setIsStarting(false);
     }
+  };
+
+  const handleDateSelect = (day: number) => {
+    const newDate = new Date(calendarDate);
+    newDate.setDate(day);
+    setSelectedEndDate(newDate);
+    setShowCalendar(false);
   };
 
   if (isLoading) {
@@ -210,45 +254,162 @@ export const SelectAICompetitorScreen: React.FC<Props> = ({ navigation }) => {
               ))}
             </View>
 
-            {/* 期間選択 */}
+            {/* 終了日選択 */}
             <View style={[styles.section, { backgroundColor: colors.background }]}>
-              <Text style={styles.sectionTitle}>3. 競争期間を選択</Text>
+              <Text style={styles.sectionTitle}>3. 終了日を選択</Text>
 
-              <View style={styles.durationGrid}>
-                {DURATIONS.map((duration) => (
-                  <TouchableOpacity
-                    key={duration.value}
-                    style={[
-                      styles.durationButton,
-                      {
-                        backgroundColor:
-                          selectedDuration === duration.value
-                            ? colors.primary
-                            : colors.card,
-                        borderColor:
-                          selectedDuration === duration.value
-                            ? colors.primary
-                            : colors.border,
-                        borderWidth: 2,
-                      },
-                    ]}
-                    onPress={() => setSelectedDuration(duration.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.durationText,
-                        {
-                          color:
-                            selectedDuration === duration.value
-                              ? colors.white
-                              : colors.text,
-                        },
-                      ]}
+              <TouchableOpacity
+                style={[
+                  styles.dateSelector,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => setShowCalendar(!showCalendar)}
+              >
+                <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+                <View style={styles.dateSelectorContent}>
+                  <Text style={[styles.dateSelectorLabel, { color: colors.textSecondary }]}>
+                    終了日
+                  </Text>
+                  <Text style={[styles.dateSelectorValue, { color: colors.text }]}>
+                    {selectedEndDate.toLocaleDateString('ja-JP', { 
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </Text>
+                </View>
+                <Ionicons 
+                  name={showCalendar ? "chevron-up" : "chevron-down"} 
+                  size={24} 
+                  color={colors.textSecondary} 
+                />
+              </TouchableOpacity>
+
+              {showCalendar && (
+                <View
+                  style={[
+                    styles.calendarContainer,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  {/* カレンダーヘッダー */}
+                  <View style={styles.calendarHeader}>
+                    <TouchableOpacity
+                      onPress={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1))}
                     >
-                      {duration.label}
+                      <Ionicons name="chevron-back" size={24} color={colors.primary} />
+                    </TouchableOpacity>
+                    
+                    <Text style={[styles.calendarTitle, { color: colors.text }]}>
+                      {calendarDate.getFullYear()}年{calendarDate.getMonth() + 1}月
                     </Text>
-                  </TouchableOpacity>
-                ))}
+                    
+                    <TouchableOpacity
+                      onPress={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1))}
+                    >
+                      <Ionicons name="chevron-forward" size={24} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* 曜日ラベル */}
+                  <View style={styles.weekdaysRow}>
+                    {['日', '月', '火', '水', '木', '金', '土'].map((day) => (
+                      <Text
+                        key={day}
+                        style={[
+                          styles.weekdayLabel,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        {day}
+                      </Text>
+                    ))}
+                  </View>
+
+                  {/* カレンダー日付 */}
+                  <View style={styles.daysGrid}>
+                    {generateCalendarDays(calendarDate).map((day, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.dayButton,
+                          !day && styles.dayButtonEmpty,
+                          day && selectedEndDate.getDate() === day && 
+                            selectedEndDate.getMonth() === calendarDate.getMonth() && 
+                            selectedEndDate.getFullYear() === calendarDate.getFullYear()
+                            ? [styles.dayButtonSelected, { backgroundColor: colors.primary }]
+                            : day && new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day) < today
+                            ? styles.dayButtonDisabled
+                            : {},
+                        ]}
+                        onPress={() => day && new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day) >= today && handleDateSelect(day)}
+                        disabled={!day || new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day) < today}
+                      >
+                        {day && (
+                          <Text
+                            style={[
+                              styles.dayText,
+                              selectedEndDate.getDate() === day &&
+                              selectedEndDate.getMonth() === calendarDate.getMonth() &&
+                              selectedEndDate.getFullYear() === calendarDate.getFullYear()
+                                ? { color: colors.white }
+                                : { color: colors.text },
+                            ]}
+                          >
+                            {day}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* クイック選択ボタン */}
+                  <View style={styles.quickSelectContainer}>
+                    {QUICK_DURATIONS.map((duration) => (
+                      <TouchableOpacity
+                        key={duration.value}
+                        style={[
+                          styles.quickSelectButton,
+                          {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                        onPress={() => {
+                          const newDate = new Date(today);
+                          newDate.setDate(newDate.getDate() + duration.value);
+                          setSelectedEndDate(newDate);
+                          setShowCalendar(false);
+                        }}
+                      >
+                        <Text style={[styles.quickSelectText, { color: colors.primary }]}>
+                          {duration.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <View
+                style={[
+                  styles.durationInfo,
+                  {
+                    backgroundColor: colors.primaryLight,
+                    borderColor: colors.primary,
+                  },
+                ]}
+              >
+                <Ionicons name="information-circle" size={20} color={colors.primary} />
+                <Text style={[styles.durationInfoText, { color: colors.primary }]}>
+                  期間: {selectedDuration}日間
+                </Text>
               </View>
             </View>
 
@@ -299,7 +460,11 @@ export const SelectAICompetitorScreen: React.FC<Props> = ({ navigation }) => {
                     期間:
                   </Text>
                   <Text style={[styles.summaryValue, { color: colors.text }]}>
-                    {DURATIONS.find(d => d.value === selectedDuration)?.label}
+                    {selectedEndDate.toLocaleDateString('ja-JP', { 
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}まで ({selectedDuration}日)
                   </Text>
                 </View>
                 <View style={styles.summaryRow}>
@@ -423,6 +588,125 @@ const styles = StyleSheet.create({
   },
   durationText: {
     ...textStyles.body,
+    fontWeight: '600',
+  },
+  dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: defaultColors.card,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 2,
+    borderColor: defaultColors.border,
+  },
+  dateSelectorContent: {
+    flex: 1,
+  },
+  dateSelectorLabel: {
+    ...textStyles.caption,
+    color: defaultColors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  dateSelectorValue: {
+    ...textStyles.body,
+    color: defaultColors.text,
+    fontWeight: '600',
+  },
+  calendarContainer: {
+    backgroundColor: defaultColors.card,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: defaultColors.border,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  calendarTitle: {
+    ...textStyles.h4,
+    color: defaultColors.text,
+    fontWeight: '600',
+  },
+  weekdaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: spacing.md,
+  },
+  weekdayLabel: {
+    ...textStyles.caption,
+    color: defaultColors.textSecondary,
+    fontWeight: '600',
+    width: '14.28%',
+    textAlign: 'center',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: spacing.lg,
+  },
+  dayButton: {
+    width: '14.28%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    marginBottom: spacing.sm,
+  },
+  dayButtonEmpty: {
+    backgroundColor: 'transparent',
+  },
+  dayButtonSelected: {
+    backgroundColor: defaultColors.primary,
+  },
+  dayButtonDisabled: {
+    opacity: 0.3,
+  },
+  dayText: {
+    ...textStyles.body,
+    fontWeight: '600',
+  },
+  quickSelectContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: defaultColors.border,
+    paddingTop: spacing.md,
+  },
+  quickSelectButton: {
+    flex: 1,
+    minWidth: '30%',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: defaultColors.border,
+  },
+  quickSelectText: {
+    ...textStyles.caption,
+    color: defaultColors.primary,
+    fontWeight: '600',
+  },
+  durationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: defaultColors.primaryLight,
+    borderRadius: 8,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: defaultColors.primary,
+  },
+  durationInfoText: {
+    ...textStyles.body,
+    color: defaultColors.primary,
     fontWeight: '600',
   },
   startButton: {

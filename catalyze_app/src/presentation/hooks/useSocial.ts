@@ -208,6 +208,7 @@ export function useActiveAIMatches(userId: string) {
     queryKey: ['activeAIMatches', userId],
     queryFn: () => AICompetitionService.getActiveMatches(userId),
     enabled: !!userId && userId.trim() !== '',
+    refetchInterval: 10000, // 10秒ごとにユーザーデータの最新状態を同期
   });
 }
 

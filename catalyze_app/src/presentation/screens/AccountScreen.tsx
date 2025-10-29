@@ -280,15 +280,9 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
           <View style={styles.statRow}>
             <View style={styles.statItem}>
               <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary }]}>総学習時間</Text>
-              <Text style={[styles.totalHours, { color: themeColors.primary }]}>{profile.totalStudyHours}時間</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary }]}>経験値</Text>
-              <Text style={[styles.totalHours, { color: themeColors.primary }]}>{profile.currentPoints}/{profile.pointsToNextLevel}pt</Text>
+              <Text style={[styles.totalHours, { color: themeColors.primary }]}>{Math.floor(profile.totalStudyHours)}時間</Text>
             </View>
           </View>
-          <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary, marginTop: 8 }]}>総ポイント</Text>
-          <Text style={[styles.totalHours, { color: themeColors.warning }]}>{profile.totalPoints}pt</Text>
         </View>
       </View>
 

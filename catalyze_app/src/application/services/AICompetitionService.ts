@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AICompetitor, AICompetitionMatch, CompetitionMatchType } from '../../types';
 import { AIProgressSimulator } from './AIProgressSimulator';
+import { AccountService } from './AccountService';
 
 const AI_COMPETITORS_KEY = '@studynext:ai_competitors';
 const AI_MATCHES_KEY = '@studynext:ai_matches';
@@ -244,7 +245,70 @@ export class AICompetitionService {
         updatedAt: new Date(m.updatedAt),
       }));
 
-      return allMatches.filter(m => m.userId === userId && m.status === 'active');
+      // ユーザーのプロフィールを取得して、ユーザーの進捗を同期
+      const userProfile = await AccountService.getProfile();
+      
+      // アクティブなマッチのみをフィルタリング
+      const activeMatches = allMatches.filter(m => m.userId === userId && m.status === 'active');
+      
+      // 各マッチに対して、マッチタイプに応じたユーザーの現在の進捗を反映
+      const updatedMatches: AICompetitionMatch[] = activeMatches.map(match => {
+        if (!userProfile) return match;
+        
+        // マッチタイプに応じてユーザーの進捗を取得
+        let userCurrentProgress = match.userProgress;
+        
+        if (match.matchType === 'studyHours') {
+          // 勉強時間から進捗を取得
+          userCurrentProgress = userProfile.totalStudyHours;
+        } else if (match.matchType === 'points') {
+          // 現在のポイントから進捗を取得
+          userCurrentProgress = userProfile.currentPoints;
+        } else if (match.matchType === 'streak') {
+          // ストリーク情報を取得（ここは後で実装可能なオプション）
+          // 現在はuserProfileにはストリーク情報がないため、match.userProgressを使用
+          userCurrentProgress = match.userProgress;
+        }
+        
+        // 進捗が変わった場合、AIの進捗も再計算
+        if (userCurrentProgress !== match.userProgress) {
+          const updatedMatch = { ...match, userProgress: userCurrentProgress };
+          
+          // AIの進捗を再計算
+          const competitor = { personality: { dailyRate: 5, randomBonusMin: 1, randomBonusMax: 3, difficulty: 'Normal' as const, description: '' } };
+          const elapsedDays = Math.floor(
+            (new Date().getTime() - match.startDate.getTime()) / (24 * 60 * 60 * 1000)
+          );
+          
+          updatedMatch.aiProgress = AIProgressSimulator.calculateAIProgress(
+            competitor.personality,
+            elapsedDays,
+            updatedMatch.userProgress,
+            match.targetProgress,
+            match.aiProgress
+          );
+          
+          // ステータスを確認
+          if (updatedMatch.userProgress >= match.targetProgress || updatedMatch.aiProgress >= match.targetProgress) {
+            updatedMatch.status = 'completed';
+            
+            // 勝敗を判定
+            const winner = AIProgressSimulator.determineWinner(updatedMatch);
+            updatedMatch.status = winner;
+          }
+          
+          updatedMatch.updatedAt = new Date();
+          
+          // マッチを保存
+          this.saveMatch(updatedMatch);
+          
+          return updatedMatch;
+        }
+        
+        return match;
+      });
+
+      return updatedMatches;
     } catch (error) {
       console.error('Failed to get active matches:', error);
       return [];
@@ -289,13 +353,60 @@ export class AICompetitionService {
 
       if (!match) return null;
 
-      return {
+      // ユーザーのプロフィールを取得して、ユーザーの進捗を同期
+      const userProfile = await AccountService.getProfile();
+      
+      let userCurrentProgress = match.userProgress;
+      
+      if (userProfile) {
+        if (match.matchType === 'studyHours') {
+          userCurrentProgress = userProfile.totalStudyHours;
+        } else if (match.matchType === 'points') {
+          userCurrentProgress = userProfile.currentPoints;
+        }
+        // ストリークはmatch.userProgressを使用
+      }
+
+      // 進捗が変わった場合、マッチを更新
+      let updatedMatch: AICompetitionMatch = {
         ...match,
+        userProgress: userCurrentProgress,
         startDate: new Date(match.startDate),
         endDate: new Date(match.endDate),
         createdAt: new Date(match.createdAt),
         updatedAt: new Date(match.updatedAt),
       };
+
+      if (userCurrentProgress !== match.userProgress) {
+        // AIの進捗を再計算
+        const competitor = await this.getAICompetitorDetail(match.aiCompetitorId);
+        if (competitor) {
+          const elapsedDays = Math.floor(
+            (new Date().getTime() - updatedMatch.startDate.getTime()) / (24 * 60 * 60 * 1000)
+          );
+          
+          updatedMatch.aiProgress = AIProgressSimulator.calculateAIProgress(
+            competitor.personality,
+            elapsedDays,
+            updatedMatch.userProgress,
+            match.targetProgress,
+            match.aiProgress
+          );
+          
+          // ステータスを確認
+          if (updatedMatch.userProgress >= match.targetProgress || updatedMatch.aiProgress >= match.targetProgress) {
+            const winner = AIProgressSimulator.determineWinner(updatedMatch);
+            updatedMatch.status = winner;
+          }
+          
+          updatedMatch.updatedAt = new Date();
+          
+          // マッチを保存
+          await this.saveMatch(updatedMatch);
+        }
+      }
+
+      return updatedMatch;
     } catch (error) {
       console.error('Failed to get match:', error);
       return null;
