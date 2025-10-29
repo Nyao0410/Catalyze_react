@@ -34,33 +34,23 @@ import { ja } from 'date-fns/locale';
 import { t } from '../../locales';
 import { useDueReviewItems, useRecordReview, useUserReviewItems } from '../hooks/useReviewItems';
 import { PlansScreen } from './PlansScreen';
+import {
+  parseLocalDate,
+  getPerformanceColor,
+  mergeRanges,
+  mergeUnitsToRanges,
+  extractCompletedRanges,
+  calculateCompletedUnits,
+  calculateTaskProgress,
+  formatDateHeader,
+  formatDateShort,
+  formatTime,
+  groupSessionsByDate,
+} from './tasks/utils';
 
 const progressAnalysisService = new ProgressAnalysisService();
 
-/**
- * ローカル日時として 'yyyy-MM-dd' 形式の文字列を Date に変換
- * new Date('2025-10-25') は UTC として解釈されるため、
- * parse() でローカルタイムとして正しく処理する
- */
-/**
- * ローカル日時として 'yyyy-MM-dd' 形式の文字列を Date に変換
- * new Date('2025-10-25') は UTC として解釈されるため、
- * 手動でパースしてローカルタイムとして正しく処理する
- */
-function parseLocalDate(dateString: string): Date {
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
 type Props = MainTabScreenProps<'Tasks'>;
-
-// パフォーマンス係数に基づいて色を返す関数
-const getPerformanceColor = (performanceFactor: number, colors: any) => {
-  if (performanceFactor >= 0.8) return colors.success;
-  if (performanceFactor >= 0.6) return colors.primary;
-  if (performanceFactor >= 0.4) return colors.warning;
-  return colors.error;
-};
 
 // セッション記録モーダルのステート
 interface SessionForm {
@@ -148,6 +138,83 @@ export const TodayScreen: React.FC<Props> = () => {
     setMenuVisible(false);
     setSelectedSession(null);
   };
+
+  // セッションアイテムカードコンポーネント
+  const SessionItemCard: React.FC<{
+    session: StudySessionEntity;
+    plan?: any;
+    colors: any;
+    onMenuPress: (session: StudySessionEntity, event: any) => void;
+  }> = ({ session, plan, colors, onMenuPress }) => (
+    <View style={dynamicStyles.sessionCard}>
+      <View style={styles.cardHeader}>
+        <Text style={dynamicStyles.planTitle}>
+          {plan ? plan.title : '不明な計画'}
+        </Text>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={(event) => onMenuPress(session, event)}
+        >
+          <Ionicons name="ellipsis-vertical" size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.sessionHeader}>
+        <View style={styles.sessionTime}>
+          <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+          <Text style={dynamicStyles.sessionTimeText}>
+            {formatTime(session.date)}
+          </Text>
+        </View>
+        <View style={styles.performanceIndicator}>
+          <View
+            style={[
+              styles.performanceDot,
+              { backgroundColor: getPerformanceColor(session.performanceFactor, colors) },
+            ]}
+          />
+          <Text style={dynamicStyles.performanceText}>
+            {Math.round(session.performanceFactor * 100)}%
+          </Text>
+        </View>
+      </View>
+      <View style={styles.sessionContent}>
+        <View style={styles.sessionStats}>
+          <View style={styles.sessionStat}>
+            <Ionicons name="book-outline" size={16} color={colors.primary} />
+            <Text style={dynamicStyles.sessionStatText}>
+              {session.unitsCompleted} {plan ? plan.unit : 'ユニット'}
+            </Text>
+          </View>
+          <View style={styles.sessionStat}>
+            <Ionicons name="timer-outline" size={16} color={colors.primary} />
+            <Text style={dynamicStyles.sessionStatText}>
+              {session.durationMinutes}分
+            </Text>
+          </View>
+          <View style={styles.sessionStat}>
+            <Ionicons name="speedometer-outline" size={16} color={colors.primary} />
+            <Text style={dynamicStyles.sessionStatText}>
+              難易度 {session.difficulty}/5
+            </Text>
+          </View>
+        </View>
+        <View style={styles.sessionQuality}>
+          <Text style={dynamicStyles.sessionQualityLabel}>集中度</Text>
+          <View style={dynamicStyles.concentrationBar}>
+            <View
+              style={[
+                dynamicStyles.concentrationFill,
+                { width: `${session.concentration * 100}%` },
+              ]}
+            />
+          </View>
+          <Text style={dynamicStyles.concentrationText}>
+            {Math.round(session.concentration * 100)}%
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
 
   const { data: todayTasks = [], isLoading: todayTasksLoading, refetch: refetchToday } = useDailyTasks(userId);
   const { data: plans = [] } = useStudyPlans(userId);
@@ -253,24 +320,7 @@ export const TodayScreen: React.FC<Props> = () => {
     const { data: plans = [] } = useStudyPlans(userId);
 
     // 日付ごとにセッションをグループ化
-    const groupedSessions = React.useMemo(() => {
-      const groups: { [date: string]: typeof sessions } = {};
-      sessions.forEach((session) => {
-        const dateKey = format(session.date, 'yyyy-MM-dd');
-        if (!groups[dateKey]) {
-          groups[dateKey] = [];
-        }
-        groups[dateKey].push(session);
-      });
-
-      // 日付でソート（新しい順）
-      return Object.entries(groups)
-        .sort(([a], [b]) => b.localeCompare(a))
-        .map(([date, sessions]) => ({
-          date,
-          sessions: sessions.sort((a, b) => b.date.getTime() - a.date.getTime()),
-        }));
-    }, [sessions]);
+    const groupedSessions = React.useMemo(() => groupSessionsByDate(sessions), [sessions]);
 
     if (isLoading) {
       return (
@@ -295,79 +345,18 @@ export const TodayScreen: React.FC<Props> = () => {
             renderItem={({ item }) => (
               <View style={styles.dateGroup}>
                 <Text style={dynamicStyles.dateHeader}>
-                  {format(new Date(item.date), 'yyyy年MM月dd日 (E)', { locale: ja })}
+                  {formatDateHeader(new Date(item.date))}
                 </Text>
                 {item.sessions.map((session) => {
                   const plan = plans.find((p) => p.id === session.planId);
                   return (
-                    <View key={session.id} style={dynamicStyles.sessionCard}>
-                      <View style={styles.cardHeader}>
-                        <Text style={dynamicStyles.planTitle}>
-                          {plan ? plan.title : '不明な計画'}
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.menuButton}
-                          onPress={(event) => handleMenuPress(session, event)}
-                        >
-                          <Ionicons name="ellipsis-vertical" size={16} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                      </View>
-                      <View style={styles.sessionHeader}>
-                        <View style={styles.sessionTime}>
-                          <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                          <Text style={dynamicStyles.sessionTimeText}>
-                            {format(session.date, 'HH:mm', { locale: ja })}
-                          </Text>
-                        </View>
-                        <View style={styles.performanceIndicator}>
-                          <View
-                            style={[
-                              styles.performanceDot,
-                              { backgroundColor: getPerformanceColor(session.performanceFactor, colors) },
-                            ]}
-                          />
-                          <Text style={dynamicStyles.performanceText}>
-                            {Math.round(session.performanceFactor * 100)}%
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.sessionContent}>
-                        <View style={styles.sessionStats}>
-                          <View style={styles.sessionStat}>
-                            <Ionicons name="book-outline" size={16} color={colors.primary} />
-                            <Text style={dynamicStyles.sessionStatText}>
-                              {session.unitsCompleted} {plan ? plan.unit : 'ユニット'}
-                            </Text>
-                          </View>
-                          <View style={styles.sessionStat}>
-                            <Ionicons name="timer-outline" size={16} color={colors.primary} />
-                            <Text style={dynamicStyles.sessionStatText}>
-                              {session.durationMinutes}分
-                            </Text>
-                          </View>
-                          <View style={styles.sessionStat}>
-                            <Ionicons name="speedometer-outline" size={16} color={colors.primary} />
-                            <Text style={dynamicStyles.sessionStatText}>
-                              難易度 {session.difficulty}/5
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.sessionQuality}>
-                          <Text style={dynamicStyles.sessionQualityLabel}>集中度</Text>
-                          <View style={dynamicStyles.concentrationBar}>
-                            <View
-                              style={[
-                                dynamicStyles.concentrationFill,
-                                { width: `${session.concentration * 100}%` },
-                              ]}
-                            />
-                          </View>
-                          <Text style={dynamicStyles.concentrationText}>
-                            {Math.round(session.concentration * 100)}%
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
+                    <SessionItemCard
+                      key={session.id}
+                      session={session}
+                      plan={plan}
+                      colors={colors}
+                      onMenuPress={handleMenuPress}
+                    />
                   );
                 })}
               </View>
@@ -408,23 +397,8 @@ export const TodayScreen: React.FC<Props> = () => {
             }
           });
           
-          // 重複を排除するためにマージ
-          const mergedRanges = (ranges: Array<{ start: number; end: number }>) => {
-            if (ranges.length === 0) return [];
-            const sorted = ranges.sort((a, b) => a.start - b.start);
-            const merged: Array<{ start: number; end: number }> = [sorted[0]];
-            for (let i = 1; i < sorted.length; i++) {
-              const last = merged[merged.length - 1];
-              if (sorted[i].start <= last.end + 1) {
-                last.end = Math.max(last.end, sorted[i].end);
-              } else {
-                merged.push(sorted[i]);
-              }
-            }
-            return merged;
-          };
-          
-          const mergedCompleted = mergedRanges(completedRanges);
+          // 重複を排除するためにマージ（utils.tsの関数を使用）
+          const mergedCompleted = mergeRanges(completedRanges);
           const completedUnitsInTaskRange = mergedCompleted.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
           
           const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);
@@ -452,29 +426,6 @@ export const TodayScreen: React.FC<Props> = () => {
             const n = Number(r.unitNumber);
             if (!Number.isNaN(n)) groups[key].units.push({ unit: n, id: r.id });
           });
-
-          const mergeUnitsToRanges = (units: number[]) => {
-            const sorted = Array.from(new Set(units)).sort((a, b) => a - b);
-            const ranges: Array<{ start: number; end: number; units: number }> = [];
-            let curStart: number | null = null;
-            let curEnd: number | null = null;
-            for (const u of sorted) {
-              if (curStart === null) {
-                curStart = u;
-                curEnd = u;
-                continue;
-              }
-              if (u === (curEnd as number) + 1) {
-                curEnd = u;
-              } else {
-                ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
-                curStart = u;
-                curEnd = u;
-              }
-            }
-            if (curStart !== null) ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
-            return ranges;
-          };
 
           const out: any[] = [];
           for (const key of Object.keys(groups)) {
@@ -516,23 +467,8 @@ export const TodayScreen: React.FC<Props> = () => {
                 }
               });
               
-              // マージして重複を排除
-              const mergeReviewRanges = (ranges: Array<{ start: number; end: number }>) => {
-                if (ranges.length === 0) return [];
-                const sorted = ranges.sort((a, b) => a.start - b.start);
-                const merged: Array<{ start: number; end: number }> = [sorted[0]];
-                for (let i = 1; i < sorted.length; i++) {
-                  const last = merged[merged.length - 1];
-                  if (sorted[i].start <= last.end + 1) {
-                    last.end = Math.max(last.end, sorted[i].end);
-                  } else {
-                    merged.push(sorted[i]);
-                  }
-                }
-                return merged;
-              };
-              
-              const mergedReviewCompleted = mergeReviewRanges(completedReviewRanges);
+              // マージして重複を排除（utils.tsの関数を使用）
+              const mergedReviewCompleted = mergeRanges(completedReviewRanges);
               const completed = mergedReviewCompleted.reduce((sum, rng) => sum + (rng.end - rng.start + 1), 0);
 
               const taskProgress = Math.min(completed / r.units, 1);
@@ -623,7 +559,7 @@ export const TodayScreen: React.FC<Props> = () => {
           </View>
           <View style={dynamicStyles.rightPaneTasks}>
             <View style={dynamicStyles.header}>
-              <Text style={textStyles.h1}>{format(selectedDate, 'M月d日(E)', { locale: ja })}</Text>
+              <Text style={textStyles.h1}>{formatDateShort(selectedDate)}</Text>
             </View>
             <ScrollView style={dynamicStyles.container} refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} />}> 
               <View style={styles.tasksSection}>
@@ -665,7 +601,7 @@ export const TodayScreen: React.FC<Props> = () => {
         <View style={dynamicStyles.header}>
           <Text style={textStyles.h1}>{t('today.title')}</Text>
           <Text style={dynamicStyles.dateText}>
-            {format(new Date(), 'M月d日(E)', { locale: ja })}
+            {formatDateShort(new Date())}
           </Text>
         </View>
 
@@ -814,29 +750,6 @@ export const TodayScreen: React.FC<Props> = () => {
           if (!Number.isNaN(n)) groups[key].units.push({ unit: n, id: r.id });
         });
 
-        const mergeUnitsToRanges = (units: number[]) => {
-          const sorted = Array.from(new Set(units)).sort((a, b) => a - b);
-          const ranges: Array<{ start: number; end: number; units: number }> = [];
-          let curStart: number | null = null;
-          let curEnd: number | null = null;
-          for (const u of sorted) {
-            if (curStart === null) {
-              curStart = u;
-              curEnd = u;
-              continue;
-            }
-            if (u === (curEnd as number) + 1) {
-              curEnd = u;
-            } else {
-              ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
-              curStart = u;
-              curEnd = u;
-            }
-          }
-          if (curStart !== null) ranges.push({ start: curStart, end: curEnd as number, units: (curEnd as number) - curStart + 1 });
-          return ranges;
-        };
-
         for (const key of Object.keys(groups)) {
           const { planId, date, units } = groups[key];
           const plan = plans.find((p) => p.id === planId);
@@ -874,22 +787,8 @@ export const TodayScreen: React.FC<Props> = () => {
               }
             });
             
-            const mergeReviewRanges = (ranges: Array<{ start: number; end: number }>) => {
-              if (ranges.length === 0) return [];
-              const sorted = ranges.sort((a, b) => a.start - b.start);
-              const merged: Array<{ start: number; end: number }> = [sorted[0]];
-              for (let i = 1; i < sorted.length; i++) {
-                const last = merged[merged.length - 1];
-                if (sorted[i].start <= last.end + 1) {
-                  last.end = Math.max(last.end, sorted[i].end);
-                } else {
-                  merged.push(sorted[i]);
-                }
-              }
-              return merged;
-            };
-            
-            const mergedReviewCompleted = mergeReviewRanges(completedReviewRanges);
+            // マージして重複を排除（utils.tsの関数を使用）
+            const mergedReviewCompleted = mergeRanges(completedReviewRanges);
             const completed = mergedReviewCompleted.reduce((sum, rng) => sum + (rng.end - rng.start + 1), 0);
 
             const taskProgress = Math.min(completed / r.units, 1);
@@ -1049,7 +948,7 @@ export const TodayScreen: React.FC<Props> = () => {
 
         <View style={styles.tasksSection}>
           <Text style={[styles.dateHeader, { color: colors.text }]}>
-            {format(selectedDate, 'M月d日(E)', { locale: ja })}のタスク
+            {formatDateShort(selectedDate)}のタスク
           </Text>
           {tasksForDateLoading ? (
             <ActivityIndicator size="large" color={colors.primary} />
@@ -1077,23 +976,8 @@ export const TodayScreen: React.FC<Props> = () => {
                       }
                     });
                     
-                    // 重複を排除するためにマージ
-                    const mergedRanges = (ranges: Array<{ start: number; end: number }>) => {
-                      if (ranges.length === 0) return [];
-                      const sorted = ranges.sort((a, b) => a.start - b.start);
-                      const merged: Array<{ start: number; end: number }> = [sorted[0]];
-                      for (let i = 1; i < sorted.length; i++) {
-                        const last = merged[merged.length - 1];
-                        if (sorted[i].start <= last.end + 1) {
-                          last.end = Math.max(last.end, sorted[i].end);
-                        } else {
-                          merged.push(sorted[i]);
-                        }
-                      }
-                      return merged;
-                    };
-                    
-                    const mergedCompleted = mergedRanges(completedRanges);
+                    // 重複を排除するためにマージ（utils.tsの関数を使用）
+                    const mergedCompleted = mergeRanges(completedRanges);
                     const completedUnitsInTaskRange = mergedCompleted.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
                     
                     const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);

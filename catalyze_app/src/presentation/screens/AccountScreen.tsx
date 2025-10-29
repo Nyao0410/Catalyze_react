@@ -278,7 +278,7 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
         
         <View style={styles.profileInfo}>
           <Text style={[styles.totalHoursLabel, { color: themeColors.textSecondary }]}>総学習時間</Text>
-          <Text style={[styles.totalHours, { color: themeColors.primary }]}>{profile.totalStudyHours}時間</Text>
+          <Text style={[styles.totalHours, { color: themeColors.primary }]}>{Math.floor(profile.totalStudyHours)}時間</Text>
         </View>
       </View>
 
