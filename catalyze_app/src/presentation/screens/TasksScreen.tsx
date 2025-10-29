@@ -37,6 +37,21 @@ import { PlansScreen } from './PlansScreen';
 
 const progressAnalysisService = new ProgressAnalysisService();
 
+/**
+ * ローカル日時として 'yyyy-MM-dd' 形式の文字列を Date に変換
+ * new Date('2025-10-25') は UTC として解釈されるため、
+ * parse() でローカルタイムとして正しく処理する
+ */
+/**
+ * ローカル日時として 'yyyy-MM-dd' 形式の文字列を Date に変換
+ * new Date('2025-10-25') は UTC として解釈されるため、
+ * 手動でパースしてローカルタイムとして正しく処理する
+ */
+function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 type Props = MainTabScreenProps<'Tasks'>;
 
 // パフォーマンス係数に基づいて色を返す関数
@@ -138,6 +153,7 @@ export const TodayScreen: React.FC<Props> = () => {
   const { data: plans = [] } = useStudyPlans(userId);
   const { data: sessions = [] } = useUserSessions(userId);
   const { data: dueReviewItems = [] } = useDueReviewItems(userId);
+  const { data: allReviewItems = [] } = useUserReviewItems(userId); // 全ての復習アイテム（カレンダーマーク用）
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
@@ -166,6 +182,11 @@ export const TodayScreen: React.FC<Props> = () => {
   const handleTaskComplete = (itemOrTask: any, maybeTask?: any) => {
     const wrapper = itemOrTask;
     const taskObj = maybeTask || (wrapper && (wrapper.task || wrapper));
+    
+    // 将来のタスク（予定タブで選択した日付）かどうかを判定
+    // wrapper.task が存在する場合、それが日次タスク（今日や将来のタスク）
+    const isFutureTask = wrapper && wrapper.task && !wrapper.type;
+    
     // Detect review tasks by multiple signals:
     // - wrapper.type === 'review' (constructed wrapper)
     // - explicit reviewItemIds on the taskObj
@@ -211,6 +232,17 @@ export const TodayScreen: React.FC<Props> = () => {
         return;
       }
     }
+    
+    // 将来のタスクの場合、範囲指定モードで RecordSession を開く
+    if (isFutureTask && taskObj && taskObj.startUnit !== undefined && taskObj.endUnit !== undefined) {
+      navigation.navigate('RecordSession', { 
+        planId: taskObj.planId, 
+        startUnit: taskObj.startUnit, 
+        endUnit: taskObj.endUnit 
+      });
+      return;
+    }
+    
     // fallback: open session modal
     if (taskObj) handleOpenSessionModal(taskObj);
   };
@@ -544,11 +576,33 @@ export const TodayScreen: React.FC<Props> = () => {
       const { data: upcomingTasks = [] } = useUpcomingTasks(userId, 30);
       const markedDates = React.useMemo(() => {
         const dates: { [key: string]: any } = {};
+        
+        // 日次タスクをマーク
         upcomingTasks.forEach((task) => {
-          const dateKey = format(task.date, 'yyyy-MM-dd');
-          dates[dateKey] = { marked: true, dotColor: colors.primary };
+          try {
+            const taskDate = task.date instanceof Date ? task.date : new Date(task.date);
+            const dateKey = format(startOfDay(taskDate), 'yyyy-MM-dd');
+            dates[dateKey] = { marked: true, dotColor: colors.primary };
+          } catch (e) {
+            console.warn('[TasksScreen:TodayTab] Failed to format task date:', e);
+          }
         });
-        const selectedKey = format(selectedDate, 'yyyy-MM-dd');
+        
+        // 全ての復習アイテムをマーク
+        allReviewItems.forEach((reviewItem) => {
+          try {
+            const reviewDate = reviewItem.nextReviewDate instanceof Date 
+              ? reviewItem.nextReviewDate 
+              : new Date(reviewItem.nextReviewDate);
+            const dateKey = format(startOfDay(reviewDate), 'yyyy-MM-dd');
+            dates[dateKey] = { marked: true, dotColor: colors.primary };
+          } catch (e) {
+            console.warn('[TasksScreen:TodayTab] Failed to format review date:', e);
+          }
+        });
+        
+        // 選択された日もマーク
+        const selectedKey = format(startOfDay(selectedDate), 'yyyy-MM-dd');
         dates[selectedKey] = {
           selected: true,
           selectedColor: colors.primary,
@@ -556,14 +610,14 @@ export const TodayScreen: React.FC<Props> = () => {
           dotColor: dates[selectedKey]?.dotColor || colors.primary,
         };
         return dates;
-      }, [upcomingTasks, selectedDate]);
+      }, [upcomingTasks, selectedDate, allReviewItems, colors]);
 
       return (
         <View style={dynamicStyles.splitContainer}>
           <View style={dynamicStyles.leftPaneCalendar}>
             <CalendarView
               selectedDate={selectedDate}
-              onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))}
+              onDayPress={(day: { dateString: string }) => setSelectedDate(parseLocalDate(day.dateString))}
               markedDates={markedDates}
             />
           </View>
@@ -728,6 +782,20 @@ export const TodayScreen: React.FC<Props> = () => {
     const { data: tasksForDate, isLoading: tasksForDateLoading } = useTasksForDate(userId, selectedDate);
     const { data: upcomingTasks = [] } = useUpcomingTasks(userId, 30); // 30日分のタスクを取得
 
+    // デバッグログ: 選択日付が変わるたびにログ出力
+    React.useEffect(() => {
+      console.log('[TasksScreen:UpcomingTab] Date changed:', {
+        selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+        tasksForDateCount: tasksForDate?.length || 0,
+        tasks: tasksForDate?.map(t => ({
+          id: t.id.substring(0, 50),
+          startUnit: t.startUnit,
+          endUnit: t.endUnit,
+          units: t.units,
+        })) || [],
+      });
+    }, [selectedDate, tasksForDate]);
+
     // 選択日付の復習タスクを構築
     const reviewTasksForDate = React.useMemo(() => {
       try {
@@ -736,7 +804,7 @@ export const TodayScreen: React.FC<Props> = () => {
         
         // group review items by planId + date for selected date only
         const groups: { [key: string]: { planId: string; date: Date; units: Array<{unit: number; id: string}> } } = {};
-        dueReviewItems.forEach((r) => {
+        allReviewItems.forEach((r) => {
           const reviewDate = startOfDay(new Date(r.nextReviewDate));
           // 選択日付の復習アイテムのみ処理
           if (reviewDate.getTime() !== selectedDateKey) return;
@@ -835,32 +903,62 @@ export const TodayScreen: React.FC<Props> = () => {
       } catch (e) {
         return [];
       }
-    }, [selectedDate, dueReviewItems, plans, sessions, progressAnalysisService]);
+    }, [selectedDate, allReviewItems, plans, sessions, progressAnalysisService, colors]);
 
     // タスクがある日をマーク
     const markedDates = React.useMemo(() => {
       const dates: { [key: string]: any } = {};
+      
+      // 日次タスクをマーク
       upcomingTasks.forEach((task) => {
-        const dateKey = format(task.date, 'yyyy-MM-dd');
-        dates[dateKey] = { marked: true, dotColor: colors.primary };
+        try {
+          const taskDate = task.date instanceof Date ? task.date : new Date(task.date);
+          const dateKey = format(startOfDay(taskDate), 'yyyy-MM-dd');
+          dates[dateKey] = { marked: true, dotColor: colors.primary };
+        } catch (e) {
+          console.warn('[TasksScreen] Failed to format task date:', e);
+        }
       });
+      
+      // 全ての復習アイテム（今後30日分）をマーク
+      allReviewItems.forEach((reviewItem) => {
+        try {
+          const reviewDate = reviewItem.nextReviewDate instanceof Date 
+            ? reviewItem.nextReviewDate 
+            : new Date(reviewItem.nextReviewDate);
+          const dateKey = format(startOfDay(reviewDate), 'yyyy-MM-dd');
+          dates[dateKey] = { marked: true, dotColor: colors.primary };
+        } catch (e) {
+          console.warn('[TasksScreen] Failed to format review date:', e);
+        }
+      });
+      
       // 選択された日もマーク
-      const selectedKey = format(selectedDate, 'yyyy-MM-dd');
+      const selectedKey = format(startOfDay(selectedDate), 'yyyy-MM-dd');
       dates[selectedKey] = { 
         selected: true, 
         selectedColor: colors.primary,
         marked: dates[selectedKey]?.marked || false,
         dotColor: dates[selectedKey]?.dotColor || colors.primary
       };
+      
+      // デバッグログ: マークされた日付の確認
+      console.log('[TasksScreen:UpcomingTab] markedDates computed:', {
+        totalMarkedDates: Object.keys(dates).length,
+        upcomingTasksCount: upcomingTasks.length,
+        reviewItemsCount: allReviewItems.length,
+        sample: Object.keys(dates).slice(0, 5),
+      });
+      
       return dates;
-    }, [upcomingTasks, selectedDate]);
+    }, [upcomingTasks, selectedDate, allReviewItems, colors]);
 
     // Tablet: split view with calendar on left and upcoming list on right
     if (isTablet) {
       return (
         <View style={dynamicStyles.splitContainer}>
           <View style={dynamicStyles.leftPaneCalendar}>
-            <CalendarView selectedDate={selectedDate} onDayPress={(day: { dateString: string }) => setSelectedDate(new Date(day.dateString))} markedDates={markedDates} />
+            <CalendarView selectedDate={selectedDate} onDayPress={(day: { dateString: string }) => setSelectedDate(parseLocalDate(day.dateString))} markedDates={markedDates} />
           </View>
           <View style={dynamicStyles.rightPaneTasks}>
             <ScrollView style={dynamicStyles.container} contentContainerStyle={{ paddingBottom: spacing.xl * 2 }}>
@@ -872,10 +970,39 @@ export const TodayScreen: React.FC<Props> = () => {
                     {tasksForDate && tasksForDate.map((item) => {
                       const plan = plans.find((p) => p.id === item.planId);
                       if (!plan) return null;
+                      // 復習タスクかどうかを判定
+                      const isReview = String(item.id).startsWith('review-');
                       // simplified task item
-                      const taskSessions = sessions.filter((s) => s.planId === plan.id && s.date >= startOfDay(selectedDate));
-                      const completedUnits = taskSessions.reduce((sum, s) => sum + s.unitsCompleted, 0);
-                      const taskProgress = Math.min(completedUnits / item.units, 1);
+                      const taskSessions = sessions.filter((s) => s.planId === plan.id && startOfDay(s.date).getTime() === startOfDay(selectedDate).getTime());
+                      // 範囲ベースで完了ユニット数を計算
+                      const completedRanges: Array<{ start: number; end: number }> = [];
+                      taskSessions.forEach((session) => {
+                        if (session.startUnit !== undefined && session.endUnit !== undefined) {
+                          const overlapStart = Math.max(item.startUnit, session.startUnit);
+                          const overlapEnd = Math.min(item.endUnit, session.endUnit);
+                          if (overlapStart <= overlapEnd) {
+                            completedRanges.push({ start: overlapStart, end: overlapEnd });
+                          }
+                        }
+                      });
+                      // 重複を排除してマージ
+                      const mergedRanges = (ranges: Array<{ start: number; end: number }>) => {
+                        if (ranges.length === 0) return [];
+                        const sorted = ranges.sort((a, b) => a.start - b.start);
+                        const merged: Array<{ start: number; end: number }> = [sorted[0]];
+                        for (let i = 1; i < sorted.length; i++) {
+                          const last = merged[merged.length - 1];
+                          if (sorted[i].start <= last.end + 1) {
+                            last.end = Math.max(last.end, sorted[i].end);
+                          } else {
+                            merged.push(sorted[i]);
+                          }
+                        }
+                        return merged;
+                      };
+                      const mergedCompleted = mergedRanges(completedRanges);
+                      const completedUnitsInTaskRange = mergedCompleted.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
+                      const taskProgress = Math.min(completedUnitsInTaskRange / item.units, 1);
                       return (
                         <TaskCard key={item.id} task={item} plan={plan} progress={taskProgress} achievability={progressAnalysisService.evaluateAchievability(plan, sessions)} onComplete={() => handleTaskComplete(item)} onStartTimer={() => handleStartTimer(item)} />
                       );
@@ -915,12 +1042,11 @@ export const TodayScreen: React.FC<Props> = () => {
         <CalendarView
           selectedDate={selectedDate}
           onDayPress={(day: { dateString: string }) => {
-            setSelectedDate(new Date(day.dateString));
+            setSelectedDate(parseLocalDate(day.dateString));
           }}
           markedDates={markedDates}
         />
 
-        {/* 選択された日のタスク */}
         <View style={styles.tasksSection}>
           <Text style={[styles.dateHeader, { color: colors.text }]}>
             {format(selectedDate, 'M月d日(E)', { locale: ja })}のタスク
