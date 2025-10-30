@@ -444,7 +444,7 @@ export class DailyTaskService {
       });
     } catch (e) {}
 
-    // dailyQuota を計算（セッション完了状況ではなく、経過日数ベース）
+    // dailyQuota を計算（セッション完了状況に基づく）
     const sessionsBeforeDate = sessions.filter((s) => {
       const normalizedSessionDate = normalizeToLocalDate(s.date);
       return startOfDay(normalizedSessionDate).getTime() < normalizedTargetDate.getTime();
@@ -452,11 +452,37 @@ export class DailyTaskService {
     const quotaResult = this.quotaCalculator.calculate(plan, sessionsBeforeDate);
     const dailyQuota = Math.ceil(quotaResult.recommendedDailyQuota);
     
-    // 経過日数 × dailyQuota で、指定日付までに完了すべきユニット数を計算
-    const expectedCompletedUnits = Math.min(elapsedStudyDays * dailyQuota, rangeTotal);
+    // ★重要: 実際に完了した最大 endUnit を追跡する
+    // セッションレコードで startUnit/endUnit が記録されている場合、それを使用
+    // そうでない場合は unitsCompleted を使って逆算
+    let maxCompletedUnit = rangeStart - 1; // 完了していない初期状態
     
-    // 指定日付のタスク範囲を計算
-    const taskStartUnit = rangeStart + expectedCompletedUnits;
+    for (const session of sessionsBeforeDate) {
+      if (session.endUnit !== undefined && session.startUnit !== undefined) {
+        // startUnit/endUnit が記録されている場合、endUnit を更新
+        maxCompletedUnit = Math.max(maxCompletedUnit, session.endUnit);
+      } else if (session.unitsCompleted && session.unitsCompleted > 0) {
+        // unitsCompleted のみの場合、rangeStart からの累積で推定
+        // ただし、この場合は正確でない可能性があるため、継続的に累積する
+        // （複数セッションの場合、単純な足し算では不正確）
+      }
+    }
+    
+    // 昨日までに完了したユニット数を確認
+    const totalUnitsCompletedBeforeDate = sessionsBeforeDate.reduce((sum, s) => sum + (s.unitsCompleted || 0), 0);
+    
+    // 指定日付のタスク開始地点を決定
+    // ★方針: 実際に完了したユニット情報（endUnit）がある場合はそれを優先
+    // そうでない場合は、累積ユニット数ベースで計算
+    let taskStartUnit: number;
+    if (maxCompletedUnit >= rangeStart) {
+      // 実際に完了したユニット情報がある場合、その次から開始
+      taskStartUnit = maxCompletedUnit + 1;
+    } else {
+      // ユニット情報がない場合、累積ユニット数ベースで計算
+      taskStartUnit = rangeStart + totalUnitsCompletedBeforeDate;
+    }
+    
     const taskEndUnit = Math.min(taskStartUnit + dailyQuota - 1, rangeEnd);
     
     try {
@@ -464,7 +490,8 @@ export class DailyTaskService {
         targetDate: format(normalizedTargetDate, 'yyyy-MM-dd'),
         elapsedStudyDays,
         dailyQuota,
-        expectedCompletedUnits,
+        maxCompletedUnit,
+        totalUnitsCompletedBeforeDate,
         taskStartUnit,
         taskEndUnit,
         rangeStart,

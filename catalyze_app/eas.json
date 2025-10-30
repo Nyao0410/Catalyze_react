@@ -1,14 +1,17 @@
 {
   "cli": {
-    "version": ">= 0.55.0"
+    "version": ">= 0.55.0",
+    "appVersionSource": "local"
   },
   "build": {
     "production": {
-      "ios": {
-        "buildType": "app-store"
-      },
       "android": {
         "buildType": "app-bundle"
+      }
+    },
+    "preview": {
+      "android": {
+        "buildType": "apk"
       }
     }
   }

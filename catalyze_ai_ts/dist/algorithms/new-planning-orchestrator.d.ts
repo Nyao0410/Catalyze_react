@@ -18,6 +18,11 @@ export declare class NewPlanningOrchestrator {
     private planner;
     generatePlan(plan: StudyPlanEntity, sessions: StudySessionEntity[], _reviewItems?: ReviewItemEntity[], dailyQuotaOverride?: number): OrchestratorResult;
     private _generateRoundTasks;
+    /**
+     * ★新規追加: セッションがどのラウンドタスク範囲に属するかを判定し、
+     * 各範囲内で完了したユニット数をカウント
+     */
+    private _calculateCompletedByRange;
     private _allocate;
 }
 //# sourceMappingURL=new-planning-orchestrator.d.ts.map
