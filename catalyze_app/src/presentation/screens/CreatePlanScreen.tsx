@@ -19,6 +19,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { t } from '../../locales';
 import { useCreatePlan, useStudyPlan, useUpdatePlan } from '../hooks/useStudyPlans';
 import { useTopToast } from '../hooks/useTopToast';
+import { useCurrentUserId } from '../hooks/useAuth';
 import { PlanDifficulty, PlanStatus, StudyPlanEntity } from 'catalyze-ai';
 import { format } from 'date-fns';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -34,6 +35,10 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
   const planId = route?.params?.planId as string | undefined;
   const { data: existingPlan } = useStudyPlan(planId || '');
   const { mutate: updatePlanMutate } = useUpdatePlan();
+  // 実際のユーザーIDを取得（未ログイン時でもローカルIDが返される）
+  const { userId: currentUserId, isLoading: isLoadingUserId } = useCurrentUserId();
+  // 'error'の場合はフォールバックを使用、それ以外はそのまま使用
+  const userId = currentUserId === 'error' ? 'local-default' : (isLoadingUserId ? 'loading' : currentUserId);
   
   const [title, setTitle] = useState('');
   const [startUnit, setStartUnit] = useState('1');
@@ -51,7 +56,7 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // when editing, load existing plan
   React.useEffect(() => {
-    if (existingPlan) {
+    if (existingPlan && existingPlan.id) {
       setIsEditMode(true);
       setTitle(existingPlan.title || '');
       setStartUnit(String(existingPlan.unitRange?.start ?? 1));
@@ -136,64 +141,83 @@ export const CreatePlanScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleSubmit = () => {
     if (!validateForm()) return;
-    
+
+    // ユーザーIDが読み込まれていない場合はエラー
+    if (isLoadingUserId || !userId || userId === 'loading' || userId === 'error') {
+      Alert.alert(t('errors.generic'), 'ユーザー情報を読み込めませんでした。しばらく待ってから再度お試しください。');
+      return;
+    }
+
     const start = parseInt(startUnit, 10);
     const end = parseInt(endUnit, 10);
     const totalUnits = end - start + 1;
     // selectedDate is guaranteed by validateForm()
     const deadlineDate = selectedDate as Date;
 
-  // normalize studyDays: UI uses 0=Sun..6=Sat, domain expects 1=Mon..7=Sun
-  const normalizedStudyDays = studyDays.map((d) => (d === 0 ? 7 : d));
+    // normalize studyDays: UI uses 0=Sun..6=Sat, domain expects 1=Mon..7=Sun
+    const normalizedStudyDays = studyDays.map((d) => (d === 0 ? 7 : d));
 
-  const newPlan = new StudyPlanEntity({
-      id: `plan-${Date.now()}`,
-      userId: 'user-001',
-      title: title.trim(),
-      totalUnits,
-    // `unit` is a label for the unit (e.g., '問'). Don't set it to the range string.
-    unit: unitLabel || existingPlan?.unit || '問',
-    unitRange: { start, end },
-      createdAt: new Date(),
-      deadline: deadlineDate,
-      rounds: parseInt(rounds, 10) || 1,
-      targetRounds: parseInt(targetRounds, 10) || 1,
-      estimatedTimePerUnit: (parseInt(estimatedMinutesPerUnit, 10) || 30) * 60 * 1000,
-      difficulty,
-  studyDays: normalizedStudyDays,
-      status: PlanStatus.ACTIVE,
-  } as any);
     if (isEditMode && existingPlan) {
-    // update existing plan (keep same id)
-  const props = { ...newPlan, id: existingPlan.id, studyDays: normalizedStudyDays } as any;
-  const updated = new StudyPlanEntity(props);
-  // Log and wait for mutation success before navigating back so we can confirm persistence
-  try {
-    // eslint-disable-next-line no-console
-    console.debug(`[PERSIST/PLAN] update requested id=${updated.id}`);
-  } catch (e) {
-    // ignore
-  }
-  updatePlanMutate(updated, {
-    onSuccess: () => {
-      try {
-        // eslint-disable-next-line no-console
-        console.debug(`[PERSIST/PLAN] update succeeded id=${updated.id}`);
-      } catch (e) {}
-      navigation.goBack();
-    },
-    onError: () => {
-      Alert.alert(t('errors.saveFailed'), t('createPlan.error'));
-    },
-  });
-    } else {
-      createPlan(newPlan, {
+      // Create a new properties object for the entity constructor,
+      // starting with all of the existing plan's properties, then overriding.
+      const updatedProps = {
+        ...existingPlan,
+        title: title.trim(),
+        totalUnits,
+        unit: unitLabel,
+        unitRange: { start, end },
+        deadline: deadlineDate,
+        rounds: parseInt(rounds, 10) || 1,
+        targetRounds: parseInt(targetRounds, 10) || 1,
+        estimatedTimePerUnit:
+          (parseInt(estimatedMinutesPerUnit, 10) || 30) * 60 * 1000,
+        difficulty,
+        studyDays: normalizedStudyDays,
+      };
+      
+      const updatedPlan = new StudyPlanEntity(updatedProps);
+
+      updatePlanMutate(updatedPlan, {
         onSuccess: () => {
-          // トーストを表示して戻る
-          try { toast.show(t('createPlan.successMessage') || '計画を作成しました'); } catch (e) { /* no-op */ }
           navigation.goBack();
         },
-        onError: () => {
+        onError: (e) => {
+          // eslint-disable-next-line no-console
+          console.error('plan update failed', e);
+          Alert.alert(t('errors.saveFailed'), t('createPlan.error'));
+        },
+      });
+    } else {
+      const newPlan = new StudyPlanEntity({
+        id: `plan-${Date.now()}-${Math.random()}`,
+        userId: userId,
+        title: title.trim(),
+        totalUnits,
+        unit: unitLabel || '問',
+        unitRange: { start, end },
+        createdAt: new Date(),
+        deadline: deadlineDate,
+        rounds: parseInt(rounds, 10) || 1,
+        targetRounds: parseInt(targetRounds, 10) || 1,
+        estimatedTimePerUnit:
+          (parseInt(estimatedMinutesPerUnit, 10) || 30) * 60 * 1000,
+        difficulty,
+        studyDays: normalizedStudyDays,
+        status: PlanStatus.ACTIVE,
+      });
+
+      createPlan(newPlan, {
+        onSuccess: () => {
+          try {
+            toast.show(t('createPlan.successMessage') || '計画を作成しました');
+          } catch (e) {
+            /* no-op */
+          }
+          navigation.goBack();
+        },
+        onError: (e) => {
+          // eslint-disable-next-line no-console
+          console.error('plan creation failed', e);
           Alert.alert(t('errors.saveFailed'), t('createPlan.error'));
         },
       });

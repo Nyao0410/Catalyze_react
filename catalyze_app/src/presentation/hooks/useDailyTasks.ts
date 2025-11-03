@@ -18,6 +18,7 @@ export const useDailyTasks = (userId: string, date?: Date) => {
   return useQuery<DailyTaskEntity[]>({
     queryKey: ['dailyTasks', userId, keyDateStr],
     queryFn: () => dailyTaskService.getTodayTasks(userId, date),
+    enabled: !!userId && userId !== '', // userIdが空文字列の場合はクエリを無効化
     staleTime: 1000 * 60 * 5, // 5分
   });
 };
@@ -76,6 +77,7 @@ export const useTasksForDate = (userId: string, date: Date) => {
       } catch (e) {}
       return result;
     },
+    enabled: !!userId && userId !== '', // userIdが空文字列の場合はクエリを無効化
     staleTime: 1000 * 60 * 5, // 5分
   });
 };
@@ -87,6 +89,7 @@ export const useUpcomingTasks = (userId: string, days: number = 7) => {
   return useQuery<DailyTaskEntity[]>({
     queryKey: ['upcomingTasks', userId, days],
     queryFn: () => dailyTaskService.getUpcomingTasks(userId, days),
+    enabled: !!userId && userId !== '', // userIdが空文字列の場合はクエリを無効化
     staleTime: 1000 * 60 * 5, // 5分
   });
 };

@@ -17,7 +17,7 @@ const LOCAL_USER_ID_KEY = '@studynext:local_user_id';
  * ローカルユーザーIDを生成・取得
  * ログインしていない場合にデバイス固有のIDを使用
  */
-async function getOrCreateLocalUserId(): Promise<string> {
+export async function getOrCreateLocalUserId(): Promise<string> {
   try {
     const storedId = await AsyncStorage.getItem(LOCAL_USER_ID_KEY);
     if (storedId) {

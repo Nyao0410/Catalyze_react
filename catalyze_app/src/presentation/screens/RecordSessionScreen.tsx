@@ -16,7 +16,7 @@ import { StudySessionEntity, ProgressAnalysisService } from 'catalyze-ai';
 import { studyPlanService, studySessionService } from '../../services';
 import { t } from '../../locales';
 import { useTopToast } from '../hooks/useTopToast';
-import { getCurrentUserId } from '../../infrastructure/auth';
+import { useCurrentUserId } from '../hooks/useAuth';
 
 type RouteProps = RootStackScreenProps<'RecordSession'>;
 
@@ -26,16 +26,15 @@ export const RecordSessionScreen: React.FC = () => {
   const { planId, taskId, sessionId, elapsedMinutes, startUnit: paramStartUnit, endUnit: paramEndUnit, fromTimer, reviewItemIds } = route.params as any;
   const { colors } = useTheme();
 
-  const [userId, setUserId] = React.useState<string>('user-001');
+  // 実際のユーザーIDを取得（未ログイン時でもローカルIDが返される）
+  const { userId: currentUserId, isLoading: isLoadingUserId } = useCurrentUserId();
+  // 'error'の場合はフォールバックを使用、それ以外はそのまま使用
+  const userId = currentUserId === 'error' ? 'local-default' : (isLoadingUserId ? 'loading' : currentUserId);
   
-  // ユーザーIDを初期化
-  React.useEffect(() => {
-    const initUserId = async () => {
-      const id = await getCurrentUserId();
-      setUserId(id);
-    };
-    initUserId();
-  }, []);
+  // セッション作成時はuserIdが有効でないとエラー
+  if (!isLoadingUserId && (!userId || userId === 'loading' || userId === 'error')) {
+    console.warn('[RecordSession] Invalid userId:', userId);
+  }
 
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
@@ -174,6 +173,15 @@ export const RecordSessionScreen: React.FC = () => {
   // ...existing code...
 
   const handleSave = async () => {
+    // userIdが有効でない場合はエラー
+    if (isLoadingUserId || !userId || userId === 'loading' || userId === 'error') {
+      Alert.alert(
+        t('errors.generic') || 'エラー',
+        'ユーザー情報を読み込めませんでした。しばらく待ってから再度お試しください。'
+      );
+      return;
+    }
+    
     // determine units: for edit keep existing value, for new derive from task/timer/default
     const duration = parseInt(durationMinutes);
     let unitsNumber: number;
@@ -183,6 +191,7 @@ export const RecordSessionScreen: React.FC = () => {
 
     if (__DEV__) {
       console.log('[RecordSession] handleSave started:', {
+        userId,
         isReviewCompletion,
         inputMode,
         paramStartUnit,

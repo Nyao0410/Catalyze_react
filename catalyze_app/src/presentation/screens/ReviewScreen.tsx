@@ -10,14 +10,20 @@ import { colors, spacing, textStyles } from '../theme';
 import { t } from '../../locales';
 import { useDueReviewItems, useRecordReview } from '../hooks/useReviewItems';
 import { useStudyPlans } from '../hooks/useStudyPlans';
+import { useCurrentUserId } from '../hooks/useAuth';
 import type { ReviewItemEntity } from 'catalyze-ai';
 
 // type Props = MainTabScreenProps<'Review'>;
 type Props = {};
 
 export const ReviewScreen: React.FC<Props> = () => {
-  const { data: reviewItems, isLoading: isLoadingReviews } = useDueReviewItems('user-001');
-  const { data: plans } = useStudyPlans('user-001');
+  // 実際のユーザーIDを取得（未ログイン時でもローカルIDが返される）
+  const { userId: currentUserId, isLoading: isLoadingUserId } = useCurrentUserId();
+  const userId = currentUserId === 'error' ? 'local-default' : (isLoadingUserId ? 'loading' : currentUserId);
+  const effectiveUserId = (userId === 'loading' || userId === 'error') ? '' : userId;
+  
+  const { data: reviewItems, isLoading: isLoadingReviews } = useDueReviewItems(effectiveUserId);
+  const { data: plans } = useStudyPlans(effectiveUserId);
   const { mutate: recordReview, isPending } = useRecordReview();
   
   const [currentIndex, setCurrentIndex] = useState(0);

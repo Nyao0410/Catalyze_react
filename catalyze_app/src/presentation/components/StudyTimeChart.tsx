@@ -11,6 +11,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { getColorForPlan } from '../utils/planPalette';
 import type { StudyTimeData } from '../../application/services/StatisticsService';
 import { useStudyPlans } from '../../presentation/hooks/useStudyPlans';
+import { useCurrentUserId } from '../hooks/useAuth';
 
 interface StudyTimeChartProps {
   weeklyData: StudyTimeData[];
@@ -42,8 +43,11 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
   });
   const planIds = Array.from(planIdsSet);
 
-  const userId = 'user-001';
-  const { data: plans = [] } = useStudyPlans(userId);
+  // 実際のユーザーIDを取得（未ログイン時でもローカルIDが返される）
+  const { userId: currentUserId, isLoading: isLoadingUserId } = useCurrentUserId();
+  const userId = currentUserId === 'error' ? 'local-default' : (isLoadingUserId ? 'loading' : currentUserId);
+  const effectiveUserId = (userId === 'loading' || userId === 'error') ? '' : userId;
+  const { data: plans = [] } = useStudyPlans(effectiveUserId);
   const planIdToTitle = new Map(plans.map((p: any) => [p.id, p.title]));
 
   // build data arrays: each plan corresponds to an array of values (hours)

@@ -20,6 +20,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { Button, PlanCard, EmptyState } from '../components';
 import { PlanDetailScreen } from './PlanDetailScreen';
 import { useStudyPlans, useUserSessions } from '../hooks';
+import { useCurrentUserId } from '../hooks/useAuth';
 import type { MainTabScreenProps } from '../navigation/types';
 import { t } from '../../locales';
 
@@ -31,13 +32,16 @@ export const PlansScreen: React.FC<Props> = ({ navigation }) => {
   const [filter, setFilter] = useState<FilterType>('active');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   
-  // 仮のユーザーID（本来は認証から取得）
-  const userId = 'user-001';
+  // 実際のユーザーIDを取得（未ログイン時でもローカルIDが返される）
+  const { userId: currentUserId, isLoading: isLoadingUserId } = useCurrentUserId();
+  // 'error'の場合はフォールバックを使用、それ以外はそのまま使用
+  const userId = currentUserId === 'error' ? 'local-default' : (isLoadingUserId ? 'loading' : currentUserId);
+  const effectiveUserId = (userId === 'loading' || userId === 'error') ? '' : userId;
   
   // 学習計画を取得
-  const { data: plans = [], isLoading, refetch, isRefetching } = useStudyPlans(userId);
+  const { data: plans = [], isLoading, refetch, isRefetching } = useStudyPlans(effectiveUserId);
   // ユーザーの全セッションを取得してプラン毎に集計
-  const { data: userSessions = [] } = useUserSessions(userId as any);
+  const { data: userSessions = [] } = useUserSessions(effectiveUserId);
 
   const { isTablet, colors } = useTheme();
 

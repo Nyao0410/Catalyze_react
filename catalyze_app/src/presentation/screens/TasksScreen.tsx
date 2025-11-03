@@ -63,9 +63,10 @@ interface SessionForm {
 }
 
 export const TodayScreen: React.FC<Props> = () => {
-  // 実際のユーザーIDを取得
+  // 実際のユーザーIDを取得（未ログイン時でもローカルIDが返される）
   const { userId: currentUserId, isLoading: isLoadingUserId } = useCurrentUserId();
-  const userId = isLoadingUserId ? 'loading' : currentUserId;
+  // 'error'の場合はフォールバックを使用、それ以外はそのまま使用
+  const userId = currentUserId === 'error' ? 'local-default' : (isLoadingUserId ? 'loading' : currentUserId);
   const navigation = useNavigation();
   const { isTablet, colors } = useTheme();
   const { width } = useWindowDimensions();
@@ -220,8 +221,9 @@ export const TodayScreen: React.FC<Props> = () => {
     </View>
   );
 
-  // userIdが読み込み中の場合は空文字列を渡してクエリを無効化
-  const effectiveUserId = userId === 'loading' ? '' : userId;
+  // userIdが'loading'または'error'の場合は空文字列を渡してクエリを無効化
+  // ただし、getCurrentUserId()は未ログイン時でもローカルIDを返すため、通常は有効なIDが入る
+  const effectiveUserId = (userId === 'loading' || userId === 'error') ? '' : userId;
   const { data: todayTasks = [], isLoading: todayTasksLoading, refetch: refetchToday } = useDailyTasks(effectiveUserId);
   const { data: plans = [] } = useStudyPlans(effectiveUserId);
   const { data: sessions = [] } = useUserSessions(effectiveUserId);
@@ -461,7 +463,9 @@ export const TodayScreen: React.FC<Props> = () => {
       });
 
       // load upcoming tasks to compute marked dates for the calendar on tablet
-      const { data: upcomingTasks = [] } = useUpcomingTasks(userId, 30);
+      // effectiveUserIdを使用してクエリを正しく実行
+      const effectiveUserIdForTablet = userId === 'loading' ? '' : userId;
+      const { data: upcomingTasks = [] } = useUpcomingTasks(effectiveUserIdForTablet, 30);
       const markedDates = React.useMemo(() => {
         const dates: { [key: string]: any } = {};
         
@@ -667,8 +671,10 @@ export const TodayScreen: React.FC<Props> = () => {
   const UpcomingTab = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
 
-    const { data: tasksForDate, isLoading: tasksForDateLoading } = useTasksForDate(userId, selectedDate);
-    const { data: upcomingTasks = [] } = useUpcomingTasks(userId, 30); // 30日分のタスクを取得
+    // effectiveUserIdを使用してクエリを正しく実行
+    const effectiveUserId = userId === 'loading' ? '' : userId;
+    const { data: tasksForDate, isLoading: tasksForDateLoading } = useTasksForDate(effectiveUserId, selectedDate);
+    const { data: upcomingTasks = [] } = useUpcomingTasks(effectiveUserId, 30); // 30日分のタスクを取得
 
     // デバッグログ: 選択日付が変わるたびにログ出力
     React.useEffect(() => {

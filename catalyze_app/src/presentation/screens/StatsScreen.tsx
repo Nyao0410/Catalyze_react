@@ -40,18 +40,26 @@ export const StatsScreen: React.FC<Props> = () => {
   const { colors } = useTheme();
   
   // 現在のユーザー UID を取得（Firebase Auth または fallback）
-  const { userId, isLoading: isLoadingUserId } = useCurrentUserId();
+  const { userId: currentUserId, isLoading: isLoadingUserId } = useCurrentUserId();
+  
+  // userIdが'loading'や'error'の場合は空文字列を渡してクエリを無効化
+  // ただし、getCurrentUserId()は未ログイン時でもローカルIDを返すため、通常は有効なIDが入る
+  const effectiveUserId = (isLoadingUserId || !currentUserId || currentUserId === 'loading' || currentUserId === 'error') 
+    ? '' 
+    : currentUserId;
 
-  // データ取得
-  const { data: weeklyTime, isLoading: loadingWeekly, refetch: refetchWeekly } = useWeeklyStudyTime(userId);
-  const { data: monthlyTime, isLoading: loadingMonthly, refetch: refetchMonthly } = useMonthlyStudyTime(userId);
-  const { data: weeklyBreakdown, isLoading: loadingWeeklyBreakdown, refetch: refetchWeeklyBreakdown } = useWeeklyPlanBreakdown(userId);
-  const { data: monthlyBreakdown, isLoading: loadingMonthlyBreakdown, refetch: refetchMonthlyBreakdown } = useMonthlyPlanBreakdown(userId);
-  const { data: streak, isLoading: loadingStreak, refetch: refetchStreak } = useStudyStreak(userId);
-  const { data: optimalTime, isLoading: loadingOptimal, refetch: refetchOptimal } = useOptimalStudyTime(userId);
-  const { data: heatmap, isLoading: loadingHeatmap, refetch: refetchHeatmap } = useHeatmapData(userId);
+  // データ取得（effectiveUserIdを使用）
+  const { data: weeklyTime, isLoading: loadingWeekly, refetch: refetchWeekly } = useWeeklyStudyTime(effectiveUserId);
+  const { data: monthlyTime, isLoading: loadingMonthly, refetch: refetchMonthly } = useMonthlyStudyTime(effectiveUserId);
+  const { data: weeklyBreakdown, isLoading: loadingWeeklyBreakdown, refetch: refetchWeeklyBreakdown } = useWeeklyPlanBreakdown(effectiveUserId);
+  const { data: monthlyBreakdown, isLoading: loadingMonthlyBreakdown, refetch: refetchMonthlyBreakdown } = useMonthlyPlanBreakdown(effectiveUserId);
+  const { data: streak, isLoading: loadingStreak, refetch: refetchStreak } = useStudyStreak(effectiveUserId);
+  const { data: optimalTime, isLoading: loadingOptimal, refetch: refetchOptimal } = useOptimalStudyTime(effectiveUserId);
+  const { data: heatmap, isLoading: loadingHeatmap, refetch: refetchHeatmap } = useHeatmapData(effectiveUserId);
 
+  // ユーザーIDの読み込み中またはデータ取得中の場合はローディング表示
   const isLoading =
+    isLoadingUserId ||
     loadingWeekly ||
     loadingMonthly ||
     loadingWeeklyBreakdown ||
@@ -59,6 +67,17 @@ export const StatsScreen: React.FC<Props> = () => {
     loadingStreak ||
     loadingOptimal ||
     loadingHeatmap;
+  
+  // デバッグ: セッションデータを確認
+  React.useEffect(() => {
+    if (__DEV__ && !isLoadingUserId && effectiveUserId) {
+      console.log('[StatsScreen] User ID loaded:', {
+        currentUserId,
+        effectiveUserId,
+        isLoadingUserId,
+      });
+    }
+  }, [currentUserId, effectiveUserId, isLoadingUserId]);
 
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
@@ -85,6 +104,21 @@ export const StatsScreen: React.FC<Props> = () => {
     headerSubtitle: [styles.headerSubtitle, { color: colors.textSecondary }],
   };
 
+  // ユーザーIDが読み込まれていない、またはエラーの場合
+  if (isLoadingUserId || !currentUserId || currentUserId === 'loading' || currentUserId === 'error') {
+    return (
+      <View style={dynamicStyles.centerContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        {currentUserId === 'error' && (
+          <Text style={[textStyles.body, { color: colors.error, marginTop: spacing.md }]}>
+            ユーザー情報の読み込みに失敗しました
+          </Text>
+        )}
+      </View>
+    );
+  }
+
+  // データ取得中の場合はローディング表示
   if (isLoading) {
     return (
       <View style={dynamicStyles.centerContainer}>

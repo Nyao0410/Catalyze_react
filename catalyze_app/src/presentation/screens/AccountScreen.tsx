@@ -38,12 +38,15 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string>('user-001');
+  // 実際のユーザーIDを取得（未ログイン時でもローカルIDが返される）
+  const { userId: userIdFromHook, isLoading: isLoadingUserId } = useCurrentUserId();
+  const currentUserId = userIdFromHook === 'error' ? 'local-default' : (isLoadingUserId ? 'loading' : userIdFromHook);
   const [initializationError, setInitializationError] = useState<string | null>(null);
   const [initializationTimeout, setInitializationTimeout] = useState<NodeJS.Timeout | null>(null);
   
-  // データ取得
-  const { data: profile, isLoading: isLoadingProfile } = useProfile(currentUserId);
+  // データ取得（effectiveUserIdを使用）
+  const effectiveUserId = (currentUserId === 'loading' || currentUserId === 'error') ? '' : currentUserId;
+  const { data: profile, isLoading: isLoadingProfile } = useProfile(effectiveUserId);
   const { data: settings, isLoading: isLoadingSettings } = useSettings();
   
   // ミューテーション
@@ -79,28 +82,28 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
   const [pomodoroWorkMinutesInput, setPomodoroWorkMinutesInput] = useState('');
   const [pomodoroBreakMinutesInput, setPomodoroBreakMinutesInput] = useState('');
 
-  // 認証状態の確認
+  // 認証状態の確認（useCurrentUserId()から取得したuserIdを使用）
   useEffect(() => {
     const checkAuthState = async () => {
       const currentUser = getCurrentUser();
-      const userId = await getCurrentUserId(); // Firebase UIDまたはフォールバック値を取得
+      // useCurrentUserId()から取得したuserIdを使用（既にcurrentUserIdに設定されている）
       // 匿名ユーザーは認証済みとみなさない（メール/パスワードログインのみを認証済みとする）
       const isLoggedIn = !!(currentUser && !currentUser.isAnonymous);
       setIsAuthenticated(isLoggedIn);
       setCurrentUserEmail(currentUser?.email || null);
-      setCurrentUserId(userId);
+      // currentUserIdは既にuseCurrentUserId()から取得済み
     };
     
     checkAuthState();
     
     // 認証状態の変更を監視
     const unsubscribe = onAuthStateChange(async (user) => {
-      const userId = await getCurrentUserId(); // Firebase UIDまたはフォールバック値を取得
+      // useCurrentUserId()から取得したuserIdを使用（既にcurrentUserIdに設定されている）
       // 匿名ユーザーは認証済みとみなさない（メール/パスワードログインのみを認証済みとする）
       const isLoggedIn = !!(user && !user.isAnonymous);
       setIsAuthenticated(isLoggedIn);
       setCurrentUserEmail(user?.email || null);
-      setCurrentUserId(userId);
+      // currentUserIdは既にuseCurrentUserId()から取得済み（userIdFromHookから計算済み）
     });
     
     return unsubscribe;
