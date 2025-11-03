@@ -266,7 +266,13 @@ export const TodayScreen: React.FC<Props> = () => {
       const ids: string[] | undefined = taskObj && taskObj.reviewItemIds && taskObj.reviewItemIds.length > 0 ? taskObj.reviewItemIds : undefined;
       if (ids && ids.length > 0) {
         // Open the RecordSession screen prefilled for the review range so user records a session instead of separate evaluation
-        navigation.navigate('RecordSession', { planId: taskObj.planId, startUnit: taskObj.startUnit, endUnit: taskObj.endUnit });
+        // reviewItemIdsを渡して、復習完了時に確実にSM-2を適用できるようにする
+        navigation.navigate('RecordSession', { 
+          planId: taskObj.planId, 
+          startUnit: taskObj.startUnit, 
+          endUnit: taskObj.endUnit,
+          reviewItemIds: ids 
+        });
         return;
       }
       // Fallback: if task id encodes a single review or no underlying ids available, attempt single-item navigation

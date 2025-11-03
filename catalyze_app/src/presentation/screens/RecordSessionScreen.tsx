@@ -20,7 +20,7 @@ type RouteProps = RootStackScreenProps<'RecordSession'>;
 export const RecordSessionScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<RouteProps['route']>();
-  const { planId, taskId, sessionId, elapsedMinutes, startUnit: paramStartUnit, endUnit: paramEndUnit, fromTimer } = route.params as any;
+  const { planId, taskId, sessionId, elapsedMinutes, startUnit: paramStartUnit, endUnit: paramEndUnit, fromTimer, reviewItemIds } = route.params as any;
   const { colors } = useTheme();
 
   const userId = 'user-001';
@@ -251,13 +251,50 @@ export const RecordSessionScreen: React.FC = () => {
               }
 
               const { reviewItemService } = await import('../../services');
-              const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
-              const targets = items.filter((it) => {
-                const n = Number(it.unitNumber);
-                return !Number.isNaN(n) && n >= finalStartUnit! && n <= finalEndUnit!;
-              });
+              let targets: any[] = [];
+              
+              // reviewItemIdsが指定されている場合はそれを使用（最も確実）
+              if (reviewItemIds && reviewItemIds.length > 0) {
+                if (__DEV__) {
+                  console.log(`[RecordSession] Edit mode - Using provided reviewItemIds: ${reviewItemIds.length} items`);
+                }
+                // 指定されたIDの復習アイテムを取得
+                targets = await Promise.all(
+                  reviewItemIds.map(async (id: string) => {
+                    try {
+                      return await reviewItemService.getReviewItemById(id);
+                    } catch (e) {
+                      if (__DEV__) {
+                        console.warn(`[RecordSession] Edit mode - Failed to get review item ${id}:`, e);
+                      }
+                      return null;
+                    }
+                  })
+                );
+                targets = targets.filter((it) => it !== null);
+              } else {
+                // reviewItemIdsが指定されていない場合は範囲から検索
+                const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
+                // 今日期限の復習アイテムのみを対象にする
+                const today = startOfDay(new Date());
+                targets = items.filter((it) => {
+                  const n = Number(it.unitNumber);
+                  const isInRange = !Number.isNaN(n) && n >= finalStartUnit! && n <= finalEndUnit!;
+                  // 今日期限のアイテムのみを対象
+                  const reviewDate = startOfDay(new Date(it.nextReviewDate));
+                  const isDueToday = reviewDate.getTime() <= today.getTime();
+                  return isInRange && isDueToday;
+                });
+              }
+              
               if (targets.length > 0) {
+                if (__DEV__) {
+                  console.log(`[RecordSession] Edit mode - Applying SM-2 quality=${quality} to ${targets.length} review items to regenerate schedule`);
+                }
                 await Promise.all(targets.map((it) => recordReview.mutateAsync({ itemId: it.id, quality })));
+                if (__DEV__) {
+                  console.log(`[RecordSession] Edit mode - SM-2 applied successfully. Next review dates updated`);
+                }
               }
             }
           } catch (e) {
@@ -345,33 +382,66 @@ export const RecordSessionScreen: React.FC = () => {
           
           await createSession.mutateAsync(newSession);
           
-          // 既存の復習アイテムに対してSM-2を適用
+          // 既存の復習アイテムに対してSM-2を適用して次回復習日を再生成
           try {
             const { reviewItemService } = await import('../../services');
-            const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
-            if (__DEV__) {
-              console.log(`[RecordSession] Found ${items.length} review items for plan ${planId}`);
-              console.log(`[RecordSession] Looking for units between ${autoStartUnit} and ${computedEndUnit}`);
+            let targets: any[] = [];
+            
+            // reviewItemIdsが指定されている場合はそれを使用（最も確実）
+            if (reviewItemIds && reviewItemIds.length > 0) {
+              if (__DEV__) {
+                console.log(`[RecordSession] Using provided reviewItemIds: ${reviewItemIds.length} items`);
+              }
+              // 指定されたIDの復習アイテムを取得
+              targets = await Promise.all(
+                reviewItemIds.map(async (id: string) => {
+                  try {
+                    return await reviewItemService.getReviewItemById(id);
+                  } catch (e) {
+                    if (__DEV__) {
+                      console.warn(`[RecordSession] Failed to get review item ${id}:`, e);
+                    }
+                    return null;
+                  }
+                })
+              );
+              targets = targets.filter((it) => it !== null);
+            } else {
+              // reviewItemIdsが指定されていない場合は範囲から検索
+              const items: any[] = (await reviewItemService.getReviewItemsByPlanId(planId)) || [];
+              if (__DEV__) {
+                console.log(`[RecordSession] Found ${items.length} review items for plan ${planId}`);
+                console.log(`[RecordSession] Looking for units between ${autoStartUnit} and ${computedEndUnit}`);
+              }
+              
+              // 今日期限の復習アイテムのみを対象にする
+              const today = startOfDay(new Date());
+              targets = items.filter((it) => {
+                const n = Number(it.unitNumber);
+                const isInRange = !Number.isNaN(n) && n >= autoStartUnit && n <= computedEndUnit;
+                // 今日期限のアイテムのみを対象
+                const reviewDate = startOfDay(new Date(it.nextReviewDate));
+                const isDueToday = reviewDate.getTime() <= today.getTime();
+                return isInRange && isDueToday;
+              });
             }
             
-            const targets = items.filter((it) => {
-              const n = Number(it.unitNumber);
-              return !Number.isNaN(n) && n >= autoStartUnit && n <= computedEndUnit;
-            });
-            
             if (__DEV__) {
-              console.log(`[RecordSession] Found ${targets.length} matching review items to update`);
+              console.log(`[RecordSession] Found ${targets.length} matching review items to update with SM-2`);
               if (targets.length > 0) {
-                console.log(`[RecordSession] Target units: ${targets.map((t: any) => t.unitNumber).join(', ')}`);
+                console.log(`[RecordSession] Target review items: ${targets.map((t: any) => `${t.unitNumber} (id: ${t.id})`).join(', ')}`);
               }
             }
             
-            // 復習済みアイテムに対してSM-2を適用（次回復習日を計算）
+            // 復習済みアイテムに対してSM-2を適用（次回復習日を計算して再生成）
             if (targets.length > 0) {
               if (__DEV__) {
-                console.log(`[RecordSession] Applying SM-2 quality=${initialQuality} to ${targets.length} review items`);
+                console.log(`[RecordSession] Applying SM-2 quality=${initialQuality} to ${targets.length} review items to regenerate schedule`);
               }
               await Promise.all(targets.map((it) => recordReview.mutateAsync({ itemId: it.id, quality: initialQuality })));
+              if (__DEV__) {
+                console.log(`[RecordSession] SM-2 applied successfully. Next review dates updated based on quality ${initialQuality}`);
+              }
             } else {
               if (__DEV__) {
                 console.log(`[RecordSession] No matching review items found for range ${autoStartUnit}-${computedEndUnit}`);
