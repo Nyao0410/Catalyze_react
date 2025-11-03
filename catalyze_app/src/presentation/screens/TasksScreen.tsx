@@ -47,6 +47,7 @@ import {
   formatTime,
   groupSessionsByDate,
 } from './tasks/utils';
+import { useTodayActiveTasks } from './tasks/useTasksHooks';
 
 const progressAnalysisService = new ProgressAnalysisService();
 
@@ -374,120 +375,17 @@ export const TodayScreen: React.FC<Props> = () => {
     useCreateDailyReviewTasks(userId, todayTasks, sessions, plans);
     
     // 完了していないタスクと今日の復習タスクをマージして表示
-    const activeTasks = React.useMemo(() => [
-      // 日次タスク（今日用）
-      ...todayTasks
-        .map((task) => {
-          const plan = plans.find((p) => p.id === task.planId);
-          if (!plan) return null;
-
-          // 進捗と達成可能性を計算
-          // ★修正: 今日のセッションのみをフィルタリング
-          const planSessions = sessions.filter((s) => s.planId === plan.id && isToday(s.date));
-          
-          // 範囲ベースの進捗計算: セッションの完了範囲をマージしてから計算（重複を避ける）
-          const completedRanges: Array<{ start: number; end: number }> = [];
-          planSessions.forEach((session) => {
-            if (session.startUnit !== undefined && session.endUnit !== undefined) {
-              const overlapStart = Math.max(task.startUnit, session.startUnit);
-              const overlapEnd = Math.min(task.endUnit, session.endUnit);
-              if (overlapStart <= overlapEnd) {
-                completedRanges.push({ start: overlapStart, end: overlapEnd });
-              }
-            }
-          });
-          
-          // 重複を排除するためにマージ（utils.tsの関数を使用）
-          const mergedCompleted = mergeRanges(completedRanges);
-          const completedUnitsInTaskRange = mergedCompleted.reduce((sum, r) => sum + (r.end - r.start + 1), 0);
-          
-          const taskProgress = Math.min(completedUnitsInTaskRange / task.units, 1);
-          // ★修正: 完了したタスク（taskProgress === 1）はフィルタリングで除外するためにnullを返す
-          if (taskProgress === 1) return null;
-          
-          const progress = progressAnalysisService.calculateProgress(plan, planSessions);
-          const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
-
-          return { type: 'daily' as const, task, plan, taskProgress, achievability };
-        })
-        .filter((item) => item !== null),
-      // 復習アイテム->タスク変換（今日期限のもの）
-      ...(function buildReviewTasks() {
-        try {
-          // group by planId + date (filter only today's items)
-          const today = startOfDay(new Date());
-          const groups: { [key: string]: { planId: string; date: Date; units: Array<{unit: number; id: string}> } } = {};
-          dueReviewItems.forEach((r) => {
-            const reviewDate = startOfDay(new Date(r.nextReviewDate));
-            // 今日の復習アイテムのみ処理
-            if (reviewDate.getTime() !== today.getTime()) return;
-            const key = `${r.planId}_${reviewDate.getTime()}`;
-            groups[key] = groups[key] || { planId: r.planId, date: reviewDate, units: [] };
-            const n = Number(r.unitNumber);
-            if (!Number.isNaN(n)) groups[key].units.push({ unit: n, id: r.id });
-          });
-
-          const out: any[] = [];
-          for (const key of Object.keys(groups)) {
-            const { planId, date, units } = groups[key];
-            const plan = plans.find((p) => p.id === planId);
-            if (!plan) continue;
-            // units is Array<{unit,id}>, extract numbers for merging
-            const unitNumbers = units.map((u) => u.unit);
-            const ranges = mergeUnitsToRanges(unitNumbers);
-            const planSessions = sessions.filter((s) => s.planId === planId);
-            ranges.forEach((r, idx) => {
-              const reviewTask = {
-                id: `review-${planId}-${date.getTime()}-${r.start}-${r.end}-${idx}`,
-                planId,
-                date,
-                startUnit: r.start,
-                endUnit: r.end,
-                units: r.units,
-                estimatedMinutes: r.units * 5,
-                round: 1,
-                advice: t('today.review.advice') || '復習しましょう！',
-                // collect underlying review item ids for this range
-                reviewItemIds: units
-                  .filter((u) => u.unit >= r.start && u.unit <= r.end)
-                  .map((u) => u.id),
-              } as any;
-
-              // progress: check sessions covering the whole range
-              const completedReviewRanges: Array<{ start: number; end: number }> = [];
-              planSessions.forEach((s) => {
-                if (s.startUnit !== undefined && s.endUnit !== undefined) {
-                  const overlapStart = Math.max(r.start, s.startUnit);
-                  const overlapEnd = Math.min(r.end, s.endUnit);
-                  if (overlapStart <= overlapEnd) {
-                    completedReviewRanges.push({ start: overlapStart, end: overlapEnd });
-                  }
-                } else if (isToday(s.date)) {
-                  completedReviewRanges.push({ start: r.start, end: Math.min(r.start + s.unitsCompleted - 1, r.end) });
-                }
-              });
-              
-              // マージして重複を排除（utils.tsの関数を使用）
-              const mergedReviewCompleted = mergeRanges(completedReviewRanges);
-              const completed = mergedReviewCompleted.reduce((sum, rng) => sum + (rng.end - rng.start + 1), 0);
-
-              const taskProgress = Math.min(completed / r.units, 1);
-              const achievability = progressAnalysisService.evaluateAchievability(plan, planSessions);
-
-              if (taskProgress < 1) out.push({ type: 'review' as const, task: reviewTask, plan, taskProgress, achievability });
-            });
-          }
-
-          return out;
-        } catch (e) {
-          return []; // on error fallback to no review tasks
-        }
-      })(),
-    ], [todayTasks, plans, sessions, dueReviewItems, progressAnalysisService]);
+    // useTodayActiveTasksフックを使って復習タスクを含めた全てのタスクを取得
+    const activeTasks = useTodayActiveTasks(todayTasks, plans, sessions, dueReviewItems, progressAnalysisService);
 
     // 統計サマリーを計算
-    const totalUnits = activeTasks.reduce((sum, item) => sum + item!.task.units, 0);
-    const totalMinutes = activeTasks.reduce((sum, item) => sum + item!.task.estimatedMinutes, 0);
+    const totalUnits = activeTasks.reduce((sum, item) => sum + (item?.task?.units || 0), 0);
+    const totalMinutes = activeTasks.reduce((sum, item) => {
+      const task = item?.task;
+      // estimatedMinutesが定義されている場合はそれを使用、そうでない場合はestimatedDuration（ミリ秒）を分に変換
+      const minutes = task?.estimatedMinutes || (task?.estimatedDuration ? task.estimatedDuration / (1000 * 60) : 0);
+      return sum + minutes;
+    }, 0);
 
     if (todayTasksLoading) {
       return (
