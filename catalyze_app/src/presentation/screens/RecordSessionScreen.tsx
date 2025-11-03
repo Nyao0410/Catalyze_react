@@ -523,7 +523,12 @@ export const RecordSessionScreen: React.FC = () => {
           queryClient.invalidateQueries({ queryKey: ['tasksForDate', userId] });
           queryClient.invalidateQueries({ queryKey: ['reviewItems', 'due', userId] });
           queryClient.invalidateQueries({ queryKey: ['reviewItems', 'user', userId] });
+          // TasksScreenの履歴タブで使用されるキー
           queryClient.invalidateQueries({ queryKey: ['studySessions', 'user', userId] });
+          // 統計画面で使用されるキー（重要: 統計が正しく更新されるように）
+          queryClient.invalidateQueries({ queryKey: ['sessions', 'all', userId] });
+          // 統計データのキャッシュも無効化
+          queryClient.invalidateQueries({ queryKey: ['stats', userId] });
           // PlanDetail uses the ['studySessions', planId] key; invalidate it so the detail view refreshes
           queryClient.invalidateQueries({ queryKey: ['studySessions', planId] });
           queryClient.invalidateQueries({ queryKey: ['dailyTasks', 'plan', planId] });

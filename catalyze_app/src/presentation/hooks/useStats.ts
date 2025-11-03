@@ -59,6 +59,8 @@ export interface OverallStats {
 
 /**
  * 全体統計を取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useOverallStats = (userId: string) => {
   const { data: plans } = useStudyPlans(userId);
@@ -66,6 +68,7 @@ export const useOverallStats = (userId: string) => {
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });
@@ -113,12 +116,15 @@ export const useOverallStats = (userId: string) => {
 
 /**
  * 週間統計を取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useWeeklyStats = (userId: string) => {
   const { data: allSessions } = useQuery({
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });
@@ -179,12 +185,15 @@ export const useWeeklyStats = (userId: string) => {
 
 /**
  * 月間統計を取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useMonthlyStats = (userId: string) => {
   const { data: allSessions } = useQuery({
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });
@@ -224,12 +233,15 @@ export const useMonthlyStats = (userId: string) => {
 
 /**
  * 週間学習時間データを取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useWeeklyStudyTime = (userId: string) => {
   const { data: allSessions } = useQuery({
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       const sessions = await studySessionService.getSessionsByUserId(userId);
       //console.log('[useWeeklyStudyTime] fetched sessions:', sessions.length);
       return sessions;
@@ -250,12 +262,15 @@ export const useWeeklyStudyTime = (userId: string) => {
 
 /**
  * 月間学習時間データを取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useMonthlyStudyTime = (userId: string) => {
   const { data: allSessions } = useQuery({
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });
@@ -272,6 +287,8 @@ export const useMonthlyStudyTime = (userId: string) => {
 
 /**
  * 週間学習項目内訳を取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useWeeklyPlanBreakdown = (userId: string) => {
   const { data: plans } = useStudyPlans(userId);
@@ -279,6 +296,7 @@ export const useWeeklyPlanBreakdown = (userId: string) => {
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });
@@ -295,6 +313,8 @@ export const useWeeklyPlanBreakdown = (userId: string) => {
 
 /**
  * 月間学習項目内訳を取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useMonthlyPlanBreakdown = (userId: string) => {
   const { data: plans } = useStudyPlans(userId);
@@ -302,6 +322,7 @@ export const useMonthlyPlanBreakdown = (userId: string) => {
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });
@@ -318,12 +339,15 @@ export const useMonthlyPlanBreakdown = (userId: string) => {
 
 /**
  * 学習ストリークを取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useStudyStreak = (userId: string) => {
   const { data: allSessions } = useQuery({
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });
@@ -340,12 +364,15 @@ export const useStudyStreak = (userId: string) => {
 
 /**
  * 最適学習時間帯を取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useOptimalStudyTime = (userId: string) => {
   const { data: allSessions } = useQuery({
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });
@@ -362,12 +389,15 @@ export const useOptimalStudyTime = (userId: string) => {
 
 /**
  * ヒートマップデータを取得
+ * 
+ * 全ての学習記録（計画画面からの記録と復習の記録）を含む統計を計算します。
  */
 export const useHeatmapData = (userId: string) => {
   const { data: allSessions } = useQuery({
     queryKey: ['sessions', 'all', userId],
     queryFn: async () => {
       const { studySessionService } = await import('../../services');
+      // 全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
       return studySessionService.getSessionsByUserId(userId);
     },
   });

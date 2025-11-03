@@ -430,7 +430,7 @@ export const AccountScreen: React.FC<MainTabScreenProps<'Account'>> = ({ navigat
             <Ionicons name="moon-outline" size={24} color={themeColors.text} />
             <View style={styles.settingTextContainer}>
               <Text style={[styles.settingTitle, { color: themeColors.text }]}>ダークモード</Text>
-              <Text style={[styles.settingDescription, { color: themeColors.textSecondary }]}>外観を暗くする</Text>
+              <Text style={[styles.settingDescription, { color: themeColors.textSecondary }]}>外観を暗くする(実験的)</Text>
             </View>
           </View>
           <Switch

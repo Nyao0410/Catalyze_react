@@ -27,6 +27,7 @@ import type { MainTabScreenProps } from '../navigation/types';
 import { useDailyTasks, useStudyPlans, useUserSessions, useCreateSession, useTasksForDate, useUpcomingTasks } from '../hooks';
 import { useUpdateSession, useDeleteSession } from '../hooks/useStudySessions';
 import { useCreateDailyReviewTasks } from '../hooks/useCreateDailyReviewTasks';
+import { useCurrentUserId } from '../hooks/useAuth';
 import { TaskCard, EmptyState } from '../components';
 import { StudySessionEntity, ProgressAnalysisService, PlanStatus, DailyTaskEntity } from 'catalyze-ai';
 import { format, isToday, startOfDay } from 'date-fns';
@@ -62,7 +63,9 @@ interface SessionForm {
 }
 
 export const TodayScreen: React.FC<Props> = () => {
-  const userId = 'user-001'; // TODO: 実際のユーザーIDを取得
+  // 実際のユーザーIDを取得
+  const { userId: currentUserId, isLoading: isLoadingUserId } = useCurrentUserId();
+  const userId = isLoadingUserId ? 'loading' : currentUserId;
   const navigation = useNavigation();
   const { isTablet, colors } = useTheme();
   const { width } = useWindowDimensions();
@@ -217,11 +220,13 @@ export const TodayScreen: React.FC<Props> = () => {
     </View>
   );
 
-  const { data: todayTasks = [], isLoading: todayTasksLoading, refetch: refetchToday } = useDailyTasks(userId);
-  const { data: plans = [] } = useStudyPlans(userId);
-  const { data: sessions = [] } = useUserSessions(userId);
-  const { data: dueReviewItems = [] } = useDueReviewItems(userId);
-  const { data: allReviewItems = [] } = useUserReviewItems(userId); // 全ての復習アイテム（カレンダーマーク用）
+  // userIdが読み込み中の場合は空文字列を渡してクエリを無効化
+  const effectiveUserId = userId === 'loading' ? '' : userId;
+  const { data: todayTasks = [], isLoading: todayTasksLoading, refetch: refetchToday } = useDailyTasks(effectiveUserId);
+  const { data: plans = [] } = useStudyPlans(effectiveUserId);
+  const { data: sessions = [] } = useUserSessions(effectiveUserId);
+  const { data: dueReviewItems = [] } = useDueReviewItems(effectiveUserId);
+  const { data: allReviewItems = [] } = useUserReviewItems(effectiveUserId); // 全ての復習アイテム（カレンダーマーク用）
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
@@ -322,17 +327,50 @@ export const TodayScreen: React.FC<Props> = () => {
   };
 
   // 履歴タスクコンポーネント
+  // 全ての学習記録（計画画面からの記録と復習の記録）を表示
+  // PlanDetailScreenの実装を参考にして、確実にセッションを表示する
   const HistoryTab = () => {
-    const { data: sessions = [], isLoading } = useUserSessions(userId);
-    const { data: plans = [] } = useStudyPlans(userId);
+    // useUserSessionsは全期間の全てのセッション（計画からの記録と復習の記録を含む）を取得
+    const effectiveUserId = userId === 'loading' ? '' : userId;
+    const { data: sessions = [], isLoading, refetch } = useUserSessions(effectiveUserId);
+    const { data: plans = [] } = useStudyPlans(effectiveUserId);
 
-    // 日付ごとにセッションをグループ化
-    const groupedSessions = React.useMemo(() => groupSessionsByDate(sessions), [sessions]);
+    // デバッグ: セッションデータを確認
+    React.useEffect(() => {
+      if (__DEV__ && !isLoading) {
+        console.log('[TasksScreen HistoryTab] Sessions:', {
+          userId,
+          sessionCount: sessions.length,
+          sessions: sessions.slice(0, 3).map((s: any) => ({
+            id: s.id,
+            date: s.date,
+            planId: s.planId,
+            unitsCompleted: s.unitsCompleted,
+          })),
+        });
+      }
+    }, [sessions, userId, isLoading]);
 
-    if (isLoading) {
+    // 日付ごとにセッションをグループ化（PlanDetailScreenと同じ形式で）
+    const groupedSessions = React.useMemo(() => {
+      if (!sessions || sessions.length === 0) return [];
+      return groupSessionsByDate(sessions);
+    }, [sessions]);
+
+    if (isLoadingUserId || isLoading) {
       return (
         <View style={dynamicStyles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      );
+    }
+
+    if (!userId || userId === 'loading') {
+      return (
+        <View style={dynamicStyles.centerContainer}>
+          <Text style={[textStyles.body, { color: colors.text }]}>
+            ユーザー情報を読み込み中...
+          </Text>
         </View>
       );
     }
@@ -369,6 +407,15 @@ export const TodayScreen: React.FC<Props> = () => {
               </View>
             )}
             contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading}
+                onRefresh={() => {
+                  refetch();
+                }}
+                tintColor={colors.primary}
+              />
+            }
           />
         )}
       </View>
@@ -377,8 +424,9 @@ export const TodayScreen: React.FC<Props> = () => {
 
   // 今日のタスクコンポーネント
   const TodayTab = () => {
-    // 復習タスク自動作成フック呼び出し
-    useCreateDailyReviewTasks(userId, todayTasks, sessions, plans);
+    // 復習タスク自動作成フック呼び出し（effectiveUserIdを使用）
+    const effectiveUserId = userId === 'loading' ? '' : userId;
+    useCreateDailyReviewTasks(effectiveUserId, todayTasks, sessions, plans);
     
     // 完了していないタスクと今日の復習タスクをマージして表示
     // useTodayActiveTasksフックを使って復習タスクを含めた全てのタスクを取得
