@@ -102,15 +102,7 @@ export class StudySessionService {
       // 復習アイテム生成失敗でもセッションは保存済み。必要ならロールバックや例外を投げる。
     }
 
-    // ポイント付与
-    try {
-      const performanceFactor = session.performanceFactor ?? 1;
-      const basePoints = Math.floor((session.durationMinutes || 0) * performanceFactor * 10);
-      const points = Math.max(1, basePoints);
-      await SocialService.addPoints(session.userId, points);
-    } catch (e) {
-      console.error('Failed to add points in service:', e);
-    }
+    // ポイント付与は RecordSessionScreen で処理されるため、ここでは不要
 
     return created;
   }

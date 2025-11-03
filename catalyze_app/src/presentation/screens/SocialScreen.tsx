@@ -16,30 +16,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, textStyles, colors as defaultColors } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
 import type { MainTabScreenProps } from '../navigation/types';
-import { useFriends, useCooperationGoals, useRanking, useUserPoints } from '../hooks';
-import { getCurrentUserId, isUserLoggedIn } from '../../infrastructure/auth';
+import { useFriends, useCooperationGoals, useRanking, useUserPoints, useActiveAIMatches, useAvailableAICompetitors } from '../hooks';
+import { useAuthState, useCurrentUserId } from '../hooks/useAuth';
 
-type TabType = 'cooperation' | 'ranking';
+type TabType = 'cooperation' | 'ranking' | 'ai-competition';
 
 export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigation }) => {
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>('cooperation');
-  const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const loggedIn = useAuthState();
+  const { userId: currentUserId } = useCurrentUserId();
   
-  useEffect(() => {
-    const loadUserId = async () => {
-      const userId = await getCurrentUserId();
-      const isLoggedIn = isUserLoggedIn();
-      if (userId) {
-        setCurrentUserId(userId);
-        setLoggedIn(isLoggedIn);
-      }
-    };
-    loadUserId();
-  }, []);
-  
-  // ナビゲーションヘッダーにフレンドボタンを追加
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -57,6 +44,10 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
   const { data: friends = [], isLoading: isLoadingFriends } = useFriends(currentUserId);
   const { data: goals = [], isLoading: isLoadingGoals } = useCooperationGoals(currentUserId);
   const { data: userPoints } = useUserPoints(currentUserId);
+  
+  // AI競争のデータ取得
+  const { data: activeMatches = [], isLoading: isLoadingMatches } = useActiveAIMatches(currentUserId);
+  const { data: aiCompetitors = [], isLoading: isLoadingAICompetitors } = useAvailableAICompetitors();
   
   // ランキング用のユーザーID（自分 + フレンド）
   const rankingUserIds = [currentUserId, ...friends.map(f => f.id)];
@@ -249,14 +240,152 @@ export const SocialScreen: React.FC<MainTabScreenProps<'Social'>> = ({ navigatio
     );
   };
 
+  const renderAICompetitionMode = () => {
+    if (isLoadingMatches || isLoadingAICompetitors) {
+      return (
+        <View style={[styles.content, styles.centerContent]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView style={styles.content}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>進行中のAI競争</Text>
+          
+          {activeMatches.length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="beaker-outline" size={64} color={colors.textSecondary} />
+              <Text style={styles.emptyStateTitle}>AI競争がありません</Text>
+              <Text style={styles.emptyStateText}>
+                AIキャラクターと競争して、{'\n'}
+                学習のモチベーションを上げましょう!
+              </Text>
+            </View>
+          ) : (
+            activeMatches.map((match) => {
+              const competitor = aiCompetitors.find(c => c.id === match.aiCompetitorId);
+              const userProgress = (match.userProgress / match.targetProgress) * 100;
+              const aiProgress = (match.aiProgress / match.targetProgress) * 100;
+
+              return (
+                <View key={match.id} style={styles.aiMatchCard}>
+                  <View style={styles.aiMatchHeader}>
+                    <Text style={styles.matchTypeLabel}>{match.matchType === 'studyHours' ? '勉強時間' : match.matchType === 'points' ? 'ポイント' : 'ストリーク'}</Text>
+                  </View>
+
+                  <View style={styles.competitionContainer}>
+                    {/* ユーザーの進捗 */}
+                    <View style={styles.playerRow}>
+                      <View style={styles.playerInfo}>
+                        <Text style={[styles.playerLabel, { color: colors.text }]}>あなた</Text>
+                        <Text style={[styles.playerStats, { color: colors.textSecondary }]}>
+                          {Math.round(match.userProgress)} / {match.targetProgress}
+                          {match.matchType === 'studyHours' ? '時間' : match.matchType === 'points' ? 'pt' : '日'}
+                        </Text>
+                      </View>
+                      <View style={styles.progressSection}>
+                        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                          <View 
+                            style={[
+                              styles.progressFill, 
+                              { 
+                                width: `${Math.min(userProgress, 100)}%`,
+                                backgroundColor: colors.primary,
+                              }
+                            ]} 
+                          />
+                        </View>
+                        <Text style={[styles.progressPercent, { color: colors.text }]}>
+                          {Math.round(userProgress)}%
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* AIの進捗 */}
+                    <View style={styles.playerRow}>
+                      <View style={styles.playerInfo}>
+                        <Text style={[styles.playerLabel, { color: colors.text }]}>{competitor?.avatar} {competitor?.name}</Text>
+                        <Text style={[styles.playerStats, { color: colors.textSecondary }]}>
+                          {Math.round(match.aiProgress)} / {match.targetProgress}
+                          {match.matchType === 'studyHours' ? '時間' : match.matchType === 'points' ? 'pt' : '日'}
+                        </Text>
+                      </View>
+                      <View style={styles.progressSection}>
+                        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                          <View 
+                            style={[
+                              styles.progressFill,
+                              { 
+                                width: `${Math.min(aiProgress, 100)}%`,
+                                backgroundColor: colors.warning,
+                              }
+                            ]} 
+                          />
+                        </View>
+                        <Text style={[styles.progressPercent, { color: colors.text }]}>
+                          {Math.round(aiProgress)}%
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* 勝者予想 */}
+                    {userProgress !== aiProgress && (
+                      <View style={[styles.winnerPredictor, { backgroundColor: userProgress > aiProgress ? colors.success : colors.warning }]}>
+                        <Ionicons 
+                          name={userProgress > aiProgress ? "trophy" : "alert-circle"} 
+                          size={16} 
+                          color={colors.white} 
+                        />
+                        <Text style={[styles.winnerPredictorText, { color: colors.white }]}>
+                          {userProgress > aiProgress ? 'あなたがリード中!' : 'AIに追い上げられています'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.matchFooter}>
+                    <View style={styles.deadlineContainer}>
+                      <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
+                      <Text style={styles.deadlineText}>
+                        期限: {new Date(match.endDate).toLocaleDateString('ja-JP')}
+                      </Text>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.detailButton}
+                      onPress={() => navigation.navigate('AICompetitionDetail' as any, { matchId: match.id })}
+                    >
+                      <Text style={styles.detailButtonText}>詳細</Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          )}
+
+          <TouchableOpacity 
+            style={styles.createButton}
+            onPress={() => navigation.navigate('SelectAICompetitor' as any)}
+          >
+            <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+            <Text style={styles.createButtonText}>新しいAI競争を開始</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
+
   return (
     <View style={dynamicStyles.container}>
       <View style={dynamicStyles.tabContainer}>
         {renderTabButton('cooperation', '協力モード', 'people')}
         {renderTabButton('ranking', 'ランキング', 'trophy')}
+        {renderTabButton('ai-competition', 'AI競争', 'sparkles')}
       </View>
 
-      {!loggedIn ? renderLoginPrompt() : activeTab === 'cooperation' ? renderCooperationMode() : renderRankingMode()}
+      {!loggedIn && activeTab !== 'ai-competition' ? renderLoginPrompt() : activeTab === 'cooperation' ? renderCooperationMode() : activeTab === 'ranking' ? renderRankingMode() : renderAICompetitionMode()}
     </View>
   );
 };
@@ -380,9 +509,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   progressBar: {
-    height: 8,
+    height: 12,
     backgroundColor: defaultColors.border,
-    borderRadius: 4,
+    borderRadius: 6,
     overflow: 'hidden',
     marginBottom: spacing.xs,
   },
@@ -549,4 +678,105 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+    marginVertical: spacing.xl,
+  },
+  emptyStateTitle: {
+    ...textStyles.h3,
+    color: defaultColors.text,
+    marginTop: spacing.md,
+  },
+  emptyStateText: {
+    ...textStyles.body,
+    color: defaultColors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  aiMatchCard: {
+    backgroundColor: defaultColors.card,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: defaultColors.border,
+  },
+  aiMatchHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  aiMatchTitle: {
+    ...textStyles.h4,
+    color: defaultColors.text,
+  },
+  matchTypeLabel: {
+    ...textStyles.caption,
+    backgroundColor: defaultColors.primaryLight,
+    color: defaultColors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 4,
+    overflow: 'hidden',
+    fontWeight: '600',
+  },
+  competitionContainer: {
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  playerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  playerInfo: {
+    width: '35%',
+    paddingRight: spacing.sm,
+  },
+  playerLabel: {
+    ...textStyles.body,
+    color: defaultColors.text,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  playerStats: {
+    ...textStyles.caption,
+    color: defaultColors.textSecondary,
+  },
+  progressSection: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  progressPercent: {
+    ...textStyles.caption,
+    color: defaultColors.text,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  winnerPredictor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 8,
+  },
+  winnerPredictorText: {
+    ...textStyles.body,
+    color: defaultColors.white,
+    fontWeight: '600',
+  },
+  matchFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: defaultColors.border,
+  },
 });
+

@@ -40,6 +40,8 @@ export type AccountServiceInterface = {
 	getSettings(): Promise<UserSettings | null>;
 	updateSettings(updates: Partial<Omit<UserSettings, 'userId' | 'updatedAt'>>): Promise<UserSettings>;
 	addStudyHours(hours: number): Promise<UserProfile>;
+	addUserPoints(pointsEarned: number, reason?: string): Promise<UserProfile>;
+	getUserStats(): Promise<any>;
 	initializeDefaultProfile(userId: string, email: string, displayName?: string): Promise<UserProfile>;
 	initializeDefaultSettings(): Promise<UserSettings>;
 	clearAll(): Promise<void>;
