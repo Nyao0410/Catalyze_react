@@ -1,14 +1,11 @@
 /**
  * Catalyze AI - Study Time Chart Component
- * 学習時間グラフコンポーネント（週間/月間切り替え可能）
+ * 学習時間グラフコンポーネント（週間/月間切り替え可能）- 再構築版
  */
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { StackedBarChart, Grid } from 'react-native-svg-charts';
-import { View as RNView } from 'react-native';
-import * as scale from 'd3-scale';
-import Svg, { Text as SvgText } from 'react-native-svg';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import Svg, { G, Rect, Text as SvgText, Line } from 'react-native-svg';
 import { colors as defaultColors, spacing, textStyles } from '../theme';
 import { useTheme } from '../theme/ThemeProvider';
 import { getColorForPlan } from '../utils/planPalette';
@@ -22,16 +19,18 @@ interface StudyTimeChartProps {
 
 type PeriodType = 'weekly' | 'monthly';
 
+const CHART_HEIGHT = 220;
+const CHART_PADDING = { top: 20, bottom: 30, left: 50, right: 20 };
+
 export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
   weeklyData,
   monthlyData,
 }) => {
   const [period, setPeriod] = useState<PeriodType>('weekly');
   const screenWidth = Dimensions.get('window').width;
-  const [containerWidth, setContainerWidth] = useState<number>(
-    screenWidth - spacing.lg * 2
-  );
+  const chartWidth = screenWidth - spacing.lg * 2 - CHART_PADDING.left - CHART_PADDING.right;
   const { colors } = useTheme();
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
   const currentData = period === 'weekly' ? weeklyData : monthlyData;
   const labels = currentData.map((d) => d.label);
@@ -43,14 +42,9 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
   });
   const planIds = Array.from(planIdsSet);
 
-  // load plans for name lookup. use a default userId placeholder; in many screens userId is 'user-001'
   const userId = 'user-001';
   const { data: plans = [] } = useStudyPlans(userId);
   const planIdToTitle = new Map(plans.map((p: any) => [p.id, p.title]));
-
-  // palette (matches StatisticsService)
-  // fallback palette kept for legacy but colors should be derived from getColorForPlan
-  const palette = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
 
   // build data arrays: each plan corresponds to an array of values (hours)
   const series = planIds.length > 0
@@ -58,34 +52,16 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
         return currentData.map((d) => {
           const map = new Map(d.perPlanMinutes?.map((p) => [p.planId, p.minutes]) || []);
           const minutes = map.get(pid) || 0;
-          return Math.round((minutes / 60) * 10) / 10;
+          return minutes / 60;
         });
       })
     : [
-        // fallback single series from total minutes
-        currentData.map((d) => Math.round((d.minutes / 60) * 10) / 10),
+        currentData.map((d) => d.minutes / 60),
       ];
 
-  const chartConfig = {
-    backgroundColor: colors.background,
-    backgroundGradientFrom: colors.card,
-    backgroundGradientTo: colors.card,
-    decimalPlaces: 1,
-    color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`, // primary color
-    labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`, // text secondary
-    style: {
-      borderRadius: 16,
-    },
-    propsForLabels: {
-      fontSize: 8, // 少し小さくしてラベルの重なりを避ける
-    },
-  };
-
-  const contentInset = { top: 10, bottom: 10 };
-
-  // compute max total hours for the Y axis and choose a readable tick step
+  // compute max total hours for the Y axis
   const maxTotalHours = Math.max(
-    0,
+    0.1,
     ...currentData.map((d) => {
       const planSum = d.perPlanMinutes?.reduce((s, p) => s + p.minutes, 0);
       const totalMinutes = typeof planSum === 'number' ? planSum : d.minutes;
@@ -94,85 +70,94 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
   );
 
   const computeStep = (maxH: number) => {
-    if (maxH <= 1) return 0.25; // 15 minutes
-    if (maxH <= 3) return 0.5; // 30 minutes
-    if (maxH <= 6) return 1; // 1 hour
-    if (maxH <= 12) return 1; // 1 hour
-    return Math.ceil(maxH / 6); // spread into ~6 steps for large ranges
+    if (maxH <= 1) return 0.25;
+    if (maxH <= 3) return 0.5;
+    if (maxH <= 6) return 1;
+    if (maxH <= 12) return 2;
+    return Math.ceil(maxH / 6);
   };
 
   const step = computeStep(maxTotalHours);
-  const maxTick = Math.ceil((maxTotalHours || 0) / step) * step;
+  const maxTick = Math.ceil(maxTotalHours / step) * step;
   const ticks: number[] = [];
   for (let v = 0; v <= maxTick + 1e-9; v += step) {
     ticks.push(Number(v.toFixed(2)));
   }
 
   const formatHourLabel = (value: number) => {
-    const minutes = Math.round(value * 60);
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
+    if (value === 0) return '0';
+    const h = Math.floor(value);
+    const m = Math.round((value - h) * 60);
+    if (h === 0) return `${m}分`;
+    if (m === 0) return `${h}h`;
     return `${h}:${m.toString().padStart(2, '0')}`;
   };
 
-  // calculate chart width: use containerWidth but shrink slightly when many bars to reduce bar width
-  // start from container width but allow a small right extension so the purple
-  // background area reaches closer to the right card edge. We still shrink
-  // a bit when there are many bars to avoid overflowing labels.
-  // give a bit more room on the right while shrinking bars more aggressively
-  // so that on narrow devices (iPhone 14 Pro portrait) the last bar doesn't overflow.
-  // further extend to the right so the purple background reaches the card edge on narrow screens
-  // balance right extension with centered appearance
-  const baseChartWidth = containerWidth + 40;
-  const extraShrinkPerBar = 12; // slightly less aggressive shrink for better balance
-  const minChartWidth = 120;
-  const chartWidth = Math.max(
-    minChartWidth,
-    baseChartWidth - Math.max(0, labels.length - 1) * extraShrinkPerBar
-  );
+  const barWidth = chartWidth / (labels.length * 1.5);
+  const barSpacing = barWidth * 0.5;
+  const availableWidth = labels.length * (barWidth + barSpacing) - barSpacing;
 
-  // layout adjustments for custom Y axis column
-  const leftYAxisWidth = 44; // px reserved for Y axis labels
-  const chartHeight = 180;
-  const adjustedChartWidth = Math.max(120, chartWidth - leftYAxisWidth);
-  const innerChartHeight = Math.max(4, chartHeight - contentInset.top - contentInset.bottom);
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [period]);
+
+  const scaleY = (value: number) => {
+    if (maxTick === 0) return CHART_HEIGHT - CHART_PADDING.bottom;
+    return (
+      CHART_HEIGHT -
+      CHART_PADDING.bottom -
+      (value / maxTick) * (CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom)
+    );
+  };
+
+  const scaleX = (index: number) => {
+    return (index * (barWidth + barSpacing)) + barWidth / 2;
+  };
+
+  // 合計時間を計算
+  const totalMinutes = currentData.reduce((sum, d) => {
+    const planSum = d.perPlanMinutes?.reduce((s, p) => s + p.minutes, 0);
+    return sum + (typeof planSum === 'number' ? planSum : d.minutes);
+  }, 0);
+  const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: colors.card }]}
-      onLayout={(e) => {
-        const w = e.nativeEvent.layout.width;
-        // reserve small horizontal margin inside the card
-        setContainerWidth(Math.max(0, w - 8));
-      }}
-    >
+    <Animated.View style={[styles.container, { backgroundColor: colors.card, opacity: fadeAnim }]}>
       {/* ヘッダー */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>学習時間</Text>
         <View style={[styles.periodToggle, { backgroundColor: colors.background }]}>
           <TouchableOpacity
-            style={[styles.periodButton, period === 'weekly' && [styles.periodButtonActive, { backgroundColor: colors.primary }]]}
+            style={[
+              styles.periodButton,
+              period === 'weekly' && [styles.periodButtonActive, { backgroundColor: colors.primary }],
+            ]}
             onPress={() => setPeriod('weekly')}
           >
             <Text
               style={[
                 styles.periodButtonText,
-                period === 'weekly' && styles.periodButtonTextActive,
-                { color: period === 'weekly' ? defaultColors.white : colors.textSecondary },
+                { color: period === 'weekly' ? colors.textInverse : colors.textSecondary },
               ]}
             >
               週間
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.periodButton, period === 'monthly' && [styles.periodButtonActive, { backgroundColor: colors.primary }]]}
+            style={[
+              styles.periodButton,
+              period === 'monthly' && [styles.periodButtonActive, { backgroundColor: colors.primary }],
+            ]}
             onPress={() => setPeriod('monthly')}
           >
             <Text
               style={[
                 styles.periodButtonText,
-                period === 'monthly' && styles.periodButtonTextActive,
-                { color: period === 'monthly' ? defaultColors.white : colors.textSecondary },
+                { color: period === 'monthly' ? colors.textInverse : colors.textSecondary },
               ]}
             >
               月間
@@ -182,121 +167,141 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
       </View>
 
       {/* グラフ */}
-      {/* chartStyle is a single object because BarChart.style expects a ViewStyle */}
-      {/** reduce left padding so y-axis labels sit closer to the card edge */}
-      <View style={{ ...styles.chart, marginLeft: -6, marginRight: 4, paddingBottom: 12 }}>
-        <RNView style={{ height: 220, flexDirection: 'column' }}>
-          <RNView style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            {/* Y axis labels column */}
-            <Svg width={leftYAxisWidth} height={chartHeight}>
-              {(() => {
-                try {
-                  if (ticks.length === 0) return null;
-                  const maxV = ticks[ticks.length - 1] || 0;
-                  return ticks.map((t, i) => {
-                    // map value to y coordinate inside chart
-                    const y = maxV === 0
-                      ? contentInset.top + innerChartHeight
-                      : contentInset.top + ((maxV - t) / (maxV || 1)) * innerChartHeight;
-                    return (
-                      <SvgText
-                        key={`y-${i}`}
-                        x={leftYAxisWidth - 6}
-                        y={y + 4} // small vertical offset to better align with bars
-                        fontSize={11}
-                        fill={colors.textSecondary}
-                        textAnchor="end"
-                      >
-                        {formatHourLabel(t)}
-                      </SvgText>
-                    );
+      <View style={styles.chartContainer}>
+        <Svg width={chartWidth + CHART_PADDING.left + CHART_PADDING.right} height={CHART_HEIGHT}>
+          <G>
+            {/* Y軸グリッドライン */}
+            {ticks.map((tick, i) => {
+              const y = scaleY(tick);
+              return (
+                <Line
+                  key={`grid-${i}`}
+                  x1={CHART_PADDING.left}
+                  y1={y}
+                  x2={chartWidth + CHART_PADDING.left}
+                  y2={y}
+                  stroke={colors.border}
+                  strokeWidth={1}
+                  strokeDasharray="4 4"
+                  opacity={0.5}
+                />
+              );
+            })}
+
+            {/* Y軸ラベル */}
+            {ticks.map((tick, i) => {
+              const y = scaleY(tick);
+              return (
+                <SvgText
+                  key={`y-label-${i}`}
+                  x={CHART_PADDING.left - 10}
+                  y={y + 4}
+                  fontSize={11}
+                  fill={colors.textSecondary}
+                  textAnchor="end"
+                >
+                  {formatHourLabel(tick)}
+                </SvgText>
+              );
+            })}
+
+            {/* 積み上げ棒グラフ */}
+            {currentData.map((d, dataIndex) => {
+              let yOffset = scaleY(0);
+              const x = CHART_PADDING.left + scaleX(dataIndex) - barWidth / 2;
+
+              // 各計画ごとの積み上げ
+              const stackedRects = [];
+              if (planIds.length > 0) {
+                planIds.forEach((pid, planIndex) => {
+                  const map = new Map(d.perPlanMinutes?.map((p) => [p.planId, p.minutes]) || []);
+                  const minutes = map.get(pid) || 0;
+                  const hours = minutes / 60;
+                  if (hours > 0) {
+                    const height = (hours / maxTick) * (CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom);
+                    const y = yOffset - height;
+                    stackedRects.push({
+                      y,
+                      height,
+                      color: getColorForPlan(pid),
+                    });
+                    yOffset = y;
+                  }
+                });
+              } else {
+                const totalMinutes = d.minutes;
+                const hours = totalMinutes / 60;
+                if (hours > 0) {
+                  const height = (hours / maxTick) * (CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom);
+                  const y = yOffset - height;
+                  stackedRects.push({
+                    y,
+                    height,
+                    color: getColorForPlan('total'),
                   });
-                } catch (e) {
+                }
+              }
+
+              return stackedRects.map((rect, rectIndex) => (
+                <Rect
+                  key={`bar-${dataIndex}-${rectIndex}`}
+                  x={x}
+                  y={rect.y}
+                  width={barWidth}
+                  height={rect.height}
+                  fill={rect.color}
+                  rx={6}
+                  ry={6}
+                />
+              ));
+            })}
+
+            {/* X軸ラベル */}
+            {labels.map((label, index) => {
+              const x = CHART_PADDING.left + scaleX(index);
+              // 週間は全て表示、月間は間引く
+              if (period === 'monthly' && labels.length > 10) {
+                const interval = Math.ceil(labels.length / 10);
+                if (index !== 0 && index !== labels.length - 1 && index % interval !== 0) {
                   return null;
                 }
-              })()}
-            </Svg>
-
-            <StackedBarChart
-              style={{ height: chartHeight, width: adjustedChartWidth }}
-            keys={planIds.length > 0 ? planIds : ['total']}
-            colors={planIds.length > 0 ? planIds.map((pid) => getColorForPlan(pid)) : [getColorForPlan('total')]}
-            data={currentData.map((d) => {
-              const map = new Map(d.perPlanMinutes?.map((p) => [p.planId, Math.round((p.minutes / 60) * 10) / 10]) || []);
-              const obj: Record<string, number> = {};
-              if (planIds.length > 0) {
-                planIds.forEach((pid) => { obj[pid] = map.get(pid) || 0; });
-              } else {
-                obj['total'] = Math.round((d.minutes / 60) * 10) / 10;
               }
-              return obj;
-            })}
-            contentInset={{ top: 10, bottom: 10 }}
-            horizontal={false}
-            showGrid={false}
-            spacingInner={0.6}
-            spacingOuter={0.2}
-            animate={{ duration: 300 }}
-            svg={{ rx: 6 }}
-          >
-            <Grid />
-          </StackedBarChart>
-
-          </RNView>
-
-          {/* Custom X-axis labels: staggered to prevent overlap */}
-          <Svg width={adjustedChartWidth} height={40} style={{ marginTop: 8, marginLeft: leftYAxisWidth }}>
-            {(() => {
-              try {
-                const xScale = scale.scaleBand().domain(labels).range([12, Math.max(12, chartWidth - 12)]).padding(0.2 as any);
-                return labels.map((lbl, i) => {
-                  const band = xScale.bandwidth ? xScale.bandwidth() : (chartWidth / Math.max(1, labels.length));
-                    const x = (xScale(lbl) || 0) + band / 2;
-                    // If few labels (weekly view) show all. Otherwise decide interval to avoid overlap; always show first and last
-                    if (labels.length <= 7) {
-                      // show all labels for weekly data
-                    } else {
-                      const approxLabelWidth = 48;
-                      const maxLabels = Math.max(1, Math.floor(chartWidth / approxLabelWidth));
-                      const interval = Math.max(1, Math.ceil(labels.length / maxLabels));
-                      if (!(i === 0 || i === labels.length - 1 || i % interval === 0)) return null;
-                    }
-                    const y = 18; // single horizontal line
-                    return (
-                      <SvgText
-                        key={`lbl-${i}`}
-                        x={x}
-                        y={y}
-                        fontSize={10}
-                        fill={colors.textSecondary}
-                        textAnchor="middle"
-                      >
-                        {lbl}
-                      </SvgText>
-                    );
-                });
-              } catch (e) {
-                return null;
-              }
-            })()}
-          </Svg>
-        </RNView>
-
-        {/* 凡例（簡易表示）*/}
-        <View style={styles.legendContainer}>
-          <View style={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {(planIds.length > 0 ? planIds : ['Total']).map((pid, i) => {
-              const title = planIdToTitle.get(pid) || (pid === 'Total' ? '合計' : pid);
-              const short = typeof title === 'string' && title.length > 20 ? title.slice(0, 17) + '…' : title;
               return (
-                <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, marginBottom: 6 }}>
-                  <View style={{ width: 12, height: 12, backgroundColor: getColorForPlan(pid), marginRight: 6, borderRadius: 2 }} />
-                  <Text style={{ ...textStyles.bodySmall, color: colors.textSecondary }}>{short}</Text>
+                <SvgText
+                  key={`x-label-${index}`}
+                  x={x}
+                  y={CHART_HEIGHT - CHART_PADDING.bottom + 20}
+                  fontSize={10}
+                  fill={colors.textSecondary}
+                  textAnchor="middle"
+                  rotation={period === 'monthly' ? -45 : 0}
+                  originX={x}
+                  originY={CHART_HEIGHT - CHART_PADDING.bottom + 20}
+                >
+                  {label.length > 6 ? `${label.slice(0, 5)}...` : label}
+                </SvgText>
+              );
+            })}
+          </G>
+        </Svg>
+
+        {/* 凡例 */}
+        {(planIds.length > 0 ? planIds : ['Total']).length > 1 && (
+          <View style={styles.legendContainer}>
+            {(planIds.length > 0 ? planIds : ['Total']).map((pid) => {
+              const title = planIdToTitle.get(pid) || (pid === 'Total' ? '合計' : pid);
+              const short = typeof title === 'string' && title.length > 15 ? `${title.slice(0, 12)}...` : title;
+              return (
+                <View key={pid} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: getColorForPlan(pid) }]} />
+                  <Text style={[styles.legendText, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {short}
+                  </Text>
                 </View>
               );
             })}
           </View>
-        </View>
+        )}
       </View>
 
       {/* 合計表示 */}
@@ -305,86 +310,95 @@ export const StudyTimeChart: React.FC<StudyTimeChartProps> = ({
           {period === 'weekly' ? '今週の合計' : '今月の合計'}
         </Text>
         <Text style={[styles.summaryValue, { color: colors.primary }]}>
-          {(() => {
-            const totalMinutes: number = currentData.reduce((sum, d) => sum + d.minutes, 0);
-            const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
-            return `${totalHours} 時間`;
-          })()}
+          {totalHours} 時間
         </Text>
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: defaultColors.card,
-    borderRadius: 16,
-    padding: spacing.md,
+    borderRadius: 20,
+    padding: spacing.lg,
     marginBottom: spacing.md,
-    // allow the chart to render a bit outside if needed and provide extra
-    // right inner padding so the purple background has room
-    paddingRight: spacing.lg + 28,
-    overflow: 'visible',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   title: {
-    ...textStyles.h3,
+    ...textStyles.h2,
     color: defaultColors.text,
+    fontWeight: '700',
   },
   periodToggle: {
     flexDirection: 'row',
-    backgroundColor: defaultColors.backgroundSecondary,
-    borderRadius: 8,
-    padding: 2,
+    backgroundColor: defaultColors.background,
+    borderRadius: 10,
+    padding: 4,
+    gap: 4,
   },
   periodButton: {
     paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
   },
   periodButtonActive: {
     backgroundColor: defaultColors.primary,
   },
   periodButtonText: {
     ...textStyles.bodySmall,
-    color: defaultColors.textSecondary,
     fontWeight: '600',
   },
-  periodButtonTextActive: {
-    color: defaultColors.textInverse,
-  },
-  chart: {
+  chartContainer: {
     marginVertical: spacing.sm,
-    borderRadius: 16,
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    gap: spacing.md,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+  },
+  legendText: {
+    ...textStyles.bodySmall,
+    fontSize: 11,
   },
   summary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: defaultColors.border,
   },
   summaryLabel: {
     ...textStyles.body,
     color: defaultColors.textSecondary,
+    fontWeight: '600',
   },
   summaryValue: {
-    ...textStyles.h3,
+    ...textStyles.h2,
     color: defaultColors.primary,
-  },
-  legendContainer: {
-    marginTop: 6,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
+    fontWeight: '700',
   },
 });
